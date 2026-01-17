@@ -7,18 +7,34 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        
         body { 
-            background-color: #2d2631; color: white; font-family: sans-serif; 
+            background-color: #1a161d; 
+            color: white; 
+            font-family: sans-serif; 
             overflow: hidden; 
             height: 100vh; height: 100dvh; 
-            display: flex; flex-direction: column; 
+            display: flex; 
+            justify-content: center; /* Центрируем по горизонтали */
             margin: 0; 
-            padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px;
+        }
+
+        /* Главный контейнер, имитирующий экран телефона */
+        .app-container {
+            width: 100%;
+            max-width: 500px; /* Фиксируем ширину как у смартфона */
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: #2d2631;
+            padding: 10px 15px calc(10px + env(safe-area-inset-bottom)) 15px;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
         
         #board { 
             display: grid; grid-template-columns: repeat(4, 1fr); 
-            gap: 8px; width: 100%; max-width: 450px; margin: 0 auto;
+            gap: 8px; width: 100%; margin: 0 auto;
             flex-grow: 1; 
             align-content: center;
             min-height: 0;
@@ -99,7 +115,7 @@
         .shape-svg-classic:first-child { margin-top: 0 !important; }
 
         .overlay { 
-            display: none; position: fixed; inset: 0; 
+            display: none; position: absolute; inset: 0; 
             background: rgba(45, 38, 49, 0.98); backdrop-filter: blur(15px);
             z-index: 100; flex-direction: column; align-items: center; justify-content: center;
             padding: 20px;
@@ -177,8 +193,6 @@
             display: flex;
             justify-content: space-between;
             width: 100%;
-            max-width: 450px;
-            margin: 0 auto;
             position: relative;
             z-index: 20;
         }
@@ -201,44 +215,29 @@
             flex-direction: column;
             justify-content: flex-start;
         }
-        .stat-label {
-            font-size: 9px; 
-            color: #9ca3af; 
-            text-transform: uppercase; 
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            margin-bottom: 2px;
-        }
-        .stat-value {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-weight: 700;
-            line-height: 1;
-        }
+        .stat-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 2px; }
+        .stat-value { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 700; line-height: 1; }
         .stat-value.large { font-size: 26px; color: #ec4899; }
         .stat-value.medium { font-size: 22px; color: white; }
         .stat-value.small-mono { font-size: 13px; color: white; line-height: 1.4; }
 
         #swipe-zone {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 40vh;
-            z-index: 5;
-            touch-action: none;
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 40%; z-index: 5; touch-action: none;
         }
 
     </style>
 </head>
 <body>
 
+<div class="app-container">
     <svg style="position: absolute; width: 0; height: 0;">
         <defs id="svg-defs"></defs>
     </svg>
 
     <div id="swipe-zone"></div>
 
-    <div class="flex justify-between items-start mb-2 px-2 pt-1 flex-shrink-0">
+    <div class="flex justify-between items-start mb-2 pt-1 flex-shrink-0">
         <div id="possible-area" class="flex flex-col gap-1">
             <div id="possible-label" class="text-lg font-bold">Possible: <span id="possible-count" class="text-pink-400">0</span></div>
             <div id="detailed-possible" class="flex gap-1 transition-opacity duration-300">
@@ -260,7 +259,7 @@
         <div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div>
     </div>
 
-    <div class="flex justify-end mt-2 mb-2 px-2 flex-shrink-0">
+    <div class="flex justify-end mt-2 mb-2 flex-shrink-0">
         <div class="flex flex-col items-end">
             <div class="settings-btn" onpointerdown="toggleSettings(true)">
                 <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.91,7.62,6.29L5.23,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.72,8.87 c-0.11,0.2-0.06,0.47,0.12,0.61l2.03,1.58C4.84,11.36,4.81,11.66,4.81,12c0,0.33,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.5c-1.93,0-3.5-1.57-3.5-3.5 s1.57-3.5,3.5-3.5s3.5,1.57,3.5,3.5S13.93,15.5,12,15.5z"/></svg>
@@ -315,7 +314,6 @@
 
     <div id="result-modal" class="overlay">
         <h2 class="text-4xl font-black mb-6 text-pink-400 uppercase tracking-widest">Result</h2>
-        
         <div class="stat-grid mb-6">
             <div class="stat-card">
                 <span class="stat-label">Sets</span>
@@ -344,7 +342,6 @@
                 </div>
             </div>
         </div>
-
         <div class="flex flex-col gap-3 items-center w-full">
             <button onpointerdown="openRecords()" class="btn-action !w-64 text-xl py-4 uppercase !bg-gray-600 !shadow-[#444]">Records</button>
             <button onpointerdown="resetGame()" class="btn-action !w-64 text-xl py-4 uppercase">Restart</button>
@@ -356,467 +353,480 @@
         <div id="records-container" class="records-list"></div>
         <button onpointerdown="closeRecords()" class="btn-action !w-64 text-xl py-4 uppercase mt-6">Back</button>
     </div>
+</div>
 
-    <script>
-        const GAME_COLORS = ['#fd0000', '#01a43b', '#0000fe'];
-        let config = {
-            preset: localStorage.getItem('set_shape_preset') || 'standard',
-            showPossible: localStorage.getItem('set_show_possible') !== 'false',
-            showDetailedPossible: localStorage.getItem('set_show_detailed') === 'true',
-            autoShuffle: localStorage.getItem('set_auto_shuffle') === 'true',
-            preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'true',
-            useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'true',
-            minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '0')
-        };
+<script>
+    const GAME_COLORS = ['#fd0000', '#01a43b', '#0000fe'];
+    let config = {
+        preset: localStorage.getItem('set_shape_preset') || 'standard',
+        showPossible: localStorage.getItem('set_show_possible') !== 'false',
+        showDetailedPossible: localStorage.getItem('set_show_detailed') === 'true',
+        autoShuffle: localStorage.getItem('set_auto_shuffle') === 'true',
+        preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'true',
+        useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'true',
+        minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '0')
+    };
 
-        let deck = [], board = [], selected = [], collectedSets = 0, badShuffles = 0;
-        let startTime = Date.now(), isAnimating = false, isGameOver = false, isBtnLocked = false;
-        let setTimestamps = [], possibleHistory = []; 
+    let deck = [], board = [], selected = [], collectedSets = 0, badShuffles = 0;
+    let startTime = Date.now(), isAnimating = false, isGameOver = false, isBtnLocked = false;
+    let setTimestamps = [], possibleHistory = []; 
 
-        function mulberry32(a) {
-            return function() {
-                let t = a += 0x6D2B79F5;
-                t = Math.imul(t ^ t >>> 15, t | 1);
-                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-                return ((t ^ t >>> 14) >>> 0) / 4294967296;
-            }
+    function mulberry32(a) {
+        return function() {
+            let t = a += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
         }
+    }
 
-        function formatTime(ms, showMs = false) {
-            const totalSec = Math.floor(ms / 1000);
-            const m = Math.floor(totalSec / 60);
-            const s = totalSec % 60;
-            let res = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-            if (showMs) {
-                const remainder = Math.floor((ms % 1000) / 10);
-                res += `.${String(remainder).padStart(2, '0')}`;
-            }
-            return res;
+    function formatTime(ms, showMs = false) {
+        const totalSec = Math.floor(ms / 1000);
+        const m = Math.floor(totalSec / 60);
+        const s = totalSec % 60;
+        let res = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        if (showMs) {
+            const remainder = Math.floor((ms % 1000) / 10);
+            res += `.${String(remainder).padStart(2, '0')}`;
         }
+        return res;
+    }
 
-        function updateColors() {
-            const defs = document.getElementById('svg-defs');
-            const isStd = config.preset === 'standard';
-            const step = isStd ? 3 : 1.5;
-            const sWidth = isStd ? 1.2 : 0.6;
-            const xOffset = isStd ? 1 : 0;
+    function updateColors() {
+        const defs = document.getElementById('svg-defs');
+        const isStd = config.preset === 'standard';
+        const step = isStd ? 3 : 1.5;
+        const sWidth = isStd ? 1.2 : 0.6;
+        const xOffset = isStd ? 1 : 0;
 
-            defs.innerHTML = GAME_COLORS.map((c, i) => 
-                `<pattern id="s-${i}" patternUnits="userSpaceOnUse" width="${step}" height="${step}">
-                    <line x1="${xOffset}" y1="0" x2="${xOffset}" y2="${step}" stroke="${c}" stroke-width="${sWidth}" />
-                </pattern>`
-            ).join('');
-            for(let i=0; i<12; i++) updateSlot(i, false);
-        }
+        defs.innerHTML = GAME_COLORS.map((c, i) => 
+            `<pattern id="s-${i}" patternUnits="userSpaceOnUse" width="${step}" height="${step}">
+                <line x1="${xOffset}" y1="0" x2="${xOffset}" y2="${step}" stroke="${c}" stroke-width="${sWidth}" />
+            </pattern>`
+        ).join('');
+        for(let i=0; i<12; i++) updateSlot(i, false);
+    }
 
-        function getShapeSVG(card) {
-            const color = GAME_COLORS[card.c];
-            let fill = card.f === 0 ? 'none' : color;
-            if (card.f === 1) fill = `url(#s-${card.c})`;
-            let strokeW = config.preset === 'classic' ? (card.f === 1 ? 1 : 1.7) : 1.8;
+    function getShapeSVG(card) {
+        const color = GAME_COLORS[card.c];
+        let fill = card.f === 0 ? 'none' : color;
+        if (card.f === 1) fill = `url(#s-${card.c})`;
+        let strokeW = config.preset === 'classic' ? (card.f === 1 ? 1 : 1.7) : 1.8;
 
-            if (config.preset === 'standard') {
-                const shapes = [
-                    `<rect x="4" y="4" width="24" height="24" rx="1" stroke="${color}" stroke-width="1.8" fill="${fill}" />`,
-                    `<circle cx="16" cy="16" r="12" stroke="${color}" stroke-width="1.8" fill="${fill}" />`,
-                    `<polygon points="16,4 29,27 3,27" stroke="${color}" stroke-width="1.8" fill="${fill}" stroke-linejoin="round" />`
-                ];
-                return `<svg style="width:36px; height:36px" viewBox="0 0 32 32">${shapes[card.s]}</svg>`;
+        if (config.preset === 'standard') {
+            const shapes = [
+                `<rect x="4" y="4" width="24" height="24" rx="1" stroke="${color}" stroke-width="1.8" fill="${fill}" />`,
+                `<circle cx="16" cy="16" r="12" stroke="${color}" stroke-width="1.8" fill="${fill}" />`,
+                `<polygon points="16,4 29,27 3,27" stroke="${color}" stroke-width="1.8" fill="${fill}" stroke-linejoin="round" />`
+            ];
+            return `<svg style="width:36px; height:36px" viewBox="0 0 32 32">${shapes[card.s]}</svg>`;
+        } else {
+            const waveD = "M29.5,12 C30.8,14.5 30.8,17.2 30.2,19.9 C29.7,22.2 28,23 26,22 C25.4,21.7 24.8,21.4 24.3,21.1 C21.7,19.5 19,19.3 16.1,20.4 C13.4,21.5 10.6,21.6 7.8,20.8 C3.3,19.4 0.4,14.6 1.4,10.2 C2,7.7 3.7,7 5.9,8.2 C6.2,8.4 6.5,8.6 6.8,8.8 C9.7,10.6 12.7,11.2 16,9.9 C17.3,9.3 18.7,8.9 20,8.6 C24,7.6 27.5,8.9 29.5,12 Z";
+            let inner = '';
+            let extraClass = '';
+            if (card.s === 0) {
+                inner = `<polygon transform="translate(16,16) scale(1.08) translate(-16,-16)" points="1,16 16,8.5 31,16 16,23.5" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" stroke-linejoin="round" />`;
+                extraClass = 'diamond';
+            } else if (card.s === 1) {
+                inner = `<rect transform="translate(16,16) scale(1.08, 1.16) translate(-16,-16)" x="1" y="9.5" width="30" height="13" rx="6.5" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" />`;
+                extraClass = 'oval';
             } else {
-                const waveD = "M29.5,12 C30.8,14.5 30.8,17.2 30.2,19.9 C29.7,22.2 28,23 26,22 C25.4,21.7 24.8,21.4 24.3,21.1 C21.7,19.5 19,19.3 16.1,20.4 C13.4,21.5 10.6,21.6 7.8,20.8 C3.3,19.4 0.4,14.6 1.4,10.2 C2,7.7 3.7,7 5.9,8.2 C6.2,8.4 6.5,8.6 6.8,8.8 C9.7,10.6 12.7,11.2 16,9.9 C17.3,9.3 18.7,8.9 20,8.6 C24,7.6 27.5,8.9 29.5,12 Z";
-                let inner = '';
-                let extraClass = '';
-                if (card.s === 0) {
-                    inner = `<polygon transform="translate(16,16) scale(1.08) translate(-16,-16)" points="1,16 16,8.5 31,16 16,23.5" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" stroke-linejoin="round" />`;
-                    extraClass = 'diamond';
-                } else if (card.s === 1) {
-                    inner = `<rect transform="translate(16,16) scale(1.08, 1.16) translate(-16,-16)" x="1" y="9.5" width="30" height="13" rx="6.5" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" />`;
-                    extraClass = 'oval';
-                } else {
-                    inner = `<path transform="translate(16,16) scale(1.08) translate(-16,-16)" d="${waveD}" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" stroke-linejoin="round" />`;
-                    extraClass = 'wave';
-                }
-                return `<svg class="shape-svg-classic ${extraClass}" viewBox="0 0 32 32">${inner}</svg>`;
+                inner = `<path transform="translate(16,16) scale(1.08) translate(-16,-16)" d="${waveD}" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" stroke-linejoin="round" />`;
+                extraClass = 'wave';
             }
+            return `<svg class="shape-svg-classic ${extraClass}" viewBox="0 0 32 32">${inner}</svg>`;
         }
+    }
 
-        function updateSlot(i, animateIn = false) {
-            const slot = document.getElementById('board').children[i];
-            const card = board[i];
-            if (!slot) return;
-            slot.innerHTML = '';
-            if (card) {
-                const el = document.createElement('div');
-                el.className = 'card' + (animateIn ? ' anim-in' : '');
-                if (config.preset === 'standard') el.style.gap = ['0px', '9px', '3px'][card.n];
-                for (let n=0; n<=card.n; n++) el.innerHTML += getShapeSVG(card);
-                el.onpointerdown = (e) => { e.preventDefault(); toggleSelect(i, el); };
-                slot.appendChild(el);
-            }
+    function updateSlot(i, animateIn = false) {
+        const slot = document.getElementById('board').children[i];
+        const card = board[i];
+        if (!slot) return;
+        slot.innerHTML = '';
+        if (card) {
+            const el = document.createElement('div');
+            el.className = 'card' + (animateIn ? ' anim-in' : '');
+            if (config.preset === 'standard') el.style.gap = ['0px', '9px', '3px'][card.n];
+            for (let n=0; n<=card.n; n++) el.innerHTML += getShapeSVG(card);
+            el.onpointerdown = (e) => { e.preventDefault(); toggleSelect(i, el); };
+            slot.appendChild(el);
         }
+    }
 
-        async function toggleSettings(show) {
-            const modal = document.getElementById('settings-modal');
-            if (show) {
-                syncSettingsUI();
-                modal.classList.remove('hide');
-                modal.classList.add('show');
-            } else {
-                modal.classList.add('hide');
-                await new Promise(r => setTimeout(r, 200));
-                modal.classList.remove('show', 'hide');
-            }
-        }
-
-        function syncSettingsUI() {
-            document.getElementById('btn-std').className = `preset-chip ${config.preset === 'standard' ? 'active' : ''}`;
-            document.getElementById('btn-cls').className = `preset-chip ${config.preset === 'classic' ? 'active' : ''}`;
-            document.getElementById('toggle-possible').classList.toggle('active', config.showPossible);
-            
-            const rowDet = document.getElementById('row-detailed');
-            rowDet.style.opacity = config.showPossible ? '1' : '0.3';
-            rowDet.style.pointerEvents = config.showPossible ? 'auto' : 'none';
-            document.getElementById('toggle-detailed').classList.toggle('active', config.showDetailedPossible);
-            
-            document.getElementById('toggle-auto').classList.toggle('active', config.autoShuffle);
-            document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
-            document.getElementById('toggle-seed').classList.toggle('active', config.useFixedSeed);
-            document.getElementById('min-sets-input').value = config.minSetsToRecord;
-            document.getElementById('seed-label').style.display = config.useFixedSeed ? 'block' : 'none';
-        }
-
-        function setShape(p) {
-            config.preset = p;
-            localStorage.setItem('set_shape_preset', p);
-            updateColors();
+    async function toggleSettings(show) {
+        const modal = document.getElementById('settings-modal');
+        if (show) {
             syncSettingsUI();
-        }
-
-        function toggleOption(key) {
-            config[key] = !config[key];
-            const storageKey = 'set_' + key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-            localStorage.setItem(storageKey, config[key]);
-            syncSettingsUI();
-            
-            if (key === 'useFixedSeed') {
-                initNewDeckAndBoard();
-                resetStats();
-                updateUI();
-            } else {
-                updateUI();
-            }
-        }
-
-        function setMinSets(val) {
-            const num = parseInt(val) || 0;
-            config.minSetsToRecord = num;
-            localStorage.setItem('set_min_sets', num);
-        }
-
-        function createDeck() {
-            const d = [];
-            for (let c=0; c<3; c++) for (let s=0; s<3; s++) for (let f=0; f<3; f++) for (let n=0; n<3; n++) d.push({c,s,f,n});
-            
-            let randomFunc = Math.random;
-            if (config.useFixedSeed) {
-                const now = new Date();
-                const seedStr = `${now.getFullYear()}${now.getMonth()}${now.getDate()}${now.getHours()}${now.getMinutes()}`;
-                randomFunc = mulberry32(parseInt(seedStr));
-            }
-
-            for (let i = d.length - 1; i > 0; i--) {
-                const j = Math.floor(randomFunc() * (i + 1));
-                [d[i], d[j]] = [d[j], d[i]];
-            }
-            return d;
-        }
-
-        function analyzePossibleSets() {
-            let stats = { total: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
-            for(let i=0; i<board.length; i++) {
-                for(let j=i+1; j<board.length; j++) {
-                    for(let k=j+1; k<board.length; k++) {
-                        if(board[i] && board[j] && board[k]) {
-                            let diffCount = 0;
-                            let isSet = true;
-                            ['c','s','f','n'].forEach(p => {
-                                if ((board[i][p]+board[j][p]+board[k][p])%3 !== 0) isSet = false;
-                                if (board[i][p] !== board[j][p]) diffCount++;
-                            });
-                            if (isSet) {
-                                stats.total++;
-                                stats[diffCount]++;
-                            }
-                        }
-                    }
-                }
-            }
-            return stats;
-        }
-
-        function updateUI() {
-            // 1. Расчет данных (всегда)
-            const stats = analyzePossibleSets();
-            possibleHistory.push(stats.total);
-
-            // 2. Обновление счетчиков
-            document.getElementById('deck-count').innerText = deck.length;
-            document.getElementById('current-score').innerText = collectedSets;
-            
-            // 3. Визуализация подсказок (если включено)
-            document.getElementById('possible-count').innerText = stats.total;
-            document.getElementById('possible-label').style.opacity = config.showPossible ? '1' : '0';
-            
-            const detContainer = document.getElementById('detailed-possible');
-            detContainer.style.opacity = (config.showPossible && config.showDetailedPossible) ? '1' : '0';
-            
-            document.getElementById('det-4').innerText = stats[4];
-            document.getElementById('det-3').innerText = stats[3];
-            document.getElementById('det-2').innerText = stats[2];
-            document.getElementById('det-1').innerText = stats[1];
-
-            // 4. Логика автошаффла (Независимо от настроек отображения!)
-            if (stats.total === 0 && config.autoShuffle && deck.length > 0 && !isAnimating && !isGameOver) {
-                setTimeout(() => shuffleBoard(true), 500);
-            }
-        }
-
-        function showToast(text) {
-            const toast = document.createElement('div');
-            toast.className = 'bad-shuffle-toast';
-            toast.innerText = text;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 800);
-        }
-
-        async function toggleSelect(idx, el) {
-            if (isAnimating || isGameOver) return;
-            if (selected.includes(idx)) {
-                selected = selected.filter(i => i !== idx);
-                el.classList.remove('selected');
-                return;
-            }
-            selected.push(idx); el.classList.add('selected');
-            if (selected.length === 3) {
-                isAnimating = true;
-                const sIdx = [...selected];
-                const cards = sIdx.map(i => board[i]);
-                const isCorrect = ['c','s','f','n'].every(p => (cards[0][p] + cards[1][p] + cards[2][p]) % 3 === 0);
-                if (isCorrect) {
-                    collectedSets++;
-                    setTimestamps.push(Date.now());
-                    
-                    sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
-                    await new Promise(r => setTimeout(r, 70));
-                    sIdx.forEach(i => { board[i] = deck.length > 0 ? deck.pop() : null; updateSlot(i, true); });
-                    selected = []; 
-                    isAnimating = false; // Разблокируем перед updateUI для автошаффла
-                    updateUI();
-                    if (collectedSets >= 23 && analyzePossibleSets().total === 0 && !isGameOver) {
-                        setTimeout(() => finishGame(), 300);
-                    }
-                } else {
-                    await new Promise(r => setTimeout(r, 150));
-                    sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.remove('selected'));
-                    selected = [];
-                    isAnimating = false;
-                }
-            }
-        }
-
-        function handleShuffleClick() {
-            if (isAnimating || isGameOver || isBtnLocked) return;
-            const possibleCount = analyzePossibleSets().total;
-            
-            if (possibleCount > 0) {
-                badShuffles++;
-                updateUI();
-                if (!config.showPossible && !config.autoShuffle) showToast('bad shuffle!');
-                if (config.preventBadShuffle) {
-                    const btn = document.getElementById('shuffle-btn');
-                    isBtnLocked = true;
-                    btn.classList.add('locked');
-                    btn.innerText = 'nuh-uh!';
-                    setTimeout(() => {
-                        btn.classList.remove('locked');
-                        btn.innerText = 'Shuffle';
-                        isBtnLocked = false;
-                    }, 1000);
-                    return;
-                }
-            }
-            shuffleBoard(false);
-        }
-
-        function shuffleExistingCards() {
-            if (isAnimating || isGameOver) return;
-            isAnimating = true;
-            for (let i = board.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [board[i], board[j]] = [board[j], board[i]];
-            }
-            selected = [];
-            const slots = document.getElementById('board').children;
-            for (let i = 0; i < slots.length; i++) {
-                updateSlot(i, false);
-                const cardEl = slots[i].querySelector('.card');
-                if (cardEl) {
-                    cardEl.classList.add('jumping');
-                    cardEl.addEventListener('animationend', () => {
-                        cardEl.classList.remove('jumping');
-                    }, { once: true });
-                }
-            }
-            updateUI();
-            setTimeout(() => { isAnimating = false; }, 200);
-        }
-
-        function shuffleBoard(isAuto = false) {
-            if (isAnimating) return;
-            isAnimating = true;
-            document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
-            setTimeout(() => {
-                const currentCards = board.filter(c => c !== null);
-                deck.push(...currentCards);
-                deck.sort(() => Math.random() - 0.5);
-                board = deck.splice(0, 12);
-                selected = [];
-                for (let i=0; i<12; i++) updateSlot(i, true);
-                isAnimating = false;
-                updateUI();
-            }, 80);
-        }
-
-        function saveRecord() {
-            if (collectedSets < config.minSetsToRecord) return;
-            const elapsedMs = Date.now() - startTime;
-            const now = new Date();
-            const dateStr = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getFullYear()).slice(-2)} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-            
-            const records = JSON.parse(localStorage.getItem('set_pro_records') || '[]');
-            records.push({ id: Date.now(), sets: collectedSets, time: elapsedMs, badShuffles: badShuffles, date: dateStr, isSeed: config.useFixedSeed });
-            localStorage.setItem('set_pro_records', JSON.stringify(records));
-        }
-
-        function finishGame() {
-            if (isGameOver) return;
-            isGameOver = true;
-            const elapsedMs = Date.now() - startTime;
-            saveRecord();
-
-            let findIntervals = [];
-            let prev = startTime;
-            setTimestamps.forEach(ts => {
-                findIntervals.push(ts - prev);
-                prev = ts;
-            });
-
-            const maxFind = findIntervals.length ? Math.max(...findIntervals) : 0;
-            const minFind = findIntervals.length ? Math.min(...findIntervals) : 0;
-            const avgFind = findIntervals.length ? (findIntervals.reduce((a, b) => a + b, 0) / findIntervals.length) : 0;
-            const avgPossible = possibleHistory.length ? (possibleHistory.reduce((a, b) => a + b, 0) / possibleHistory.length) : 0;
-
-            document.getElementById('final-time').innerText = formatTime(elapsedMs, true);
-            document.getElementById('final-score').innerText = collectedSets;
-            document.getElementById('final-bad-shuffles').innerText = badShuffles;
-            
-            document.getElementById('final-avg-find').innerText = avgFind ? formatTime(avgFind, true) : '--:--';
-            document.getElementById('final-ext-find').innerHTML = `FAST: ${minFind ? formatTime(minFind, true) : '--'}<br>SLOW: ${maxFind ? formatTime(maxFind, true) : '--'}`;
-            document.getElementById('final-avg-possible').innerText = avgPossible.toFixed(2);
-
-            const modal = document.getElementById('result-modal');
             modal.classList.remove('hide');
             modal.classList.add('show');
-
-            setTimeout(() => {
-                document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
-                setTimeout(() => { initNewDeckAndBoard(); }, 100);
-            }, 150);
-        }
-
-        function initNewDeckAndBoard() {
-            deck = createDeck();
-            board = deck.splice(0, 12);
-            selected = [];
-            for (let i=0; i<12; i++) updateSlot(i, false);
-        }
-
-        function resetStats() {
-            collectedSets = 0; badShuffles = 0;
-            startTime = Date.now();
-            setTimestamps = [];
-            possibleHistory = [];
-            document.getElementById('timer').innerText = "00:00";
-        }
-
-        async function resetGame() {
-            const modal = document.getElementById('result-modal');
-            if (modal.classList.contains('show')) {
-                modal.classList.add('hide');
-                await new Promise(r => setTimeout(r, 200));
-                modal.classList.remove('show', 'hide');
-            }
-            isGameOver = false;
-            resetStats();
-            updateUI();
-        }
-
-        function openRecords() {
-            const records = JSON.parse(localStorage.getItem('set_pro_records') || '[]');
-            records.sort((a, b) => b.sets - a.sets || a.time - b.time);
-            const container = document.getElementById('records-container');
-            container.innerHTML = records.length ? '' : '<p class="text-center text-gray-500 mt-10">No records yet</p>';
-            
-            records.forEach(r => {
-                const item = document.createElement('div');
-                item.className = 'record-item';
-                item.innerHTML = `
-                    <div class="record-info"><div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div><div class="text-[10px] uppercase opacity-70">${r.date}</div></div>
-                    <div class="record-info text-right"><div class="text-white font-mono">${formatTime(r.time, true)}</div><div class="text-[10px] uppercase text-red-400">Shuffles: ${r.badShuffles}</div></div>
-                    <div class="btn-del" onclick="deleteRecord(event, ${r.id})"><svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></div>
-                `;
-                container.appendChild(item);
-            });
-            document.getElementById('records-modal').classList.add('show');
-        }
-
-        function deleteRecord(event, id) {
-            event.stopPropagation();
-            if (confirm('Delete this record?')) {
-                let records = JSON.parse(localStorage.getItem('set_pro_records') || '[]');
-                records = records.filter(r => r.id !== id);
-                localStorage.setItem('set_pro_records', JSON.stringify(records));
-                openRecords();
-            }
-        }
-
-        async function closeRecords() {
-            const modal = document.getElementById('records-modal');
+        } else {
             modal.classList.add('hide');
             await new Promise(r => setTimeout(r, 200));
             modal.classList.remove('show', 'hide');
         }
+    }
 
-        let touchStartY = 0;
-        const swipeZone = document.getElementById('swipe-zone');
-        swipeZone.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
-        swipeZone.addEventListener('touchend', (e) => {
-            const touchEndY = e.changedTouches[0].clientY;
-            const diff = touchStartY - touchEndY;
-            if (diff > 50) shuffleExistingCards();
-        }, { passive: true });
+    function syncSettingsUI() {
+        document.getElementById('btn-std').className = `preset-chip ${config.preset === 'standard' ? 'active' : ''}`;
+        document.getElementById('btn-cls').className = `preset-chip ${config.preset === 'classic' ? 'active' : ''}`;
+        document.getElementById('toggle-possible').classList.toggle('active', config.showPossible);
+        
+        const rowDet = document.getElementById('row-detailed');
+        rowDet.style.opacity = config.showPossible ? '1' : '0.3';
+        rowDet.style.pointerEvents = config.showPossible ? 'auto' : 'none';
+        document.getElementById('toggle-detailed').classList.toggle('active', config.showDetailedPossible);
+        
+        document.getElementById('toggle-auto').classList.toggle('active', config.autoShuffle);
+        document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
+        document.getElementById('toggle-seed').classList.toggle('active', config.useFixedSeed);
+        document.getElementById('min-sets-input').value = config.minSetsToRecord;
+        document.getElementById('seed-label').style.display = config.useFixedSeed ? 'block' : 'none';
+    }
 
-        setInterval(() => {
-            if (!isGameOver && !document.querySelector('.overlay.show')) {
-                const elapsedMs = Date.now() - startTime;
-                document.getElementById('timer').innerText = formatTime(elapsedMs, false);
-            }
-        }, 1000);
-
-        initNewDeckAndBoard();
+    function setShape(p) {
+        config.preset = p;
+        localStorage.setItem('set_shape_preset', p);
         updateColors();
         syncSettingsUI();
+    }
+
+    function toggleOption(key) {
+        config[key] = !config[key];
+        const storageKey = 'set_' + key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        localStorage.setItem(storageKey, config[key]);
+        syncSettingsUI();
+        
+        if (key === 'useFixedSeed') {
+            initNewDeckAndBoard();
+            resetStats();
+            updateUI();
+        } else {
+            updateUI();
+        }
+    }
+
+    function setMinSets(val) {
+        const num = parseInt(val) || 0;
+        config.minSetsToRecord = num;
+        localStorage.setItem('set_min_sets', num);
+    }
+
+    function createDeck() {
+        const d = [];
+        for (let c=0; c<3; c++) for (let s=0; s<3; s++) for (let f=0; f<3; f++) for (let n=0; n<3; n++) d.push({c,s,f,n});
+        
+        let randomFunc = Math.random;
+        if (config.useFixedSeed) {
+            const now = new Date();
+            const seedStr = `${now.getFullYear()}${now.getMonth()}${now.getDate()}${now.getHours()}${now.getMinutes()}`;
+            randomFunc = mulberry32(parseInt(seedStr));
+        }
+
+        for (let i = d.length - 1; i > 0; i--) {
+            const j = Math.floor(randomFunc() * (i + 1));
+            [d[i], d[j]] = [d[j], d[i]];
+        }
+        return d;
+    }
+
+    function analyzePossibleSets() {
+        let stats = { total: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
+        for(let i=0; i<board.length; i++) {
+            for(let j=i+1; j<board.length; j++) {
+                for(let k=j+1; k<board.length; k++) {
+                    if(board[i] && board[j] && board[k]) {
+                        let diffCount = 0;
+                        let isSet = true;
+                        ['c','s','f','n'].forEach(p => {
+                            if ((board[i][p]+board[j][p]+board[k][p])%3 !== 0) isSet = false;
+                            if (board[i][p] !== board[j][p]) diffCount++;
+                        });
+                        if (isSet) {
+                            stats.total++;
+                            stats[diffCount]++;
+                        }
+                    }
+                }
+            }
+        }
+        return stats;
+    }
+
+    function updateUI() {
+        const stats = analyzePossibleSets();
+        possibleHistory.push(stats.total);
+
+        document.getElementById('deck-count').innerText = deck.length;
+        document.getElementById('current-score').innerText = collectedSets;
+        
+        document.getElementById('possible-count').innerText = stats.total;
+        document.getElementById('possible-label').style.opacity = config.showPossible ? '1' : '0';
+        
+        const detContainer = document.getElementById('detailed-possible');
+        detContainer.style.opacity = (config.showPossible && config.showDetailedPossible) ? '1' : '0';
+        
+        document.getElementById('det-4').innerText = stats[4];
+        document.getElementById('det-3').innerText = stats[3];
+        document.getElementById('det-2').innerText = stats[2];
+        document.getElementById('det-1').innerText = stats[1];
+
+        if (stats.total === 0 && config.autoShuffle && deck.length > 0 && !isAnimating && !isGameOver) {
+            setTimeout(() => shuffleBoard(true), 500);
+        }
+    }
+
+    function showToast(text) {
+        const toast = document.createElement('div');
+        toast.className = 'bad-shuffle-toast';
+        toast.innerText = text;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 800);
+    }
+
+    async function toggleSelect(idx, el) {
+        if (isAnimating || isGameOver) return;
+        if (selected.includes(idx)) {
+            selected = selected.filter(i => i !== idx);
+            el.classList.remove('selected');
+            return;
+        }
+        selected.push(idx); el.classList.add('selected');
+        if (selected.length === 3) {
+            isAnimating = true;
+            const sIdx = [...selected];
+            const cards = sIdx.map(i => board[i]);
+            const isCorrect = ['c','s','f','n'].every(p => (cards[0][p] + cards[1][p] + cards[2][p]) % 3 === 0);
+            if (isCorrect) {
+                collectedSets++;
+                setTimestamps.push(Date.now());
+                
+                sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
+                await new Promise(r => setTimeout(r, 70));
+                sIdx.forEach(i => { board[i] = deck.length > 0 ? deck.pop() : null; updateSlot(i, true); });
+                selected = []; 
+                isAnimating = false; 
+                updateUI();
+                if (collectedSets >= 23 && analyzePossibleSets().total === 0 && !isGameOver) {
+                    setTimeout(() => finishGame(), 300);
+                }
+            } else {
+                await new Promise(r => setTimeout(r, 150));
+                sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.remove('selected'));
+                selected = [];
+                isAnimating = false;
+            }
+        }
+    }
+
+    function handleShuffleClick() {
+        if (isAnimating || isGameOver || isBtnLocked) return;
+        const possibleCount = analyzePossibleSets().total;
+        
+        if (possibleCount > 0) {
+            badShuffles++;
+            updateUI();
+            if (!config.showPossible && !config.autoShuffle) showToast('bad shuffle!');
+            if (config.preventBadShuffle) {
+                const btn = document.getElementById('shuffle-btn');
+                isBtnLocked = true;
+                btn.classList.add('locked');
+                btn.innerText = 'nuh-uh!';
+                setTimeout(() => {
+                    btn.classList.remove('locked');
+                    btn.innerText = 'Shuffle';
+                    isBtnLocked = false;
+                }, 1000);
+                return;
+            }
+        }
+        shuffleBoard(false);
+    }
+
+    function shuffleExistingCards() {
+        if (isAnimating || isGameOver) return;
+        isAnimating = true;
+        for (let i = board.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [board[i], board[j]] = [board[j], board[i]];
+        }
+        selected = [];
+        const slots = document.getElementById('board').children;
+        for (let i = 0; i < slots.length; i++) {
+            updateSlot(i, false);
+            const cardEl = slots[i].querySelector('.card');
+            if (cardEl) {
+                cardEl.classList.add('jumping');
+                cardEl.addEventListener('animationend', () => {
+                    cardEl.classList.remove('jumping');
+                }, { once: true });
+            }
+        }
         updateUI();
-    </script>
+        setTimeout(() => { isAnimating = false; }, 200);
+    }
+
+    function shuffleBoard(isAuto = false) {
+        if (isAnimating) return;
+        isAnimating = true;
+        document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
+        setTimeout(() => {
+            const currentCards = board.filter(c => c !== null);
+            deck.push(...currentCards);
+            deck.sort(() => Math.random() - 0.5);
+            board = deck.splice(0, 12);
+            selected = [];
+            for (let i=0; i<12; i++) updateSlot(i, true);
+            isAnimating = false;
+            updateUI();
+        }, 80);
+    }
+
+    function saveRecord() {
+        if (collectedSets < config.minSetsToRecord) return;
+        const elapsedMs = Date.now() - startTime;
+        const now = new Date();
+        const dateStr = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getFullYear()).slice(-2)} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        
+        const records = JSON.parse(localStorage.getItem('set_pro_records') || '[]');
+        records.push({ id: Date.now(), sets: collectedSets, time: elapsedMs, badShuffles: badShuffles, date: dateStr, isSeed: config.useFixedSeed });
+        localStorage.setItem('set_pro_records', JSON.stringify(records));
+    }
+
+    function finishGame() {
+        if (isGameOver) return;
+        isGameOver = true;
+        const elapsedMs = Date.now() - startTime;
+        saveRecord();
+
+        let findIntervals = [];
+        let prev = startTime;
+        setTimestamps.forEach(ts => {
+            findIntervals.push(ts - prev);
+            prev = ts;
+        });
+
+        const maxFind = findIntervals.length ? Math.max(...findIntervals) : 0;
+        const minFind = findIntervals.length ? Math.min(...findIntervals) : 0;
+        const avgFind = findIntervals.length ? (findIntervals.reduce((a, b) => a + b, 0) / findIntervals.length) : 0;
+        const avgPossible = possibleHistory.length ? (possibleHistory.reduce((a, b) => a + b, 0) / possibleHistory.length) : 0;
+
+        document.getElementById('final-time').innerText = formatTime(elapsedMs, true);
+        document.getElementById('final-score').innerText = collectedSets;
+        document.getElementById('final-bad-shuffles').innerText = badShuffles;
+        
+        document.getElementById('final-avg-find').innerText = avgFind ? formatTime(avgFind, true) : '--:--';
+        document.getElementById('final-ext-find').innerHTML = `FAST: ${minFind ? formatTime(minFind, true) : '--'}<br>SLOW: ${maxFind ? formatTime(maxFind, true) : '--'}`;
+        document.getElementById('final-avg-possible').innerText = avgPossible.toFixed(2);
+
+        const modal = document.getElementById('result-modal');
+        modal.classList.remove('hide');
+        modal.classList.add('show');
+
+        setTimeout(() => {
+            document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
+            setTimeout(() => { initNewDeckAndBoard(); }, 100);
+        }, 150);
+    }
+
+    function initNewDeckAndBoard() {
+        deck = createDeck();
+        board = deck.splice(0, 12);
+        selected = [];
+        for (let i=0; i<12; i++) updateSlot(i, false);
+    }
+
+    function resetStats() {
+        collectedSets = 0; badShuffles = 0;
+        startTime = Date.now();
+        setTimestamps = [];
+        possibleHistory = [];
+        document.getElementById('timer').innerText = "00:00";
+    }
+
+    async function resetGame() {
+        const modal = document.getElementById('result-modal');
+        if (modal.classList.contains('show')) {
+            modal.classList.add('hide');
+            await new Promise(r => setTimeout(r, 200));
+            modal.classList.remove('show', 'hide');
+        }
+        isGameOver = false;
+        resetStats();
+        updateUI();
+    }
+
+    function openRecords() {
+        const records = JSON.parse(localStorage.getItem('set_pro_records') || '[]');
+        records.sort((a, b) => b.sets - a.sets || a.time - b.time);
+        const container = document.getElementById('records-container');
+        container.innerHTML = records.length ? '' : '<p class="text-center text-gray-500 mt-10">No records yet</p>';
+        
+        records.forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'record-item';
+            item.innerHTML = `
+                <div class="record-info"><div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div><div class="text-[10px] uppercase opacity-70">${r.date}</div></div>
+                <div class="record-info text-right"><div class="text-white font-mono">${formatTime(r.time, true)}</div><div class="text-[10px] uppercase text-red-400">Shuffles: ${r.badShuffles}</div></div>
+                <div class="btn-del" onclick="deleteRecord(event, ${r.id})"><svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></div>
+            `;
+            container.appendChild(item);
+        });
+        document.getElementById('records-modal').classList.add('show');
+    }
+
+    function deleteRecord(event, id) {
+        event.stopPropagation();
+        if (confirm('Delete this record?')) {
+            let records = JSON.parse(localStorage.getItem('set_pro_records') || '[]');
+            records = records.filter(r => r.id !== id);
+            localStorage.setItem('set_pro_records', JSON.stringify(records));
+            openRecords();
+        }
+    }
+
+    async function closeRecords() {
+        const modal = document.getElementById('records-modal');
+        modal.classList.add('hide');
+        await new Promise(r => setTimeout(r, 200));
+        modal.classList.remove('show', 'hide');
+    }
+
+    // Swipe handler
+    let touchStartY = 0;
+    const swipeZone = document.getElementById('swipe-zone');
+    swipeZone.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+    swipeZone.addEventListener('touchend', (e) => {
+        const touchEndY = e.changedTouches[0].clientY;
+        const diff = touchStartY - touchEndY;
+        if (diff > 50) shuffleExistingCards();
+    }, { passive: true });
+
+    // Hotkeys handler
+    window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT') return;
+        if (e.code === 'Space') {
+            e.preventDefault();
+            shuffleExistingCards();
+        } else if (e.code === 'Enter') {
+            e.preventDefault();
+            if (isGameOver) resetGame(); else finishGame();
+        } else if (e.code === 'Backspace') {
+            e.preventDefault();
+            handleShuffleClick();
+        }
+    });
+
+    setInterval(() => {
+        if (!isGameOver && !document.querySelector('.overlay.show')) {
+            const elapsedMs = Date.now() - startTime;
+            document.getElementById('timer').innerText = formatTime(elapsedMs, false);
+        }
+    }, 1000);
+
+    initNewDeckAndBoard();
+    updateColors();
+    syncSettingsUI();
+    updateUI();
+</script>
 </body>
 </html>
