@@ -15,14 +15,13 @@
             overflow: hidden; 
             height: 100vh; height: 100dvh; 
             display: flex; 
-            justify-content: center; /* Центрируем по горизонтали */
+            justify-content: center;
             margin: 0; 
         }
 
-        /* Главный контейнер, имитирующий экран телефона */
         .app-container {
             width: 100%;
-            max-width: 500px; /* Фиксируем ширину как у смартфона */
+            max-width: 500px;
             height: 100%;
             display: flex;
             flex-direction: column;
@@ -359,12 +358,12 @@
     const GAME_COLORS = ['#fd0000', '#01a43b', '#0000fe'];
     let config = {
         preset: localStorage.getItem('set_shape_preset') || 'standard',
-        showPossible: localStorage.getItem('set_show_possible') !== 'false',
-        showDetailedPossible: localStorage.getItem('set_show_detailed') === 'true',
+        showPossible: localStorage.getItem('set_show_possible') !== 'true',
+        showDetailedPossible: localStorage.getItem('set_show_detailed') === 'false',
         autoShuffle: localStorage.getItem('set_auto_shuffle') === 'true',
-        preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'true',
-        useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'true',
-        minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '0')
+        preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'false',
+        useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'false',
+        minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23')
     };
 
     let deck = [], board = [], selected = [], collectedSets = 0, badShuffles = 0;
