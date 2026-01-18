@@ -1110,31 +1110,41 @@
         if (isCapturingKey) {
             e.preventDefault();
             const { type, index } = isCapturingKey;
+
+            // 1. Проверяем конфликты и очищаем старые привязки
+            // В кнопках управления
+            if (binds.shuffle === key) binds.shuffle = '';
+            if (binds.shuffleEx === key) binds.shuffleEx = '';
+            if (binds.finish === key) binds.finish = '';
+            
+            binds.board = binds.board.map(b => b === key ? '' : b);
+
             if (type === 'board') {
                 binds.board[index] = key;
             } else {
                 binds[type] = key;
             }
+
             isCapturingKey = null;
             openKeybinds();
             return;
         }
 
         if (isGameOver) {
-            if (key === binds.finish) resetGame();
+            if (key === binds.finish && key !== '') resetGame();
             return;
         }
 
-        if (key === binds.shuffle) {
+        if (key !== '' && key === binds.shuffle) {
             e.preventDefault();
             handleShuffleClick();
-        } else if (key === binds.shuffleEx) {
+        } else if (key !== '' && key === binds.shuffleEx) {
             e.preventDefault();
             shuffleExistingCards();
-        } else if (key === binds.finish) {
+        } else if (key !== '' && key === binds.finish) {
             e.preventDefault();
             finishGame();
-        } else {
+        } else if (key !== '') {
             const boardIdx = binds.board.indexOf(key);
             if (boardIdx !== -1) {
                 const slot = document.getElementById('board').children[boardIdx];
