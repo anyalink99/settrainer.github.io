@@ -655,6 +655,30 @@
         }
     }
 
+	const keyToIndex = {
+		'e': 0, 'r': 1, 'i': 2, 'o': 3,
+		'd': 4, 'f': 5, 'j': 6, 'k': 7,
+		'c': 8, 'v': 9, 'n': 10, 'm': 11
+	};
+
+	document.addEventListener('keydown', (e) => {
+		if (isAnimating || isGameOver) return;
+
+		if (e.target && ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+		const key = e.key.toLowerCase();
+		if (!(key in keyToIndex)) return;
+
+		const idx = keyToIndex[key];
+		const slot = document.getElementById('board').children[idx];
+		const cardEl = slot?.querySelector('.card');
+
+		if (!cardEl) return;
+
+		toggleSelect(idx, cardEl);
+	});
+
+
     function handleShuffleClick() {
         if (isAnimating || isGameOver || isBtnLocked) return;
         const possibleCount = analyzePossibleSets().total;
