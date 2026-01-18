@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Set Pro Training</title>
+    <title>Set Pro Training - Elastic</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -22,15 +22,24 @@
         }
 
         .app-container {
-            width: 100%;
-            max-width: 500px;
+            width: 500px; 
             height: 100%;
             display: flex;
             flex-direction: column;
+            align-items: center;
             background-color: #2d2631;
-            padding: 10px 15px calc(10px + env(safe-area-inset-bottom)) 15px;
+            padding: 10px 20px calc(10px + env(safe-area-inset-bottom)) 20px;
             position: relative;
             box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        .fixed-core {
+            width: 100%;
+            max-width: 460px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            z-index: 10;
         }
         
         #board { 
@@ -39,7 +48,28 @@
             flex-grow: 1; 
             align-content: center;
             min-height: 0;
-            z-index: 10;
+        }
+
+        .hud-layer {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 30;
+        }
+        .hud-left, .hud-right { pointer-events: auto; }
+
+        .settings-edge-container {
+            position: absolute;
+            right: 20px;
+            bottom: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            z-index: 30;
         }
         
         .card-slot { aspect-ratio: 2/3; width: 100%; position: relative; }
@@ -152,8 +182,17 @@
         .preset-chip {
             padding: 6px 12px; border-radius: 10px; background: #2d2631;
             font-size: 12px; font-weight: bold; color: #888; border: 1px solid #5a4d61;
+            cursor: pointer; transition: all 0.2s; user-select: none;
         }
         .preset-chip.active { background: #a34e78; color: white; border-color: #a34e78; }
+        .preset-chip:active { transform: scale(0.95); }
+
+        @keyframes chipPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .chip-animate { animation: chipPulse 0.25s ease-out; }
 
         .records-list {
             width: 100%; max-width: 350px; height: 320px;
@@ -190,7 +229,7 @@
         .det-val { font-weight: 900; font-size: 14px; line-height: 1; color: #ec4899; }
 
         .bottom-actions {
-            padding-top: 10px;
+            padding: 10px 0;
             display: flex;
             justify-content: space-between;
             width: 100%;
@@ -217,12 +256,11 @@
             justify-content: flex-start;
             height: 64px;
         }
-        .stat-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 2px; display: block; }
+        .stat-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 5px; display: block; line-height: 1; }
         .stat-value { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 700; line-height: 1; }
         .stat-value.large { font-size: 26px; color: #ec4899; }
         .stat-value.medium { font-size: 22px; color: white; }
-        .stat-value.small-mono { font-size: 13px; color: white; line-height: 1.2; }
-        .stat-subtext { font-size: 11px; color: #ff4d4d; font-weight: bold; text-transform: uppercase; margin-top: auto; }
+        .stat-value.small-mono { font-size: 13px; color: white; line-height: 1.1; }
 
         .chart-container {
             width: 100%;
@@ -249,7 +287,6 @@
 
         .export-only { display: none; }
 
-        /* Keybinds Styles */
         .kb-grid {
             display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%;
         }
@@ -276,52 +313,72 @@
             .desktop-only { display: none !important; }
         }
 
+        /* 4. Resizer Styles - UPDATED: No pink edges, free stretch */
+        .resizer {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            cursor: ew-resize;
+            background: transparent;
+            z-index: 50;
+        }
+        .resizer-l { left: 0; }
+        .resizer-r { right: 0; }
+
     </style>
 </head>
 <body>
 
-<div class="app-container">
+<div id="app-container" class="app-container">
+    <div class="resizer resizer-l" id="resizer-l"></div>
+    <div class="resizer resizer-r" id="resizer-r"></div>
+
     <svg style="position: absolute; width: 0; height: 0;">
         <defs id="svg-defs"></defs>
     </svg>
 
     <div id="swipe-zone"></div>
 
-    <div class="flex justify-between items-start mb-2 pt-1 flex-shrink-0">
-        <div id="possible-area" class="flex flex-col gap-1">
-            <div id="possible-label" class="text-lg font-bold">Possible: <span id="possible-count" class="text-pink-400">0</span></div>
-            <div id="detailed-possible" class="flex gap-1 transition-opacity duration-300">
-                <div class="det-panel"><span class="det-val" id="det-4">0</span><span class="det-label">Diff</span></div>
-                <div class="det-panel"><span class="det-val" id="det-3">0</span><span class="det-label">1 Sm</span></div>
-                <div class="det-panel"><span class="det-val" id="det-2">0</span><span class="det-label">2 Sm</span></div>
-                <div class="det-panel"><span class="det-val" id="det-1">0</span><span class="det-label">3 Sm</span></div>
+    <div class="hud-layer">
+        <div class="hud-left">
+            <div id="possible-area" class="flex flex-col gap-1">
+                <div id="possible-label" class="text-lg font-bold">Possible: <span id="possible-count" class="text-pink-400">0</span></div>
+                <div id="detailed-possible" class="flex gap-1 transition-opacity duration-300">
+                    <div class="det-panel"><span class="det-val" id="det-4">0</span><span class="det-label">Diff</span></div>
+                    <div class="det-panel"><span class="det-val" id="det-3">0</span><span class="det-label">1 Sm</span></div>
+                    <div class="det-panel"><span class="det-val" id="det-2">0</span><span class="det-label">2 Sm</span></div>
+                    <div class="det-panel"><span class="det-val" id="det-1">0</span><span class="det-label">3 Sm</span></div>
+                </div>
             </div>
         </div>
-        <div class="flex flex-col items-end">
-            <div id="timer" class="font-mono bg-black/20 px-3 py-1 rounded text-lg font-bold">00:00</div>
-            <div id="seed-label" class="seed-indicator" style="display:none">Fixed Seed ON</div>
-        </div>
-    </div>
-
-    <div id="board">
-        <div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div>
-        <div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div>
-        <div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div>
-    </div>
-
-    <div class="flex justify-end mt-2 mb-2 flex-shrink-0">
-        <div class="flex flex-col items-end">
-            <div class="settings-btn" onpointerdown="toggleSettings(true)">
-                <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.91,7.62,6.29L5.23,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.72,8.87 c-0.11,0.2-0.06,0.47,0.12,0.61l2.03,1.58C4.84,11.36,4.81,11.66,4.81,12c0,0.33,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.5c-1.93,0-3.5-1.57-3.5-3.5 s1.57-3.5,3.5-3.5s3.5,1.57,3.5,3.5S13.93,15.5,12,15.5z"/></svg>
+        <div class="hud-right">
+            <div class="flex flex-col items-end">
+                <div id="timer" class="font-mono bg-black/20 px-3 py-1 rounded text-lg font-bold">00:00</div>
+                <div id="seed-label" class="seed-indicator" style="display:none">Fixed Seed ON</div>
             </div>
-            <div class="text-gray-300 text-sm font-medium">Sets: <span id="current-score" class="text-pink-400 font-bold">0</span></div>
-            <div class="text-gray-400 text-xs">Cards: <span id="deck-count">0</span></div>
         </div>
     </div>
 
-    <div class="bottom-actions">
-        <button onpointerdown="finishGame()" class="btn-action">Finish</button>
-        <button id="shuffle-btn" onpointerdown="handleShuffleClick()" class="btn-action">Shuffle</button>
+    <div class="settings-edge-container">
+        <div class="settings-btn" onpointerdown="toggleSettings(true)">
+            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.91,7.62,6.29L5.23,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.72,8.87 c-0.11,0.2-0.06,0.47,0.12,0.61l2.03,1.58C4.84,11.36,4.81,11.66,4.81,12c0,0.33,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.5c-1.93,0-3.5-1.57-3.5-3.5 s1.57-3.5,3.5-3.5s3.5,1.57,3.5,3.5S13.93,15.5,12,15.5z"/></svg>
+        </div>
+        <div class="text-gray-300 text-sm font-medium">Sets: <span id="current-score" class="text-pink-400 font-bold">0</span></div>
+        <div class="text-gray-400 text-xs">Cards: <span id="deck-count">0</span></div>
+    </div>
+
+    <div class="fixed-core">
+        <div class="h-[30px] flex-shrink-0"></div> <div id="board">
+            <div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div>
+            <div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div>
+            <div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div><div class="card-slot"></div>
+        </div>
+
+        <div class="bottom-actions">
+            <button onpointerdown="finishGame()" class="btn-action">Finish</button>
+            <button id="shuffle-btn" onpointerdown="handleShuffleClick()" class="btn-action">Shuffle</button>
+        </div>
     </div>
 
     <div id="settings-modal" class="overlay">
@@ -399,31 +456,29 @@
     <div id="result-modal" class="overlay">
         <div id="share-content" class="flex flex-col items-center w-full">
             <div id="export-header" class="text-[10px] text-pink-400/50 font-black uppercase tracking-[0.2em] mb-1 export-only">Set Pro Trainer</div>
-            <h2 id="result-title" class="text-4xl font-black mb-4 text-pink-400 uppercase tracking-widest">Result</h2>
+            <h2 id="result-title" class="text-4xl font-black mb-6 text-pink-400 uppercase tracking-widest">Result</h2>
             <div class="stat-grid mb-4">
                 <div class="stat-card">
-                    <div class="flex justify-between items-start h-full">
-                        <div class="flex flex-col">
-                            <span class="stat-label">Sets</span>
-                            <span id="final-score" class="stat-value large"></span>
-                        </div>
-                        <div class="flex flex-col items-end">
-                            <span class="stat-label">BS</span>
-                            <span id="final-bad-shuffles" class="stat-value medium text-red-500">0</span>
-                        </div>
+                    <div class="flex justify-between items-center w-full mb-1">
+                        <span class="stat-label">Sets</span>
+                        <span class="stat-label">BS</span>
+                    </div>
+                    <div class="flex justify-between items-baseline w-full mt-auto">
+                        <span id="final-score" class="stat-value large"></span>
+                        <span id="final-bad-shuffles" class="stat-value medium text-red-500">0</span>
                     </div>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">Total Time</span>
-                    <span id="final-time" class="stat-value medium"></span>
+                    <span id="final-time" class="stat-value medium mt-auto"></span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">Avg Find</span>
-                    <span id="final-avg-find" class="stat-value medium"></span>
+                    <span id="final-avg-find" class="stat-value medium mt-auto"></span>
                 </div>
                 <div class="stat-card">
-                    <span class="stat-label">Fastest / Slowest</span>
-                    <div id="final-ext-find" class="stat-value small-mono"></div>
+                    <span class="stat-label">Fast / Slow</span>
+                    <div id="final-ext-find" class="stat-value small-mono mt-auto"></div>
                 </div>
             </div>
             <div class="chart-container">
@@ -453,7 +508,6 @@
 <script>
     const GAME_COLORS = ['#fd0000', '#01a43b', '#0000fe'];
     
-    // Унификация раскладок
     const KEY_MAP = {
         'й':'q','ц':'w','у':'e','к':'r','е':'t','н':'y','г':'u','ш':'i','щ':'o','з':'p','х':'[','ъ':']',
         'ф':'a','ы':'s','в':'d','а':'f','п':'g','р':'h','о':'j','л':'k','д':'l','ж':';','э':'\'',
@@ -483,6 +537,50 @@
     let startTime = Date.now(), isAnimating = false, isGameOver = false, isBtnLocked = false;
     let setTimestamps = [], possibleHistory = []; 
     let speedChartInstance = null;
+
+    // --- Resizing Logic - UPDATED: SNAP TO EDGES, NO MIN/MAX ---
+    const appContainer = document.getElementById('app-container');
+    const resizerL = document.getElementById('resizer-l');
+    const resizerR = document.getElementById('resizer-r');
+    let isResizing = false;
+
+    // Load saved width
+    const savedWidth = localStorage.getItem('set_app_width');
+    if (savedWidth) appContainer.style.width = savedWidth + 'px';
+
+    function initResize(e) {
+        isResizing = true;
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', stopResize);
+        document.body.style.cursor = 'ew-resize';
+    }
+
+    function handleMouseMove(e) {
+        if (!isResizing) return;
+        const centerX = window.innerWidth / 2;
+        const offset = Math.abs(e.clientX - centerX);
+        let newWidth = offset * 2;
+        
+        // Snap logic: if very close to screen edge, make it full width
+        if (newWidth > window.innerWidth - 30) {
+            newWidth = window.innerWidth;
+        }
+
+        appContainer.style.width = newWidth + 'px';
+        localStorage.setItem('set_app_width', Math.floor(newWidth));
+    }
+
+    function stopResize() {
+        isResizing = false;
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', stopResize);
+        document.body.style.cursor = '';
+    }
+
+    resizerL.addEventListener('mousedown', initResize);
+    resizerR.addEventListener('mousedown', initResize);
+
+    // --- Game Logic ---
 
     function mulberry32(a) {
         return function() {
@@ -597,8 +695,17 @@
     }
 
     function setShape(p) {
+        if (config.preset === p) return;
+        
         config.preset = p;
         localStorage.setItem('set_shape_preset', p);
+        
+        const activeBtn = p === 'standard' ? document.getElementById('btn-std') : document.getElementById('btn-cls');
+        activeBtn.classList.add('chip-animate');
+        activeBtn.addEventListener('animationend', () => {
+            activeBtn.classList.remove('chip-animate');
+        }, { once: true });
+
         updateColors();
         syncSettingsUI();
     }
@@ -875,16 +982,19 @@
         const resultTitle = clone.querySelector('#result-title');
         const finalDate = clone.querySelector('#final-date-display');
         const statCards = clone.querySelectorAll('.stat-card');
-        const statValues = clone.querySelectorAll('.stat-value');
         const statLabels = clone.querySelectorAll('.stat-label');
+        const statValues = clone.querySelectorAll('.stat-value');
 
-        clone.style.width = '500px';
-        clone.style.height = '500px';
-        clone.style.padding = '30px';
+        const exportW = 430;
+        const exportH = 430;
+
+        clone.style.width = `${exportW}px`;
+        clone.style.height = `${exportH}px`;
+        clone.style.padding = '15px';
         clone.style.display = 'flex';
         clone.style.flexDirection = 'column';
         clone.style.alignItems = 'center';
-        clone.style.justifyContent = 'center';
+        clone.style.justifyContent = 'flex-start'; 
         clone.style.backgroundColor = '#2d2631';
         clone.style.position = 'fixed';
         clone.style.left = '-9999px';
@@ -892,29 +1002,41 @@
         clone.style.zIndex = '9999';
 
         exportHeader.style.display = 'block';
-        finalDate.style.display = 'block';
         exportHeader.style.marginBottom = '5px';
+        
         resultTitle.style.margin = '0';
         resultTitle.style.padding = '0';
-        resultTitle.style.lineHeight = '1.2';
+        resultTitle.style.lineHeight = '0.8'; 
         resultTitle.style.marginBottom = '20px';
 
         statCards.forEach(card => {
-            card.style.display = 'block'; 
-            card.style.padding = '10px';
+            card.style.display = 'flex'; 
+            card.style.flexDirection = 'column';
+            card.style.padding = '10px 14px';
+            card.style.height = '64px';
+            card.style.justifyContent = 'flex-start';
+            card.style.position = 'relative';
         });
 
         statLabels.forEach(label => {
-            label.style.marginBottom = '2px';
+            label.style.display = 'block';
+            label.style.marginBottom = '5px';
             label.style.lineHeight = '1';
         });
 
         statValues.forEach(val => {
-            val.style.lineHeight = '1.1';
+            val.style.position = 'relative';
+            let topOffset = -12;
+            if (val.id === 'final-ext-find') {
+                topOffset = -3; 
+            }
+            val.style.top = `${topOffset}px`; 
             val.style.display = 'block';
+            val.style.lineHeight = '1.1';
         });
 
-        finalDate.style.marginTop = '20px';
+        finalDate.style.display = 'block';
+        finalDate.style.marginTop = '12px';
 
         const originalCanvas = source.querySelector('canvas');
         const clonedCanvas = clone.querySelector('canvas');
@@ -926,13 +1048,12 @@
         document.body.appendChild(clone);
 
         try {
-            await new Promise(r => setTimeout(r, 100));
-
+            await new Promise(r => setTimeout(r, 150));
             const canvas = await html2canvas(clone, {
                 backgroundColor: '#2d2631',
                 scale: 2,
-                width: 500,
-                height: 500,
+                width: exportW,
+                height: exportH,
                 logging: false,
                 useCORS: true
             });
@@ -985,7 +1106,7 @@
         document.getElementById('final-bad-shuffles').innerText = badShuffles;
         
         document.getElementById('final-avg-find').innerText = avgFind ? formatTime(avgFind, true) : '--:--';
-        document.getElementById('final-ext-find').innerHTML = `FAST: ${minFind ? formatTime(minFind, true) : '--'}<br>SLOW: ${maxFind ? formatTime(maxFind, true) : '--'}`;
+        document.getElementById('final-ext-find').innerHTML = `F: ${minFind ? formatTime(minFind, true) : '--'}<br>S: ${maxFind ? formatTime(maxFind, true) : '--'}`;
 
         renderSpeedChart(elapsedMs);
 
@@ -1100,24 +1221,6 @@
         });
     }
 
-    function triggerConflictAnim(conflictKeys) {
-        const elements = [];
-        if (conflictKeys.includes(binds.shuffle)) elements.push(document.getElementById('kb-shuffle'));
-        if (conflictKeys.includes(binds.shuffleEx)) elements.push(document.getElementById('kb-shuffle-ex'));
-        if (conflictKeys.includes(binds.finish)) elements.push(document.getElementById('kb-finish'));
-        
-        binds.board.forEach((b, i) => {
-            if (conflictKeys.includes(b)) elements.push(document.getElementById(`kb-slot-${i}`));
-        });
-
-        elements.forEach(el => {
-            if (el) {
-                el.classList.add('kb-conflict');
-                setTimeout(() => el.classList.remove('kb-conflict'), 400);
-            }
-        });
-    }
-
     async function closeKeybinds() {
         const modal = document.getElementById('keybinds-modal');
         modal.classList.add('hide');
@@ -1152,39 +1255,17 @@
             e.preventDefault();
             const { type, index } = isCapturingKey;
             
-            // Находим все конфликты ДО того, как очистим их
-            const conflictKeys = [key];
-
             if (binds.shuffle === key) binds.shuffle = '';
             if (binds.shuffleEx === key) binds.shuffleEx = '';
             if (binds.finish === key) binds.finish = '';
             binds.board = binds.board.map(b => b === key ? '' : b);
 
-            if (type === 'board') {
-                binds.board[index] = key;
-            } else {
-                binds[type] = key;
-            }
+            if (type === 'board') binds.board[index] = key;
+            else binds[type] = key;
 
             isCapturingKey = null;
             syncKeybindsUI();
             document.querySelectorAll('.kb-cell').forEach(c => c.classList.remove('waiting'));
-            // Запускаем анимацию только для тех, у кого теперь пусто (''), но кто раньше имел эту клавишу
-            const elementsToAnimate = [];
-            if (binds.shuffle === '' && type !== 'shuffle') elementsToAnimate.push(document.getElementById('kb-shuffle'));
-            if (binds.shuffleEx === '' && type !== 'shuffleEx') elementsToAnimate.push(document.getElementById('kb-shuffle-ex'));
-            if (binds.finish === '' && type !== 'finish') elementsToAnimate.push(document.getElementById('kb-finish'));
-            binds.board.forEach((b, i) => {
-               if (b === '' && (type !== 'board' || index !== i)) elementsToAnimate.push(document.getElementById(`kb-slot-${i}`));
-            });
-
-            elementsToAnimate.forEach(el => {
-                if(el) {
-                    el.classList.add('kb-conflict');
-                    setTimeout(() => el.classList.remove('kb-conflict'), 400);
-                }
-            });
-
             return;
         }
 
