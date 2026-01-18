@@ -247,8 +247,25 @@
         }
         .share-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #374151; }
 
-        /* ИСПРАВЛЕНИЕ: Убрал !important, чтобы JS мог переопределить display для экспорта */
         .export-only { display: none; }
+
+        /* Keybinds Styles */
+        .kb-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%;
+        }
+        .kb-cell {
+            background: #2d2631; border: 1px solid #5a4d61; border-radius: 8px;
+            height: 45px; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #ec4899; font-family: monospace; cursor: pointer;
+            transition: 0.2s;
+        }
+        .kb-cell:active { background: #a34e78; color: white; }
+        .kb-cell.waiting { animation: pulse 0.6s infinite; background: #ec4899; color: white; border-color: white; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        @media (pointer: coarse) {
+            .desktop-only { display: none !important; }
+        }
 
     </style>
 </head>
@@ -301,6 +318,10 @@
     <div id="settings-modal" class="overlay">
         <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Settings</h2>
         <div class="w-full flex flex-col items-center">
+            <div class="settings-row desktop-only">
+                <span class="text-sm font-bold uppercase">Controls</span>
+                <button onpointerdown="openKeybinds()" class="preset-chip active !bg-indigo-600 !border-indigo-400">Edit Keybinds</button>
+            </div>
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Shapes</span>
                 <div class="flex gap-2">
@@ -334,6 +355,36 @@
             </div>
         </div>
         <button onpointerdown="toggleSettings(false)" class="btn-action !w-64 text-xl py-4 uppercase mt-4">Close</button>
+    </div>
+
+    <div id="keybinds-modal" class="overlay">
+        <h2 class="text-2xl font-black mb-4 text-pink-400 uppercase tracking-widest">Keybinds</h2>
+        <p class="text-[10px] text-gray-400 mb-4 uppercase text-center">Click a cell then press any key to rebind</p>
+        
+        <div class="w-full max-width-[350px]">
+            <div class="kb-grid mb-6" id="kb-board-grid">
+                </div>
+            
+            <div class="flex flex-col gap-2">
+                <div class="settings-row !bg-transparent !border-0 !mb-0 !py-1">
+                    <span class="text-[10px] font-bold uppercase">Shuffle Deck</span>
+                    <div id="kb-shuffle" class="kb-cell !w-24 !h-10" onclick="startCapture('shuffle')"></div>
+                </div>
+                <div class="settings-row !bg-transparent !border-0 !mb-0 !py-1">
+                    <span class="text-[10px] font-bold uppercase">Shuffle Existing</span>
+                    <div id="kb-shuffle-ex" class="kb-cell !w-24 !h-10" onclick="startCapture('shuffleEx')"></div>
+                </div>
+                <div class="settings-row !bg-transparent !border-0 !mb-0 !py-1">
+                    <span class="text-[10px] font-bold uppercase">Finish Game</span>
+                    <div id="kb-finish" class="kb-cell !w-24 !h-10" onclick="startCapture('finish')"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex gap-2 mt-6">
+            <button onpointerdown="resetKeybinds()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
+            <button onpointerdown="closeKeybinds()" class="btn-action !w-32 text-sm">Done</button>
+        </div>
     </div>
 
     <div id="result-modal" class="overlay">
@@ -402,6 +453,15 @@
         useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'true',
         minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23')
     };
+
+    const DEFAULT_BINDS = {
+        board: ['e', 'r', 'i', 'o', 'd', 'f', 'j', 'k', 'c', 'v', 'n', 'm'],
+        shuffle: 'backspace',
+        shuffleEx: ' ',
+        finish: 'enter'
+    };
+    let binds = JSON.parse(localStorage.getItem('set_keybinds')) || JSON.parse(JSON.stringify(DEFAULT_BINDS));
+    let isCapturingKey = null;
 
     let deck = [], board = [], selected = [], collectedSets = 0, badShuffles = 0;
     let startTime = Date.now(), isAnimating = false, isGameOver = false, isBtnLocked = false;
@@ -655,30 +715,6 @@
         }
     }
 
-	const keyToIndex = {
-		'e': 0, 'r': 1, 'i': 2, 'o': 3,
-		'd': 4, 'f': 5, 'j': 6, 'k': 7,
-		'c': 8, 'v': 9, 'n': 10, 'm': 11
-	};
-
-	document.addEventListener('keydown', (e) => {
-		if (isAnimating || isGameOver) return;
-
-		if (e.target && ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-
-		const key = e.key.toLowerCase();
-		if (!(key in keyToIndex)) return;
-
-		const idx = keyToIndex[key];
-		const slot = document.getElementById('board').children[idx];
-		const cardEl = slot?.querySelector('.card');
-
-		if (!cardEl) return;
-
-		toggleSelect(idx, cardEl);
-	});
-
-
     function handleShuffleClick() {
         if (isAnimating || isGameOver || isBtnLocked) return;
         const possibleCount = analyzePossibleSets().total;
@@ -819,7 +855,6 @@
         const source = document.getElementById('share-content');
         const clone = source.cloneNode(true);
         
-        // Массив элементов для точечной настройки в клоне
         const exportHeader = clone.querySelector('#export-header');
         const resultTitle = clone.querySelector('#result-title');
         const finalDate = clone.querySelector('#final-date-display');
@@ -827,7 +862,6 @@
         const statValues = clone.querySelectorAll('.stat-value');
         const statLabels = clone.querySelectorAll('.stat-label');
 
-        // Глобальный сброс для клона
         clone.style.width = '500px';
         clone.style.height = '500px';
         clone.style.padding = '30px';
@@ -841,18 +875,14 @@
         clone.style.top = '0';
         clone.style.zIndex = '9999';
 
-        // ИСПРАВЛЕНИЕ: Гарантируем видимость скрытых элементов в клоне
         exportHeader.style.display = 'block';
         finalDate.style.display = 'block';
-
-        // Настройка заголовков
         exportHeader.style.marginBottom = '5px';
         resultTitle.style.margin = '0';
         resultTitle.style.padding = '0';
         resultTitle.style.lineHeight = '1.2';
         resultTitle.style.marginBottom = '20px';
 
-        // Исправление блоков статистики (чтобы текст не ехал вниз)
         statCards.forEach(card => {
             card.style.display = 'block'; 
             card.style.padding = '10px';
@@ -870,7 +900,6 @@
 
         finalDate.style.marginTop = '20px';
 
-        // Копируем Canvas
         const originalCanvas = source.querySelector('canvas');
         const clonedCanvas = clone.querySelector('canvas');
         const ctx = clonedCanvas.getContext('2d');
@@ -881,7 +910,7 @@
         document.body.appendChild(clone);
 
         try {
-            await new Promise(r => setTimeout(r, 100)); // Даем время на просчет стилей
+            await new Promise(r => setTimeout(r, 100));
 
             const canvas = await html2canvas(clone, {
                 backgroundColor: '#2d2631',
@@ -997,6 +1026,7 @@
             `;
             container.appendChild(item);
         });
+        document.getElementById('records-modal').classList.remove('hide');
         document.getElementById('records-modal').classList.add('show');
     }
 
@@ -1017,6 +1047,53 @@
         modal.classList.remove('show', 'hide');
     }
 
+    function openKeybinds() {
+        const grid = document.getElementById('kb-board-grid');
+        grid.innerHTML = '';
+        binds.board.forEach((key, i) => {
+            const cell = document.createElement('div');
+            cell.className = 'kb-cell';
+            cell.id = `kb-slot-${i}`;
+            cell.innerText = key === ' ' ? 'SPC' : key.toUpperCase();
+            cell.onclick = () => startCapture('board', i);
+            grid.appendChild(cell);
+        });
+        
+        syncKeybindsUI();
+        document.getElementById('keybinds-modal').classList.remove('hide');
+        document.getElementById('keybinds-modal').classList.add('show');
+    }
+
+    function startCapture(type, index = null) {
+        if (isCapturingKey) return;
+        isCapturingKey = { type, index };
+        
+        const elId = index !== null ? `kb-slot-${index}` : `kb-${type.replace('Ex', '-ex')}`;
+        document.querySelectorAll('.kb-cell').forEach(c => c.classList.remove('waiting'));
+        document.getElementById(elId).classList.add('waiting');
+    }
+
+    function syncKeybindsUI() {
+        document.getElementById('kb-shuffle').innerText = binds.shuffle === ' ' ? 'SPC' : binds.shuffle.toUpperCase();
+        document.getElementById('kb-shuffle-ex').innerText = binds.shuffleEx === ' ' ? 'SPC' : binds.shuffleEx.toUpperCase();
+        document.getElementById('kb-finish').innerText = binds.finish === ' ' ? 'SPC' : binds.finish.toUpperCase();
+    }
+
+    async function closeKeybinds() {
+        const modal = document.getElementById('keybinds-modal');
+        modal.classList.add('hide');
+        await new Promise(r => setTimeout(r, 200));
+        modal.classList.remove('show', 'hide');
+        localStorage.setItem('set_keybinds', JSON.stringify(binds));
+    }
+
+    function resetKeybinds() {
+        if (confirm('Reset keys to default?')) {
+            binds = JSON.parse(JSON.stringify(DEFAULT_BINDS));
+            openKeybinds();
+        }
+    }
+
     let touchStartY = 0;
     const swipeZone = document.getElementById('swipe-zone');
     swipeZone.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
@@ -1028,15 +1105,42 @@
 
     window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT') return;
-        if (e.code === 'Space') {
+        const key = e.key.toLowerCase();
+
+        if (isCapturingKey) {
             e.preventDefault();
-            shuffleExistingCards();
-        } else if (e.code === 'Enter') {
-            e.preventDefault();
-            if (isGameOver) resetGame(); else finishGame();
-        } else if (e.code === 'Backspace') {
+            const { type, index } = isCapturingKey;
+            if (type === 'board') {
+                binds.board[index] = key;
+            } else {
+                binds[type] = key;
+            }
+            isCapturingKey = null;
+            openKeybinds();
+            return;
+        }
+
+        if (isGameOver) {
+            if (key === binds.finish) resetGame();
+            return;
+        }
+
+        if (key === binds.shuffle) {
             e.preventDefault();
             handleShuffleClick();
+        } else if (key === binds.shuffleEx) {
+            e.preventDefault();
+            shuffleExistingCards();
+        } else if (key === binds.finish) {
+            e.preventDefault();
+            finishGame();
+        } else {
+            const boardIdx = binds.board.indexOf(key);
+            if (boardIdx !== -1) {
+                const slot = document.getElementById('board').children[boardIdx];
+                const cardEl = slot?.querySelector('.card');
+                if (cardEl) toggleSelect(boardIdx, cardEl);
+            }
         }
     });
 
