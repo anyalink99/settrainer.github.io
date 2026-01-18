@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Set Pro Training</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         
@@ -213,17 +215,40 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
+            height: 64px;
         }
-        .stat-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 2px; }
+        .stat-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 2px; display: block; }
         .stat-value { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 700; line-height: 1; }
         .stat-value.large { font-size: 26px; color: #ec4899; }
         .stat-value.medium { font-size: 22px; color: white; }
-        .stat-value.small-mono { font-size: 13px; color: white; line-height: 1.4; }
+        .stat-value.small-mono { font-size: 13px; color: white; line-height: 1.2; }
+        .stat-subtext { font-size: 11px; color: #ff4d4d; font-weight: bold; text-transform: uppercase; margin-top: auto; }
+
+        .chart-container {
+            width: 100%;
+            max-width: 350px;
+            height: 140px;
+            margin-top: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
 
         #swipe-zone {
             position: absolute; bottom: 0; left: 0; right: 0;
             height: 40%; z-index: 5; touch-action: none;
         }
+        
+        .share-btn {
+            background: #4b5563; border-radius: 12px;
+            width: 44px; height: 50px; display: flex; align-items: center; justify-content: center;
+            color: white; box-shadow: 0 4px 0 #374151; transition: all 0.2s;
+        }
+        .share-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #374151; }
+
+        /* ИСПРАВЛЕНИЕ: Убрал !important, чтобы JS мог переопределить display для экспорта */
+        .export-only { display: none; }
 
     </style>
 </head>
@@ -312,37 +337,48 @@
     </div>
 
     <div id="result-modal" class="overlay">
-        <h2 class="text-4xl font-black mb-6 text-pink-400 uppercase tracking-widest">Result</h2>
-        <div class="stat-grid mb-6">
-            <div class="stat-card">
-                <span class="stat-label">Sets</span>
-                <span id="final-score" class="stat-value large"></span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Total Time</span>
-                <span id="final-time" class="stat-value medium"></span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Avg Find</span>
-                <span id="final-avg-find" class="stat-value medium"></span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Fastest / Slowest</span>
-                <div id="final-ext-find" class="stat-value small-mono"></div>
-            </div>
-            <div class="stat-card col-span-2 !flex-row !justify-between !items-center">
-                <div class="flex flex-col">
-                    <span class="stat-label">Avg Possible Sets</span>
-                    <span id="final-avg-possible" class="stat-value medium"></span>
+        <div id="share-content" class="flex flex-col items-center w-full">
+            <div id="export-header" class="text-[10px] text-pink-400/50 font-black uppercase tracking-[0.2em] mb-1 export-only">Set Pro Trainer</div>
+            <h2 id="result-title" class="text-4xl font-black mb-4 text-pink-400 uppercase tracking-widest">Result</h2>
+            <div class="stat-grid mb-4">
+                <div class="stat-card">
+                    <div class="flex justify-between items-start h-full">
+                        <div class="flex flex-col">
+                            <span class="stat-label">Sets</span>
+                            <span id="final-score" class="stat-value large"></span>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <span class="stat-label">BS</span>
+                            <span id="final-bad-shuffles" class="stat-value medium text-red-500">0</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex flex-col text-right">
-                    <span class="stat-label">Bad Shuffles</span>
-                    <span id="final-bad-shuffles" class="stat-value large !text-red-400"></span>
+                <div class="stat-card">
+                    <span class="stat-label">Total Time</span>
+                    <span id="final-time" class="stat-value medium"></span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Avg Find</span>
+                    <span id="final-avg-find" class="stat-value medium"></span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Fastest / Slowest</span>
+                    <div id="final-ext-find" class="stat-value small-mono"></div>
                 </div>
             </div>
+            <div class="chart-container">
+                <canvas id="speedChart"></canvas>
+            </div>
+            <div id="final-date-display" class="text-[10px] text-gray-500 font-bold uppercase mt-4 tracking-widest export-only"></div>
         </div>
-        <div class="flex flex-col gap-3 items-center w-full">
-            <button onpointerdown="openRecords()" class="btn-action !w-64 text-xl py-4 uppercase !bg-gray-600 !shadow-[#444]">Records</button>
+
+        <div class="flex flex-col gap-3 items-center w-full mt-4">
+            <div class="flex gap-2 w-64">
+                <button onpointerdown="openRecords()" class="btn-action flex-grow text-xl py-4 uppercase !bg-gray-600 !shadow-[#444]">Records</button>
+                <button onpointerdown="shareResult()" class="share-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                </button>
+            </div>
             <button onpointerdown="resetGame()" class="btn-action !w-64 text-xl py-4 uppercase">Restart</button>
         </div>
     </div>
@@ -356,19 +392,21 @@
 
 <script>
     const GAME_COLORS = ['#fd0000', '#01a43b', '#0000fe'];
+    
     let config = {
         preset: localStorage.getItem('set_shape_preset') || 'standard',
-        showPossible: localStorage.getItem('set_show_possible') !== 'true',
-        showDetailedPossible: localStorage.getItem('set_show_detailed') === 'false',
-        autoShuffle: localStorage.getItem('set_auto_shuffle') === 'true',
-        preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'false',
-        useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'false',
+        showPossible: localStorage.getItem('set_show_possible') !== 'false', 
+        showDetailedPossible: localStorage.getItem('set_show_detailed') === 'true',
+        autoShuffle: localStorage.getItem('set_auto_shuffle') !== 'false',
+        preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'true',
+        useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'true',
         minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23')
     };
 
     let deck = [], board = [], selected = [], collectedSets = 0, badShuffles = 0;
     let startTime = Date.now(), isAnimating = false, isGameOver = false, isBtnLocked = false;
     let setTimestamps = [], possibleHistory = []; 
+    let speedChartInstance = null;
 
     function mulberry32(a) {
         return function() {
@@ -691,11 +729,176 @@
         localStorage.setItem('set_pro_records', JSON.stringify(records));
     }
 
+    function calculateSpeedData(totalTimeMs) {
+        const intervalMs = 10000; 
+        const points = Math.ceil(totalTimeMs / intervalMs);
+        const labels = [];
+        const data = [];
+        
+        for (let i = 1; i <= points; i++) {
+            const currentTime = i * intervalMs;
+            labels.push(formatTime(currentTime));
+            
+            const setsInInterval = setTimestamps.filter(ts => {
+                const relativeTs = ts - startTime;
+                return relativeTs > (currentTime - intervalMs) && relativeTs <= currentTime;
+            }).length;
+            
+            const spm = (setsInInterval / (intervalMs / 1000)) * 60;
+            data.push(spm.toFixed(1));
+        }
+        return { labels, data };
+    }
+
+    function renderSpeedChart(totalTimeMs) {
+        const ctx = document.getElementById('speedChart').getContext('2d');
+        const { labels, data } = calculateSpeedData(totalTimeMs);
+
+        if (speedChartInstance) speedChartInstance.destroy();
+
+        speedChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Sets/min',
+                    data: data,
+                    borderColor: '#ec4899',
+                    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        display: true,
+                        grid: { display: false },
+                        ticks: { color: '#888', font: { size: 9 }, maxRotation: 0 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#888', font: { size: 9 } }
+                    }
+                }
+            }
+        });
+    }
+
+    async function shareResult() {
+        const source = document.getElementById('share-content');
+        const clone = source.cloneNode(true);
+        
+        // Массив элементов для точечной настройки в клоне
+        const exportHeader = clone.querySelector('#export-header');
+        const resultTitle = clone.querySelector('#result-title');
+        const finalDate = clone.querySelector('#final-date-display');
+        const statCards = clone.querySelectorAll('.stat-card');
+        const statValues = clone.querySelectorAll('.stat-value');
+        const statLabels = clone.querySelectorAll('.stat-label');
+
+        // Глобальный сброс для клона
+        clone.style.width = '500px';
+        clone.style.height = '500px';
+        clone.style.padding = '30px';
+        clone.style.display = 'flex';
+        clone.style.flexDirection = 'column';
+        clone.style.alignItems = 'center';
+        clone.style.justifyContent = 'center';
+        clone.style.backgroundColor = '#2d2631';
+        clone.style.position = 'fixed';
+        clone.style.left = '-9999px';
+        clone.style.top = '0';
+        clone.style.zIndex = '9999';
+
+        // ИСПРАВЛЕНИЕ: Гарантируем видимость скрытых элементов в клоне
+        exportHeader.style.display = 'block';
+        finalDate.style.display = 'block';
+
+        // Настройка заголовков
+        exportHeader.style.marginBottom = '5px';
+        resultTitle.style.margin = '0';
+        resultTitle.style.padding = '0';
+        resultTitle.style.lineHeight = '1.2';
+        resultTitle.style.marginBottom = '20px';
+
+        // Исправление блоков статистики (чтобы текст не ехал вниз)
+        statCards.forEach(card => {
+            card.style.display = 'block'; 
+            card.style.padding = '10px';
+        });
+
+        statLabels.forEach(label => {
+            label.style.marginBottom = '2px';
+            label.style.lineHeight = '1';
+        });
+
+        statValues.forEach(val => {
+            val.style.lineHeight = '1.1';
+            val.style.display = 'block';
+        });
+
+        finalDate.style.marginTop = '20px';
+
+        // Копируем Canvas
+        const originalCanvas = source.querySelector('canvas');
+        const clonedCanvas = clone.querySelector('canvas');
+        const ctx = clonedCanvas.getContext('2d');
+        clonedCanvas.width = originalCanvas.width;
+        clonedCanvas.height = originalCanvas.height;
+        ctx.drawImage(originalCanvas, 0, 0);
+
+        document.body.appendChild(clone);
+
+        try {
+            await new Promise(r => setTimeout(r, 100)); // Даем время на просчет стилей
+
+            const canvas = await html2canvas(clone, {
+                backgroundColor: '#2d2631',
+                scale: 2,
+                width: 500,
+                height: 500,
+                logging: false,
+                useCORS: true
+            });
+            
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], 'set_pro_result.png', { type: 'image/png' });
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Set Pro Result',
+                        text: `Sets: ${collectedSets} | Time: ${document.getElementById('final-time').innerText}`
+                    });
+                } else {
+                    const link = document.createElement('a');
+                    link.download = `set_result_${Date.now()}.png`;
+                    link.href = URL.createObjectURL(blob);
+                    link.click();
+                }
+            }, 'image/png');
+        } catch (err) {
+            console.error("Error sharing:", err);
+        } finally {
+            document.body.removeChild(clone);
+        }
+    }
+
     function finishGame() {
         if (isGameOver) return;
         isGameOver = true;
         const elapsedMs = Date.now() - startTime;
         saveRecord();
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('final-date-display').innerText = dateStr;
 
         let findIntervals = [];
         let prev = startTime;
@@ -707,7 +910,6 @@
         const maxFind = findIntervals.length ? Math.max(...findIntervals) : 0;
         const minFind = findIntervals.length ? Math.min(...findIntervals) : 0;
         const avgFind = findIntervals.length ? (findIntervals.reduce((a, b) => a + b, 0) / findIntervals.length) : 0;
-        const avgPossible = possibleHistory.length ? (possibleHistory.reduce((a, b) => a + b, 0) / possibleHistory.length) : 0;
 
         document.getElementById('final-time').innerText = formatTime(elapsedMs, true);
         document.getElementById('final-score').innerText = collectedSets;
@@ -715,7 +917,8 @@
         
         document.getElementById('final-avg-find').innerText = avgFind ? formatTime(avgFind, true) : '--:--';
         document.getElementById('final-ext-find').innerHTML = `FAST: ${minFind ? formatTime(minFind, true) : '--'}<br>SLOW: ${maxFind ? formatTime(maxFind, true) : '--'}`;
-        document.getElementById('final-avg-possible').innerText = avgPossible.toFixed(2);
+
+        renderSpeedChart(elapsedMs);
 
         const modal = document.getElementById('result-modal');
         modal.classList.remove('hide');
@@ -765,7 +968,7 @@
             item.className = 'record-item';
             item.innerHTML = `
                 <div class="record-info"><div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div><div class="text-[10px] uppercase opacity-70">${r.date}</div></div>
-                <div class="record-info text-right"><div class="text-white font-mono">${formatTime(r.time, true)}</div><div class="text-[10px] uppercase text-red-400">Shuffles: ${r.badShuffles}</div></div>
+                <div class="record-info text-right"><div class="text-white font-mono">${formatTime(r.time, true)}</div><div class="text-[10px] uppercase text-red-400">BS: ${r.badShuffles}</div></div>
                 <div class="btn-del" onclick="deleteRecord(event, ${r.id})"><svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></div>
             `;
             container.appendChild(item);
@@ -790,7 +993,6 @@
         modal.classList.remove('show', 'hide');
     }
 
-    // Swipe handler
     let touchStartY = 0;
     const swipeZone = document.getElementById('swipe-zone');
     swipeZone.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
@@ -800,7 +1002,6 @@
         if (diff > 50) shuffleExistingCards();
     }, { passive: true });
 
-    // Hotkeys handler
     window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT') return;
         if (e.code === 'Space') {
