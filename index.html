@@ -255,13 +255,22 @@
         }
         .kb-cell {
             background: #2d2631; border: 1px solid #5a4d61; border-radius: 8px;
-            height: 45px; display: flex; align-items: center; justify-content: center;
-            font-weight: bold; color: #ec4899; font-family: monospace; cursor: pointer;
-            transition: 0.2s;
+            min-height: 45px; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 0.875rem; color: #ec4899; text-transform: uppercase; cursor: pointer;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+            padding: 4px 8px; text-align: center;
         }
         .kb-cell:active { background: #a34e78; color: white; }
         .kb-cell.waiting { animation: pulse 0.6s infinite; background: #ec4899; color: white; border-color: white; }
+        
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        @keyframes conflictPulse {
+            0% { background: #2d2631; border-color: #5a4d61; }
+            50% { background: #ef4444; border-color: white; }
+            100% { background: #2d2631; border-color: #5a4d61; }
+        }
+        .kb-conflict { animation: conflictPulse 0.4s ease-out; }
 
         @media (pointer: coarse) {
             .desktop-only { display: none !important; }
@@ -303,7 +312,7 @@
     <div class="flex justify-end mt-2 mb-2 flex-shrink-0">
         <div class="flex flex-col items-end">
             <div class="settings-btn" onpointerdown="toggleSettings(true)">
-                <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.91,7.62,6.29L5.23,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.72,8.87 c-0.11,0.2-0.06,0.47,0.12,0.61l2.03,1.58C4.84,11.36,4.81,11.66,4.81,12c0,0.33,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.5c-1.93,0-3.5-1.57-3.5-3.5 s1.57-3.5,3.5-3.5s3.5,1.57,3.5,3.5S13.93,15.5,12,15.5z"/></svg>
+                <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.91,7.62,6.29L5.23,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.72,8.87 c-0.11,0.2-0.06,0.47,0.12,0.61l2.03,1.58C4.84,11.36,4.81,11.66,4.81,12c0,0.33,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.5c-1.93,0-3.5-1.57-3.5-3.5 s1.57-3.5,3.5-3.5s3.5,1.57,3.5,3.5S13.93,15.5,12,15.5z"/></svg>
             </div>
             <div class="text-gray-300 text-sm font-medium">Sets: <span id="current-score" class="text-pink-400 font-bold">0</span></div>
             <div class="text-gray-400 text-xs">Cards: <span id="deck-count">0</span></div>
@@ -361,27 +370,27 @@
         <h2 class="text-2xl font-black mb-4 text-pink-400 uppercase tracking-widest">Keybinds</h2>
         <p class="text-[10px] text-gray-400 mb-4 uppercase text-center">Click a cell then press any key to rebind</p>
         
-        <div class="w-full max-width-[350px]">
-            <div class="kb-grid mb-6" id="kb-board-grid">
+        <div class="w-full max-w-[320px]">
+            <div class="kb-grid mb-4" id="kb-board-grid">
                 </div>
             
-            <div class="flex flex-col gap-2">
-                <div class="settings-row !bg-transparent !border-0 !mb-0 !py-1">
-                    <span class="text-[10px] font-bold uppercase">Shuffle Deck</span>
-                    <div id="kb-shuffle" class="kb-cell !w-24 !h-10" onclick="startCapture('shuffle')"></div>
+            <div class="flex flex-col gap-1">
+                <div class="settings-row !mb-1 !py-2 !rounded-xl">
+                    <span class="text-sm font-bold uppercase">Shuffle Deck</span>
+                    <div id="kb-shuffle" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onclick="startCapture('shuffle')"></div>
                 </div>
-                <div class="settings-row !bg-transparent !border-0 !mb-0 !py-1">
-                    <span class="text-[10px] font-bold uppercase">Shuffle Existing</span>
-                    <div id="kb-shuffle-ex" class="kb-cell !w-24 !h-10" onclick="startCapture('shuffleEx')"></div>
+                <div class="settings-row !mb-1 !py-2 !rounded-xl">
+                    <span class="text-sm font-bold uppercase">Shuffle Existing</span>
+                    <div id="kb-shuffle-ex" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onclick="startCapture('shuffleEx')"></div>
                 </div>
-                <div class="settings-row !bg-transparent !border-0 !mb-0 !py-1">
-                    <span class="text-[10px] font-bold uppercase">Finish Game</span>
-                    <div id="kb-finish" class="kb-cell !w-24 !h-10" onclick="startCapture('finish')"></div>
+                <div class="settings-row !mb-1 !py-2 !rounded-xl">
+                    <span class="text-sm font-bold uppercase">Finish Game</span>
+                    <div id="kb-finish" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onclick="startCapture('finish')"></div>
                 </div>
             </div>
         </div>
         
-        <div class="flex gap-2 mt-6">
+        <div class="flex gap-2 mt-4">
             <button onpointerdown="resetKeybinds()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
             <button onpointerdown="closeKeybinds()" class="btn-action !w-32 text-sm">Done</button>
         </div>
@@ -444,6 +453,13 @@
 <script>
     const GAME_COLORS = ['#fd0000', '#01a43b', '#0000fe'];
     
+    // Унификация раскладок
+    const KEY_MAP = {
+        'й':'q','ц':'w','у':'e','к':'r','е':'t','н':'y','г':'u','ш':'i','щ':'o','з':'p','х':'[','ъ':']',
+        'ф':'a','ы':'s','в':'d','а':'f','п':'g','р':'h','о':'j','л':'k','д':'l','ж':';','э':'\'',
+        'я':'z','ч':'x','с':'c','м':'v','и':'b','т':'n','ь':'m','б':',','ю':'.'
+    };
+
     let config = {
         preset: localStorage.getItem('set_shape_preset') || 'standard',
         showPossible: localStorage.getItem('set_show_possible') !== 'false', 
@@ -1074,9 +1090,32 @@
     }
 
     function syncKeybindsUI() {
-        document.getElementById('kb-shuffle').innerText = binds.shuffle === ' ' ? 'SPC' : binds.shuffle.toUpperCase();
-        document.getElementById('kb-shuffle-ex').innerText = binds.shuffleEx === ' ' ? 'SPC' : binds.shuffleEx.toUpperCase();
-        document.getElementById('kb-finish').innerText = binds.finish === ' ' ? 'SPC' : binds.finish.toUpperCase();
+        document.getElementById('kb-shuffle').innerText = (binds.shuffle === ' ' ? 'SPC' : binds.shuffle.toUpperCase()) || '---';
+        document.getElementById('kb-shuffle-ex').innerText = (binds.shuffleEx === ' ' ? 'SPC' : binds.shuffleEx.toUpperCase()) || '---';
+        document.getElementById('kb-finish').innerText = (binds.finish === ' ' ? 'SPC' : binds.finish.toUpperCase()) || '---';
+        
+        binds.board.forEach((key, i) => {
+            const cell = document.getElementById(`kb-slot-${i}`);
+            if(cell) cell.innerText = (key === ' ' ? 'SPC' : key.toUpperCase()) || '---';
+        });
+    }
+
+    function triggerConflictAnim(conflictKeys) {
+        const elements = [];
+        if (conflictKeys.includes(binds.shuffle)) elements.push(document.getElementById('kb-shuffle'));
+        if (conflictKeys.includes(binds.shuffleEx)) elements.push(document.getElementById('kb-shuffle-ex'));
+        if (conflictKeys.includes(binds.finish)) elements.push(document.getElementById('kb-finish'));
+        
+        binds.board.forEach((b, i) => {
+            if (conflictKeys.includes(b)) elements.push(document.getElementById(`kb-slot-${i}`));
+        });
+
+        elements.forEach(el => {
+            if (el) {
+                el.classList.add('kb-conflict');
+                setTimeout(() => el.classList.remove('kb-conflict'), 400);
+            }
+        });
     }
 
     async function closeKeybinds() {
@@ -1105,18 +1144,20 @@
 
     window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT') return;
-        const key = e.key.toLowerCase();
+        
+        let key = e.key.toLowerCase();
+        if (KEY_MAP[key]) key = KEY_MAP[key];
 
         if (isCapturingKey) {
             e.preventDefault();
             const { type, index } = isCapturingKey;
+            
+            // Находим все конфликты ДО того, как очистим их
+            const conflictKeys = [key];
 
-            // 1. Проверяем конфликты и очищаем старые привязки
-            // В кнопках управления
             if (binds.shuffle === key) binds.shuffle = '';
             if (binds.shuffleEx === key) binds.shuffleEx = '';
             if (binds.finish === key) binds.finish = '';
-            
             binds.board = binds.board.map(b => b === key ? '' : b);
 
             if (type === 'board') {
@@ -1126,7 +1167,24 @@
             }
 
             isCapturingKey = null;
-            openKeybinds();
+            syncKeybindsUI();
+            document.querySelectorAll('.kb-cell').forEach(c => c.classList.remove('waiting'));
+            // Запускаем анимацию только для тех, у кого теперь пусто (''), но кто раньше имел эту клавишу
+            const elementsToAnimate = [];
+            if (binds.shuffle === '' && type !== 'shuffle') elementsToAnimate.push(document.getElementById('kb-shuffle'));
+            if (binds.shuffleEx === '' && type !== 'shuffleEx') elementsToAnimate.push(document.getElementById('kb-shuffle-ex'));
+            if (binds.finish === '' && type !== 'finish') elementsToAnimate.push(document.getElementById('kb-finish'));
+            binds.board.forEach((b, i) => {
+               if (b === '' && (type !== 'board' || index !== i)) elementsToAnimate.push(document.getElementById(`kb-slot-${i}`));
+            });
+
+            elementsToAnimate.forEach(el => {
+                if(el) {
+                    el.classList.add('kb-conflict');
+                    setTimeout(() => el.classList.remove('kb-conflict'), 400);
+                }
+            });
+
             return;
         }
 
