@@ -48,7 +48,7 @@
             flex-grow: 1; 
             align-content: center;
             min-height: 0;
-            z-index: 40; /* Выше зоны свайпа для кликов */
+            z-index: 40; 
         }
 
         .hud-layer {
@@ -59,7 +59,7 @@
             display: flex;
             justify-content: space-between;
             pointer-events: none;
-            z-index: 70; /* Максимальный приоритет */
+            z-index: 70; 
         }
         .hud-left, .hud-right { pointer-events: auto; }
 
@@ -70,7 +70,7 @@
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            z-index: 80; /* Выше зоны свайпа */
+            z-index: 80; 
         }
         
         .card-slot { aspect-ratio: 2/3; width: 100%; position: relative; }
@@ -276,6 +276,26 @@
             border: 1px solid rgba(255,255,255,0.05);
         }
 
+        /* NEW: Modifiers Container Styles */
+        .modifiers-container {
+            width: 100%; max-width: 350px;
+            background: rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 6px; margin-bottom: 6px;
+            display: flex; flex-wrap: wrap; gap: 4px;
+            justify-content: center;
+            min-height: 32px;
+        }
+        .mod-chip {
+            background: #443a4a; color: #ec4899;
+            font-size: 9px; font-weight: 900;
+            padding: 2px 6px; border-radius: 4px;
+            border: 1px solid #a34e78;
+            text-transform: uppercase;
+        }
+        .mod-none { font-size: 9px; color: #555; text-transform: uppercase; font-weight: bold; margin: auto; }
+
         #swipe-zone {
             position: absolute; 
             top: 100px;
@@ -364,7 +384,7 @@
         <div class="hud-right">
             <div class="flex flex-col items-end">
                 <div id="timer" class="font-mono bg-black/20 px-3 py-1 rounded text-lg font-bold">00:00</div>
-                <div id="seed-label" class="seed-indicator" style="display:none">Fixed Seed ON</div>
+                <div id="seed-label" class="seed-indicator" style="display:none">Synchronized Seed ON</div>
             </div>
         </div>
     </div>
@@ -417,16 +437,16 @@
                 <div id="toggle-auto" class="toggle-switch" onpointerdown="toggleOption('autoShuffle')"></div>
             </div>
             <div class="settings-row">
+                <span class="text-sm font-bold uppercase text-[12px]">Prevent Bad Shuffle</span>
+                <div id="toggle-prevent" class="toggle-switch" onpointerdown="toggleOption('preventBadShuffle')"></div>
+            </div>
+            <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
                 <div id="toggle-auto-select" class="toggle-switch" onpointerdown="toggleOption('autoSelectThird')"></div>
             </div>
             <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Fixed Seed (min)</span>
+                <span class="text-sm font-bold uppercase">Synchronized Seed</span>
                 <div id="toggle-seed" class="toggle-switch" onpointerdown="toggleOption('useFixedSeed')"></div>
-            </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase text-[12px]">Prevent Bad Shuffle</span>
-                <div id="toggle-prevent" class="toggle-switch" onpointerdown="toggleOption('preventBadShuffle')"></div>
             </div>
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Record min sets</span>
@@ -494,6 +514,9 @@
                     <div id="final-ext-find" class="stat-value small-mono mt-auto"></div>
                 </div>
             </div>
+            
+            <div id="final-modifiers" class="modifiers-container"></div>
+
             <div class="chart-container">
                 <canvas id="speedChart"></canvas>
             </div>
@@ -536,6 +559,10 @@
         preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'true',
         useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'true',
         minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23')
+    };
+
+    let gameModifiers = {
+        SP: false, DP: false, AS: false, PBS: false, A3RD: false, SS: false
     };
 
     const DEFAULT_BINDS = {
@@ -767,6 +794,15 @@
     function updateUI() {
         const stats = analyzePossibleSets();
         possibleHistory.push(stats.total);
+        
+        // Track modifiers
+        if (config.showPossible) gameModifiers.SP = true;
+        if (config.showPossible && config.showDetailedPossible) gameModifiers.DP = true;
+        if (config.autoShuffle) gameModifiers.AS = true;
+        if (config.preventBadShuffle) gameModifiers.PBS = true;
+        if (config.autoSelectThird) gameModifiers.A3RD = true;
+        if (config.useFixedSeed) gameModifiers.SS = true;
+
         document.getElementById('deck-count').innerText = deck.length;
         document.getElementById('current-score').innerText = collectedSets;
         document.getElementById('possible-count').innerText = stats.total;
@@ -975,6 +1011,29 @@
         });
     }
 
+    function buildModifiersUI() {
+        const container = document.getElementById('final-modifiers');
+        container.innerHTML = '';
+        let count = 0;
+        
+        Object.entries(gameModifiers).forEach(([key, active]) => {
+            if (active) {
+                const chip = document.createElement('div');
+                chip.className = 'mod-chip';
+                chip.innerText = key;
+                container.appendChild(chip);
+                count++;
+            }
+        });
+
+        if (count === 0) {
+            const none = document.createElement('div');
+            none.className = 'mod-none';
+            none.innerText = 'No Modifiers';
+            container.appendChild(none);
+        }
+    }
+
     async function shareResult() {
         const source = document.getElementById('share-content');
         const clone = source.cloneNode(true);
@@ -984,7 +1043,10 @@
         const statCards = clone.querySelectorAll('.stat-card');
         const statLabels = clone.querySelectorAll('.stat-label');
         const statValues = clone.querySelectorAll('.stat-value');
-        const exportW = 430, exportH = 430;
+        const modContainer = clone.querySelector('#final-modifiers');
+        const modChips = clone.querySelectorAll('.mod-chip');
+
+        const exportW = 430, exportH = 480;
         clone.style.width = `${exportW}px`;
         clone.style.height = `${exportH}px`;
         clone.style.padding = '15px';
@@ -997,12 +1059,22 @@
         clone.style.left = '-9999px';
         clone.style.top = '0';
         clone.style.zIndex = '9999';
+        
         exportHeader.style.display = 'block';
         exportHeader.style.marginBottom = '5px';
         resultTitle.style.margin = '0';
         resultTitle.style.padding = '0';
         resultTitle.style.lineHeight = '0.8'; 
         resultTitle.style.marginBottom = '20px';
+
+        modContainer.style.display = 'flex';
+        modContainer.style.flexWrap = 'wrap';
+        modContainer.style.justifyContent = 'center';
+        modChips.forEach(c => {
+            c.style.display = 'inline-block';
+            c.style.margin = '2px';
+        });
+
         statCards.forEach(card => {
             card.style.display = 'flex'; 
             card.style.flexDirection = 'column';
@@ -1020,14 +1092,25 @@
             val.style.display = 'block';
             val.style.lineHeight = '1.1';
         });
+	
+	modChips.forEach(c => {
+            c.style.display = 'inline-block';
+            c.style.margin = '2px';
+            c.style.lineHeight = '0.7';
+            c.style.paddingTop = '0px';
+            c.style.paddingBottom = '4px';
+        });
+
         finalDate.style.display = 'block';
         finalDate.style.marginTop = '12px';
+
         const originalCanvas = source.querySelector('canvas');
         const clonedCanvas = clone.querySelector('canvas');
         const ctx = clonedCanvas.getContext('2d');
         clonedCanvas.width = originalCanvas.width;
         clonedCanvas.height = originalCanvas.height;
         ctx.drawImage(originalCanvas, 0, 0);
+        
         document.body.appendChild(clone);
         try {
             await new Promise(r => setTimeout(r, 150));
@@ -1065,7 +1148,10 @@
         document.getElementById('final-bad-shuffles').innerText = badShuffles;
         document.getElementById('final-avg-find').innerText = avgFind ? formatTime(avgFind, true) : '--:--';
         document.getElementById('final-ext-find').innerHTML = `F: ${minFind ? formatTime(minFind, true) : '--'}<br>S: ${maxFind ? formatTime(maxFind, true) : '--'}`;
+        
+        buildModifiersUI();
         renderSpeedChart(elapsedMs);
+        
         const modal = document.getElementById('result-modal');
         modal.classList.remove('hide');
         modal.classList.add('show');
@@ -1087,6 +1173,7 @@
         startTime = Date.now();
         setTimestamps = [];
         possibleHistory = [];
+        gameModifiers = { SP: config.showPossible, DP: config.showPossible && config.showDetailedPossible, AS: config.autoShuffle, PBS: config.preventBadShuffle, A3RD: config.autoSelectThird, SS: config.useFixedSeed };
         document.getElementById('timer').innerText = "00:00";
     }
 
@@ -1211,7 +1298,6 @@
         if (touchStartY === null) return;
         const touchEndY = e.changedTouches[0].clientY;
         const diff = touchStartY - touchEndY;
-        // Свайп вверх (diff > 50)
         if (diff > 50) {
             shuffleExistingCards();
         }
