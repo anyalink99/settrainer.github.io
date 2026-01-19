@@ -514,6 +514,12 @@
                 <div id="toggle-prevent" class="toggle-switch" onpointerdown="toggleOption('preventBadShuffle')"></div>
             </div>
             <div class="settings-row">
+                <div class="flex flex-col">
+                    <span class="text-sm font-bold uppercase">Target Possible Sets</span>
+                </div>
+                <input type="number" id="min-possible-input" class="input-mini" min="0" max="6" onchange="setMinPossible(this.value)">
+            </div>
+            <div class="settings-row" id="row-seed">
                 <span class="text-sm font-bold uppercase">Synchronized Seed</span>
                 <div id="toggle-seed" class="toggle-switch" onpointerdown="toggleOption('useFixedSeed')"></div>
             </div>
@@ -619,18 +625,19 @@
 
     let config = {
 	    preset: localStorage.getItem('set_shape_preset') || 'standard',
-            speedMod: localStorage.getItem('set_speed_mod') || '1.0',
+        speedMod: localStorage.getItem('set_speed_mod') || '1.0',
 	    showPossible: localStorage.getItem('set_show_possible') !== 'false', 
 	    showDetailedPossible: localStorage.getItem('set_show_detailed_possible') === 'true',
 	    autoShuffle: localStorage.getItem('set_auto_shuffle') !== 'false',
 	    autoSelectThird: localStorage.getItem('set_auto_select_third') === 'true',
 	    preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'true',
 	    useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'true',
-            minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23')
+        minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23'),
+        minPossibleSets: parseInt(localStorage.getItem('set_min_possible_sets') || '0')
 	};
 
     let gameModifiers = {
-        SP: false, DP: false, AS: false, PBS: false, A3RD: false, SS: false
+        SP: false, DP: false, AS: false, PBS: false, A3RD: false, SS: false, MS: false
     };
 
     const DEFAULT_BINDS = {
@@ -812,8 +819,19 @@
         document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
         document.getElementById('toggle-seed').classList.toggle('active', config.useFixedSeed);
         document.getElementById('min-sets-input').value = config.minSetsToRecord;
+        document.getElementById('min-possible-input').value = config.minPossibleSets;
         document.getElementById('seed-label').style.display = config.useFixedSeed ? 'block' : 'none';
         
+        // Conflict UI
+        const seedRow = document.getElementById('row-seed');
+        if (config.minPossibleSets > 0) {
+            seedRow.style.opacity = '0.3';
+            seedRow.style.pointerEvents = 'none';
+        } else {
+            seedRow.style.opacity = '1';
+            seedRow.style.pointerEvents = 'auto';
+        }
+
         const speedRange = document.getElementById('speed-range');
         if (speedRange) speedRange.value = config.speedMod;
         
@@ -836,9 +854,13 @@
 
     function toggleOption(key) {
 		config[key] = !config[key];
+
+        if (key === 'useFixedSeed' && config.useFixedSeed) {
+            config.minPossibleSets = 0;
+            localStorage.setItem('set_min_possible_sets', 0);
+        }
     
     	const storageKey = 'set_' + key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-    
     	localStorage.setItem(storageKey, config[key]);
     
     	syncSettingsUI();
@@ -855,6 +877,22 @@
         const num = parseInt(val) || 0;
         config.minSetsToRecord = num;
         localStorage.setItem('set_min_sets', num);
+    }
+
+    function setMinPossible(val) {
+        const num = Math.max(0, parseInt(val) || 0);
+        config.minPossibleSets = num;
+        localStorage.setItem('set_min_possible_sets', num);
+        
+        if (num > 0 && config.useFixedSeed) {
+            config.useFixedSeed = false;
+            localStorage.setItem('set_use_fixed_seed', 'false');
+        }
+        
+        syncSettingsUI();
+        initNewDeckAndBoard();
+        resetStats();
+        updateUI();
     }
 
     function createDeck() {
@@ -893,16 +931,74 @@
         return stats;
     }
 
+    function ensureMinSets() {
+        if (config.minPossibleSets <= 0 || config.useFixedSeed) return;
+        
+        let attempts = 0;
+        let maxAttempts = 60;
+        
+        // Объединяем текущие карты на столе и в колоде в один честный пул
+        let fullPool = [...board.filter(c => c !== null), ...deck];
+        
+        let bestFound = { board: [], deck: [], count: -1 };
+
+        while (attempts < maxAttempts) {
+            for (let i = fullPool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [fullPool[i], fullPool[j]] = [fullPool[j], fullPool[i]];
+            }
+
+            let tempBoard = [...board];
+            let poolIdx = 0;
+            for (let i = 0; i < 12; i++) {
+                if (board[i] !== null || deck.length + board.filter(c=>c!==null).length > i) {
+                   if (poolIdx < fullPool.length) tempBoard[i] = fullPool[poolIdx++];
+                   else tempBoard[i] = null;
+                }
+            }
+
+            let currentBoardBackup = board;
+            board = tempBoard;
+            let stats = analyzePossibleSets();
+            board = currentBoardBackup;
+
+            if (stats.total >= config.minPossibleSets) {
+                poolIdx = 0;
+                for (let i = 0; i < 12; i++) {
+                    if (board[i] !== null || fullPool.length > i) {
+                        if (poolIdx < fullPool.length) board[i] = fullPool[poolIdx++];
+                        else board[i] = null;
+                    }
+                }
+                deck = fullPool.slice(poolIdx);
+                return;
+            }
+
+            if (stats.total > bestFound.count) {
+                bestFound = { 
+                    board: [...tempBoard], 
+                    deck: fullPool.slice(poolIdx), 
+                    count: stats.total 
+                };
+            }
+            attempts++;
+        }
+        
+        board = bestFound.board;
+        deck = bestFound.deck;
+    }
+
     function updateUI() {
         const stats = analyzePossibleSets();
         possibleHistory.push(stats.total);
         
-        if (config.showPossible) gameModifiers.SP = true;
-        if (config.showPossible && config.showDetailedPossible) gameModifiers.DP = true;
-        if (config.autoShuffle) gameModifiers.AS = true;
-        if (config.preventBadShuffle) gameModifiers.PBS = true;
-        if (config.autoSelectThird) gameModifiers.A3RD = true;
-        if (config.useFixedSeed) gameModifiers.SS = true;
+        gameModifiers.SP = config.showPossible;
+        gameModifiers.DP = config.showPossible && config.showDetailedPossible;
+        gameModifiers.AS = config.autoShuffle;
+        gameModifiers.PBS = config.preventBadShuffle;
+        gameModifiers.A3RD = config.autoSelectThird;
+        gameModifiers.SS = config.useFixedSeed;
+        gameModifiers.MS = config.minPossibleSets > 0;
 
         document.getElementById('deck-count').innerText = deck.length;
         document.getElementById('current-score').innerText = collectedSets;
@@ -981,7 +1077,12 @@
                 setTimestamps.push(startTime + (Date.now() - startTime));
                 sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
                 await new Promise(r => setTimeout(r, 70));
-                sIdx.forEach(i => { board[i] = deck.length > 0 ? deck.pop() : null; updateSlot(i, true); });
+                
+                sIdx.forEach(i => { board[i] = deck.length > 0 ? deck.pop() : null; });
+                
+                ensureMinSets();
+
+                sIdx.forEach(i => updateSlot(i, true));
                 selected = []; 
                 isAnimating = false; 
                 updateUI();
@@ -1019,10 +1120,21 @@
     function shuffleExistingCards() {
         if (isAnimating || isGameOver) return;
         isAnimating = true;
-        for (let i = board.length - 1; i > 0; i--) {
+        
+        let activeIndices = board.map((c, i) => c !== null ? i : null).filter(i => i !== null);
+        let activeCards = activeIndices.map(i => board[i]);
+
+        for (let i = activeCards.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [board[i], board[j]] = [board[j], board[i]];
+            [activeCards[i], activeCards[j]] = [activeCards[j], activeCards[i]];
         }
+        
+        activeIndices.forEach((boardIdx, arrayIdx) => {
+            board[boardIdx] = activeCards[arrayIdx];
+        });
+
+        ensureMinSets();
+
         selected = [];
         const slots = document.getElementById('board').children;
         for (let i = 0; i < slots.length; i++) {
@@ -1042,10 +1154,20 @@
         isAnimating = true;
         document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
         setTimeout(() => {
-            const currentCards = board.filter(c => c !== null);
-            deck.push(...currentCards);
-            deck.sort(() => Math.random() - 0.5);
-            board = deck.splice(0, 12);
+            let fullPool = [...board.filter(c => c !== null), ...deck];
+            for (let i = fullPool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [fullPool[i], fullPool[j]] = [fullPool[j], fullPool[i]];
+            }
+
+            for (let i=0; i<12; i++) {
+                if (i < fullPool.length) board[i] = fullPool[i];
+                else board[i] = null;
+            }
+            deck = fullPool.slice(12);
+            
+            ensureMinSets();
+
             selected = [];
             for (let i=0; i<12; i++) updateSlot(i, true);
             isAnimating = false;
@@ -1194,7 +1316,7 @@
             val.style.lineHeight = '1.1';
         });
 	
-	modChips.forEach(c => {
+	    modChips.forEach(c => {
             c.style.display = 'inline-block';
             c.style.margin = '2px';
             c.style.lineHeight = '0.7';
@@ -1234,16 +1356,20 @@
         if (isGameOver) return;
         isGameOver = true;
         const elapsedMs = (Date.now() - startTime);
+        
         saveRecord();
+        
         const now = new Date();
         const dateStr = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
         document.getElementById('final-date-display').innerText = dateStr;
+        
         let findIntervals = [];
         let prev = startTime;
         setTimestamps.forEach(ts => { findIntervals.push(ts - prev); prev = ts; });
         const maxFind = findIntervals.length ? Math.max(...findIntervals) : 0;
         const minFind = findIntervals.length ? Math.min(...findIntervals) : 0;
         const avgFind = findIntervals.length ? (findIntervals.reduce((a, b) => a + b, 0) / findIntervals.length) : 0;
+        
         document.getElementById('final-time').innerText = formatTime(elapsedMs, true);
         document.getElementById('final-score').innerText = collectedSets;
         document.getElementById('final-bad-shuffles').innerText = badShuffles;
@@ -1256,17 +1382,38 @@
         const modal = document.getElementById('result-modal');
         modal.classList.remove('hide');
         modal.classList.add('show');
+
+        // Бесшовная подготовка следующей игры СРАЗУ (под окном результатов)
+        prepareNextGame();
+    }
+
+    function prepareNextGame() {
+        // Очищаем визуально старую доску
+        document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
+        
         setTimeout(() => {
-            document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
-            setTimeout(() => { initNewDeckAndBoard(); }, 100);
+            // Генерируем новый стейт
+            initNewDeckAndBoard();
+            // Обнуляем старые статы, но не трогаем таймер пока не нажали Restart
+            collectedSets = 0; badShuffles = 0;
+            setTimestamps = [];
+            possibleHistory = [];
+            
+            // Отрисовываем новую доску (пока игрок видит модалку)
+            for (let i=0; i<12; i++) updateSlot(i, false);
+            
+            // Обновляем счетчики в HUD
+            document.getElementById('deck-count').innerText = deck.length;
+            document.getElementById('current-score').innerText = 0;
+            const stats = analyzePossibleSets();
+            document.getElementById('possible-count').innerText = stats.total;
         }, 150);
     }
 
     function initNewDeckAndBoard() {
         deck = createDeck();
-        board = deck.splice(0, 12);
-        selected = [];
-        for (let i=0; i<12; i++) updateSlot(i, false);
+        board = Array(12).fill(null).map(() => deck.pop());
+        ensureMinSets();
     }
 
     function resetStats() {
@@ -1274,7 +1421,15 @@
         startTime = Date.now();
         setTimestamps = [];
         possibleHistory = [];
-        gameModifiers = { SP: config.showPossible, DP: config.showPossible && config.showDetailedPossible, AS: config.autoShuffle, PBS: config.preventBadShuffle, A3RD: config.autoSelectThird, SS: config.useFixedSeed };
+        gameModifiers = { 
+            SP: config.showPossible, 
+            DP: config.showPossible && config.showDetailedPossible, 
+            AS: config.autoShuffle, 
+            PBS: config.preventBadShuffle, 
+            A3RD: config.autoSelectThird, 
+            SS: config.useFixedSeed, 
+            MS: config.minPossibleSets > 0 
+        };
         document.getElementById('timer').innerText = "00:00";
     }
 
@@ -1287,6 +1442,7 @@
         }
         isGameOver = false;
         resetStats();
+        // Доска уже подготовлена в prepareNextGame, просто обновляем UI
         updateUI();
     }
 
