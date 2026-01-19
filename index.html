@@ -551,15 +551,15 @@
     };
 
     let config = {
-        preset: localStorage.getItem('set_shape_preset') || 'standard',
-        showPossible: localStorage.getItem('set_show_possible') !== 'false', 
-        showDetailedPossible: localStorage.getItem('set_show_detailed') !== 'true',
-        autoShuffle: localStorage.getItem('set_auto_shuffle') !== 'false',
-        autoSelectThird: localStorage.getItem('set_auto_select_third') !== 'true',
-        preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') !== 'true',
-        useFixedSeed: localStorage.getItem('set_use_fixed_seed') !== 'true',
-        minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23')
-    };
+	    preset: localStorage.getItem('set_shape_preset') || 'standard',
+	    showPossible: localStorage.getItem('set_show_possible') !== 'false', 
+	    showDetailedPossible: localStorage.getItem('set_show_detailed_possible') === 'true',
+		autoShuffle: localStorage.getItem('set_auto_shuffle') !== 'false',
+	    autoSelectThird: localStorage.getItem('set_auto_select_third') === 'true',
+	    preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'true',
+	    useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'true',
+		minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23')
+	};
 
     let gameModifiers = {
         SP: false, DP: false, AS: false, PBS: false, A3RD: false, SS: false
@@ -736,18 +736,21 @@
     }
 
     function toggleOption(key) {
-        config[key] = !config[key];
-        const storageKey = 'set_' + key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-        localStorage.setItem(storageKey, config[key]);
-        syncSettingsUI();
-        if (key === 'useFixedSeed') {
-            initNewDeckAndBoard();
-            resetStats();
-            updateUI();
-        } else {
-            updateUI();
-        }
-    }
+		config[key] = !config[key];
+    
+    	const storageKey = 'set_' + key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    
+    	localStorage.setItem(storageKey, config[key]);
+    
+    	syncSettingsUI();
+    	if (key === 'useFixedSeed') {
+			initNewDeckAndBoard();
+			resetStats();
+			updateUI();
+		} else {
+			updateUI();
+		}
+	}
 
     function setMinSets(val) {
         const num = parseInt(val) || 0;
