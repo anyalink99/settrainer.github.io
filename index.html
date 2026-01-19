@@ -9,11 +9,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+	:root {
+	    --speed-mod: 1;
+	}
         
         body { 
             background-color: #1a161d; 
             color: white; 
-            font-family: sans-serif; 
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
             overflow: hidden; 
             height: 100vh; height: 100dvh; 
             display: flex; 
@@ -80,7 +84,7 @@
             width: 100%; height: 100%; display: flex; flex-direction: column; 
             justify-content: center; align-items: center;
             padding: 2px; 
-            transition: transform 0.15s cubic-bezier(0.2, 0, 0.2, 1), opacity 0.1s ease, border-color 0.15s ease;
+            transition: transform calc(0.15s * var(--speed-mod)) cubic-bezier(0.2, 0, 0.2, 1), opacity calc(0.1s * var(--speed-mod)) ease, border-color calc(0.15s * var(--speed-mod)) ease;
             border: 3px solid transparent; position: absolute; inset: 0;
             box-shadow: 0 4px 10px rgba(0,0,0,0.4);
             transform-origin: center center;
@@ -90,9 +94,9 @@
             pointer-events: auto;
         }
 
-        .card.anim-in { animation: cardPop 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.1); }
+        .card.anim-in { animation: cardPop calc(0.18s * var(--speed-mod)) cubic-bezier(0.175, 0.885, 0.32, 1.1); }
         .card.selected { border-color: #a34e78 !important; transform: scale(0.88) !important; z-index: 2; }
-        .card.anim-out { opacity: 0 !important; transform: scale(0) rotate(8deg) !important; transition: all 0.1s ease-in !important; }
+        .card.anim-out { opacity: 0 !important; transform: scale(0) rotate(8deg) !important; transition: all calc(0.1s * var(--speed-mod)) ease-in !important; }
         
         @keyframes cardJump {
             0% { transform: scale(1); }
@@ -220,6 +224,7 @@
         .input-mini {
             background: #2d2631; border: 1px solid #5a4d61; border-radius: 8px;
             width: 50px; text-align: center; color: white; font-weight: bold; padding: 4px 0;
+            font-family: inherit; outline: none;
         }
 
         .det-panel {
@@ -276,7 +281,6 @@
             border: 1px solid rgba(255,255,255,0.05);
         }
 
-        /* NEW: Modifiers Container Styles */
         .modifiers-container {
             width: 100%; max-width: 350px;
             background: rgba(0,0,0,0.1);
@@ -355,6 +359,48 @@
         .resizer-l { left: 0; }
         .resizer-r { right: 0; }
 
+        /* ADVANCED STYLES */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #2d2631;
+            border-radius: 3px;
+            border: 1px solid #5a4d61;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #ec4899;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -7px;
+            box-shadow: 0 0 10px rgba(236, 72, 153, 0.3);
+        }
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #2d2631;
+            border-radius: 3px;
+            border: 1px solid #5a4d61;
+        }
+        input[type=range]::-moz-range-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #ec4899;
+            cursor: pointer;
+            border: none;
+        }
+
     </style>
 </head>
 <body>
@@ -413,25 +459,52 @@
     <div id="settings-modal" class="overlay">
         <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Settings</h2>
         <div class="w-full flex flex-col items-center">
-            <div class="settings-row desktop-only">
-                <span class="text-sm font-bold uppercase">Controls</span>
-                <button onpointerdown="openKeybinds()" class="preset-chip active !bg-indigo-600 !border-indigo-400">Edit Keybinds</button>
-            </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Shapes</span>
-                <div class="flex gap-2">
-                    <div id="btn-std" class="preset-chip" onpointerdown="setShape('standard')">Standard</div>
-                    <div id="btn-cls" class="preset-chip" onpointerdown="setShape('classic')">Classic</div>
+          <div class="settings-row">
+              <span class="text-sm font-bold uppercase">Shapes</span>
+              <div class="flex gap-2">
+                  <div id="btn-std" class="preset-chip" onpointerdown="setShape('standard')">Standard</div>
+                  <div id="btn-cls" class="preset-chip" onpointerdown="setShape('classic')">Classic</div>
+              </div>
+          </div>
+          <div class="settings-row">
+              <span class="text-sm font-bold uppercase">Show Possible</span>
+              <div id="toggle-possible" class="toggle-switch" onpointerdown="toggleOption('showPossible')"></div>
+          </div>
+          <div id="row-detailed" class="settings-row transition-opacity">
+              <span class="text-sm font-bold uppercase text-[12px]">Detailed Possible</span>
+              <div id="toggle-detailed" class="toggle-switch" onpointerdown="toggleOption('showDetailedPossible')"></div>
+          </div>
+          <div class="settings-row">
+              <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
+              <div id="toggle-auto-select" class="toggle-switch" onpointerdown="toggleOption('autoSelectThird')"></div>
+          </div>
+          
+          <div class="settings-row desktop-only mt-4">
+              <span class="text-sm font-bold uppercase">Controls</span>
+              <button onpointerdown="openKeybinds()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Edit Keybinds</button>
+          </div>
+          
+          <div class="settings-row">
+              <span class="text-sm font-bold uppercase">Extra</span>
+              <button onpointerdown="openAdvanced()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Advanced</button>
+          </div>
+      </div>
+      <button onpointerdown="toggleSettings(false)" class="btn-action !w-64 text-xl py-4 uppercase mt-8">Close</button>
+    </div>
+
+    <div id="advanced-modal" class="overlay">
+        <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Advanced</h2>
+        <div class="w-full flex flex-col items-center">
+            
+            <div class="settings-row !flex-col !items-start gap-3 !h-auto py-4">
+                <div class="flex justify-between w-full">
+                    <span class="text-sm font-bold uppercase">Speed Mod</span>
+                    <span id="speed-val" class="text-sm font-bold font-sans text-pink-400">1.0x</span>
                 </div>
+                <input type="range" id="speed-range" min="0.1" max="2.0" step="0.1" 
+                       oninput="setSpeedMod(this.value)">
             </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Show Possible</span>
-                <div id="toggle-possible" class="toggle-switch" onpointerdown="toggleOption('showPossible')"></div>
-            </div>
-            <div id="row-detailed" class="settings-row transition-opacity">
-                <span class="text-sm font-bold uppercase text-[12px]">Detailed Possible</span>
-                <div id="toggle-detailed" class="toggle-switch" onpointerdown="toggleOption('showDetailedPossible')"></div>
-            </div>
+
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Auto Shuffle</span>
                 <div id="toggle-auto" class="toggle-switch" onpointerdown="toggleOption('autoShuffle')"></div>
@@ -439,10 +512,6 @@
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase text-[12px]">Prevent Bad Shuffle</span>
                 <div id="toggle-prevent" class="toggle-switch" onpointerdown="toggleOption('preventBadShuffle')"></div>
-            </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
-                <div id="toggle-auto-select" class="toggle-switch" onpointerdown="toggleOption('autoSelectThird')"></div>
             </div>
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Synchronized Seed</span>
@@ -453,7 +522,7 @@
                 <input type="number" id="min-sets-input" class="input-mini" onchange="setMinSets(this.value)">
             </div>
         </div>
-        <button onpointerdown="toggleSettings(false)" class="btn-action !w-64 text-xl py-4 uppercase mt-4">Close</button>
+        <button onpointerdown="closeAdvanced()" class="btn-action !w-64 text-xl py-4 uppercase mt-8">Done</button>
     </div>
 
     <div id="keybinds-modal" class="overlay">
@@ -461,9 +530,7 @@
         <p class="text-[10px] text-gray-400 mb-4 uppercase text-center">Click a cell then press any key to rebind</p>
         
         <div class="w-full max-w-[320px]">
-            <div class="kb-grid mb-4" id="kb-board-grid">
-                </div>
-            
+            <div class="kb-grid mb-4" id="kb-board-grid"></div>
             <div class="flex flex-col gap-1">
                 <div class="settings-row !mb-1 !py-2 !rounded-xl">
                     <span class="text-sm font-bold uppercase">Shuffle Deck</span>
@@ -552,13 +619,14 @@
 
     let config = {
 	    preset: localStorage.getItem('set_shape_preset') || 'standard',
+            speedMod: localStorage.getItem('set_speed_mod') || '1.0',
 	    showPossible: localStorage.getItem('set_show_possible') !== 'false', 
 	    showDetailedPossible: localStorage.getItem('set_show_detailed_possible') === 'true',
-		autoShuffle: localStorage.getItem('set_auto_shuffle') !== 'false',
+	    autoShuffle: localStorage.getItem('set_auto_shuffle') !== 'false',
 	    autoSelectThird: localStorage.getItem('set_auto_select_third') === 'true',
 	    preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'true',
 	    useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'true',
-		minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23')
+            minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23')
 	};
 
     let gameModifiers = {
@@ -586,6 +654,13 @@
 
     const savedWidth = localStorage.getItem('set_app_width');
     if (savedWidth) appContainer.style.width = savedWidth + 'px';
+
+    function setSpeedMod(val) {
+    	config.speedMod = val;
+    	localStorage.setItem('set_speed_mod', val);
+    	document.documentElement.style.setProperty('--speed-mod', val);
+    	document.getElementById('speed-val').innerText = val + 'x';
+    }
 
     function initResize(e) {
         isResizing = true;
@@ -708,6 +783,20 @@
         }
     }
 
+    function openAdvanced() {
+        const advModal = document.getElementById('advanced-modal');
+        syncSettingsUI();
+        advModal.classList.remove('hide');
+        advModal.classList.add('show');
+    }
+
+    async function closeAdvanced() {
+        const advModal = document.getElementById('advanced-modal');
+        advModal.classList.add('hide');
+        await new Promise(r => setTimeout(r, 200));
+        advModal.classList.remove('show', 'hide');
+    }
+
     function syncSettingsUI() {
         document.getElementById('btn-std').className = `preset-chip ${config.preset === 'standard' ? 'active' : ''}`;
         document.getElementById('btn-cls').className = `preset-chip ${config.preset === 'classic' ? 'active' : ''}`;
@@ -716,12 +805,22 @@
         rowDet.style.opacity = config.showPossible ? '1' : '0.3';
         rowDet.style.pointerEvents = config.showPossible ? 'auto' : 'none';
         document.getElementById('toggle-detailed').classList.toggle('active', config.showDetailedPossible);
+        
+        // Advanced Section
         document.getElementById('toggle-auto').classList.toggle('active', config.autoShuffle);
         document.getElementById('toggle-auto-select').classList.toggle('active', config.autoSelectThird);
         document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
         document.getElementById('toggle-seed').classList.toggle('active', config.useFixedSeed);
         document.getElementById('min-sets-input').value = config.minSetsToRecord;
         document.getElementById('seed-label').style.display = config.useFixedSeed ? 'block' : 'none';
+        
+        const speedRange = document.getElementById('speed-range');
+        if (speedRange) speedRange.value = config.speedMod;
+        
+        const speedVal = document.getElementById('speed-val');
+        if (speedVal) speedVal.innerText = config.speedMod + 'x';
+        
+        document.documentElement.style.setProperty('--speed-mod', config.speedMod);
     }
 
     function setShape(p) {
@@ -798,7 +897,6 @@
         const stats = analyzePossibleSets();
         possibleHistory.push(stats.total);
         
-        // Track modifiers
         if (config.showPossible) gameModifiers.SP = true;
         if (config.showPossible && config.showDetailedPossible) gameModifiers.DP = true;
         if (config.autoShuffle) gameModifiers.AS = true;
@@ -817,7 +915,7 @@
         document.getElementById('det-2').innerText = stats[2];
         document.getElementById('det-1').innerText = stats[1];
         if (stats.total === 0 && config.autoShuffle && deck.length > 0 && !isAnimating && !isGameOver) {
-            setTimeout(() => shuffleBoard(true), 500);
+            setTimeout(() => shuffleBoard(true), 50);
         }
     }
 
