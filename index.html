@@ -275,7 +275,8 @@
 
         #swipe-zone {
             position: absolute; bottom: 0; left: 0; right: 0;
-            height: 40%; z-index: 5; touch-action: none;
+            height: 40%; z-index: 25; touch-action: none;
+            background: transparent;
         }
         
         .share-btn {
@@ -440,7 +441,7 @@
                     <div id="kb-shuffle" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onclick="startCapture('shuffle')"></div>
                 </div>
                 <div class="settings-row !mb-1 !py-2 !rounded-xl">
-                    <span class="text-sm font-bold uppercase">Shuffle Existing</span>
+                    <span class="text-sm font-bold uppercase">Shuffle Board</span>
                     <div id="kb-shuffle-ex" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onclick="startCapture('shuffleEx')"></div>
                 </div>
                 <div class="settings-row !mb-1 !py-2 !rounded-xl">
@@ -831,7 +832,7 @@
             const isCorrect = ['c','s','f','n'].every(p => (cards[0][p] + cards[1][p] + cards[2][p]) % 3 === 0);
             if (isCorrect) {
                 collectedSets++;
-                setTimestamps.push(Date.now());
+                setTimestamps.push(startTime + (Date.now() - startTime));
                 sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
                 await new Promise(r => setTimeout(r, 70));
                 sIdx.forEach(i => { board[i] = deck.length > 0 ? deck.pop() : null; updateSlot(i, true); });
@@ -908,7 +909,7 @@
 
     function saveRecord() {
         if (collectedSets < config.minSetsToRecord) return;
-        const elapsedMs = Date.now() - startTime;
+        const elapsedMs = (Date.now() - startTime);
         const now = new Date();
         const dateStr = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getFullYear()).slice(-2)} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
         const records = JSON.parse(localStorage.getItem('set_pro_records') || '[]');
@@ -1039,7 +1040,7 @@
     function finishGame() {
         if (isGameOver) return;
         isGameOver = true;
-        const elapsedMs = Date.now() - startTime;
+        const elapsedMs = (Date.now() - startTime);
         saveRecord();
         const now = new Date();
         const dateStr = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -1179,12 +1180,27 @@
 
     let touchStartY = 0;
     const swipeZone = document.getElementById('swipe-zone');
-    swipeZone.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+    
+    // Исправленный свайп для мобилок
+    swipeZone.addEventListener('touchstart', (e) => { 
+        touchStartY = e.touches[0].clientY; 
+    }, { passive: false });
+
+    swipeZone.addEventListener('touchmove', (e) => {
+        // Предотвращаем дефолтную прокрутку во время активного взаимодействия с зоной свайпа
+        if (Math.abs(e.touches[0].clientY - touchStartY) > 10) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
     swipeZone.addEventListener('touchend', (e) => {
         const touchEndY = e.changedTouches[0].clientY;
         const diff = touchStartY - touchEndY;
-        if (diff > 50) shuffleExistingCards();
-    }, { passive: true });
+        // Свайп вверх (diff > 0)
+        if (diff > 50) {
+            shuffleExistingCards();
+        }
+    }, { passive: false });
 
     window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT') return;
@@ -1220,7 +1236,7 @@
 
     setInterval(() => {
         if (!isGameOver && !document.querySelector('.overlay.show')) {
-            const elapsedMs = Date.now() - startTime;
+            const elapsedMs = (Date.now() - startTime);
             document.getElementById('timer').innerText = formatTime(elapsedMs, false);
         }
     }, 1000);
