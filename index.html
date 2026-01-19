@@ -552,12 +552,12 @@
 
     let config = {
         preset: localStorage.getItem('set_shape_preset') || 'standard',
-        showPossible: localStorage.getItem('set_show_possible') !== 'false', 
-        showDetailedPossible: localStorage.getItem('set_show_detailed') === 'true',
-        autoShuffle: localStorage.getItem('set_auto_shuffle') !== 'false',
-        autoSelectThird: localStorage.getItem('set_auto_select_third') === 'true',
-        preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'true',
-        useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'true',
+        showPossible: localStorage.getItem('set_show_possible') === 'true', 
+        showDetailedPossible: localStorage.getItem('set_show_detailed') === 'false',
+        autoShuffle: localStorage.getItem('set_auto_shuffle') === 'true',
+        autoSelectThird: localStorage.getItem('set_auto_select_third') === 'false',
+        preventBadShuffle: localStorage.getItem('set_prevent_bad_shuffle') === 'false',
+        useFixedSeed: localStorage.getItem('set_use_fixed_seed') === 'false',
         minSetsToRecord: parseInt(localStorage.getItem('set_min_sets') || '23')
     };
 
@@ -566,7 +566,7 @@
     };
 
     const DEFAULT_BINDS = {
-        board: ['e', 'r', 'i', 'o', 'd', 'f', 'j', 'k', 'c', 'v', 'n', 'm'],
+        board: ['e', 'r', 'i', 'o', 'd', 'f', 'k', 'l', 'x', 'c', 'm', ','],
         shuffle: 'backspace',
         shuffleEx: ' ',
         finish: 'enter'
