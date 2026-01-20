@@ -915,7 +915,7 @@
         document.getElementById('det-2').innerText = stats[2];
         document.getElementById('det-1').innerText = stats[1];
         if (stats.total === 0 && config.autoShuffle && deck.length > 0 && !isAnimating && !isGameOver) {
-            setTimeout(() => shuffleBoard(true), 50);
+            setTimeout(() => shuffleBoard(true), 0);
         }
     }
 
