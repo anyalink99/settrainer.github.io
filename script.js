@@ -1,7 +1,3 @@
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
 const GAME_COLORS = ['#fd0000', '#01a43b', '#0000fe'];
 
 const STORAGE_KEYS = {
@@ -226,30 +222,78 @@ async function closeAdvancedModal() {
 
 function openRecordsModal() {
   const records = Storage.getJSON(STORAGE_KEYS.RECORDS, []);
-  records.sort((a, b) => b.sets - a.sets || a.time - b.time);
-  const container = document.getElementById('records-container');
-  container.innerHTML = records.length ? '' : '<p class="text-center text-gray-500 mt-10">No records yet</p>';
 
-  records.forEach(r => {
-    const item = document.createElement('div');
-    item.className = 'record-item';
-    item.onpointerdown = () => showSavedRecord(r);
-    item.innerHTML = `
-      <div class="record-info">
-        <div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div>
-        <div class="text-[10px] uppercase opacity-70">${r.date}</div>
-      </div>
-      <div class="record-info text-right flex-grow flex justify-end items-center mr-2">
-        <div class="text-white font-mono text-lg leading-none">${formatTime(r.time, true)}</div>
-      </div>
-      <div class="btn-del" onpointerdown="handleRecordDelete(event, ${r.id})">
-        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-        </svg>
-      </div>
-    `;
-    container.appendChild(item);
-  });
+  const finishes = records.filter(r => r.extra?.isAutoFinish === true);
+  const others = records.filter(r => r.extra?.isAutoFinish !== true);
+
+  finishes.sort((a, b) => a.time - b.time);
+  others.sort((a, b) => b.sets - a.sets || a.time - b.time);
+
+  const container = document.getElementById('records-container');
+  container.innerHTML = '';
+
+  if (finishes.length === 0 && others.length === 0) {
+    container.innerHTML = '<p class="text-center text-gray-500 mt-10">No records yet</p>';
+    openModal('records-modal');
+    return;
+  }
+
+  if (finishes.length > 0) {
+    const finishHeader = document.createElement('div');
+    finishHeader.className = 'text-pink-400 font-black uppercase text-sm mb-2 mt-4 first:mt-0 tracking-wider';
+    finishHeader.innerText = 'Finishes';
+    container.appendChild(finishHeader);
+
+    finishes.forEach(r => {
+      const item = document.createElement('div');
+      item.className = 'record-item';
+      item.onpointerdown = () => showSavedRecord(r);
+      item.innerHTML = `
+        <div class="record-info">
+          <div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div>
+          <div class="text-[10px] uppercase opacity-70">${r.date}</div>
+        </div>
+        <div class="record-info text-right flex-grow flex justify-end items-center mr-2">
+          <div class="text-white font-mono text-lg leading-none">${formatTime(r.time, true)}</div>
+        </div>
+        <div class="btn-del" onpointerdown="handleRecordDelete(event, ${r.id})">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+          </svg>
+        </div>
+      `;
+      container.appendChild(item);
+    });
+  }
+
+  if (others.length > 0) {
+    const othersHeader = document.createElement('div');
+    othersHeader.className = 'text-gray-400 font-black uppercase text-sm mb-2 mt-6 tracking-wider';
+    othersHeader.innerText = 'Other Records';
+    container.appendChild(othersHeader);
+
+    others.forEach(r => {
+      const item = document.createElement('div');
+      item.className = 'record-item';
+      item.onpointerdown = () => showSavedRecord(r);
+      item.innerHTML = `
+        <div class="record-info">
+          <div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div>
+          <div class="text-[10px] uppercase opacity-70">${r.date}</div>
+        </div>
+        <div class="record-info text-right flex-grow flex justify-end items-center mr-2">
+          <div class="text-white font-mono text-lg leading-none">${formatTime(r.time, true)}</div>
+        </div>
+        <div class="btn-del" onpointerdown="handleRecordDelete(event, ${r.id})">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+          </svg>
+        </div>
+      `;
+      container.appendChild(item);
+    });
+  }
+
   openModal('records-modal');
 }
 
@@ -292,9 +336,9 @@ function openExtraStatsModal() {
   container.innerHTML = `
     <div class="extra-stat-row"><span class="extra-stat-label">Avg sets on board</span><span class="extra-stat-value">${avgPossible}</span></div>
     <div class="extra-stat-row"><span class="extra-stat-label">Wrong selections</span><span class="extra-stat-value">${s.mistakes}</span></div>
-    <div class="extra-stat-row"><span class="extra-stat-label">Search (1 set)</span><span class="extra-stat-value">${getAvg(diff1)}</span></div>
-    <div class="extra-stat-row"><span class="extra-stat-label">Search (2 sets)</span><span class="extra-stat-value">${getAvg(diff2)}</span></div>
-    <div class="extra-stat-row"><span class="extra-stat-label">Search (3+ sets)</span><span class="extra-stat-value">${getAvg(diff3)}</span></div>
+    <div class="extra-stat-row"><span class="extra-stat-label">Avg find (1 set)</span><span class="extra-stat-value">${getAvg(diff1)}</span></div>
+    <div class="extra-stat-row"><span class="extra-stat-label">Avg find (2 sets)</span><span class="extra-stat-value">${getAvg(diff2)}</span></div>
+    <div class="extra-stat-row"><span class="extra-stat-label">Avg find (3+ sets)</span><span class="extra-stat-value">${getAvg(diff3)}</span></div>
     <div class="extra-stat-row"><span class="extra-stat-label">Shuffle Board uses</span><span class="extra-stat-value">${s.shuffleExCount}</span></div>
     <div class="extra-stat-row"><span class="extra-stat-label">Auto finish</span><span class="extra-stat-value">${s.isAutoFinish ? 'YES' : 'NO'}</span></div>
     <div class="extra-stat-row"><span class="extra-stat-label">Platform</span><span class="extra-stat-value">${s.platform}</span></div>
