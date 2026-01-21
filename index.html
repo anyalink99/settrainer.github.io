@@ -45,7 +45,7 @@
     </div>
 
     <div class="settings-edge-container">
-        <div class="settings-btn" onpointerdown="toggleSettings(true)">
+        <div class="settings-btn" onpointerdown="toggleSettingsModal(true)">
             <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.91,7.62,6.29L5.23,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.72,8.87 c-0.11,0.2-0.06,0.47,0.12,0.61l2.03,1.58C4.84,11.36,4.81,11.66,4.81,12c0,0.33,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.5c-1.93,0-3.5-1.57-3.5-3.5 s1.57-3.5,3.5-3.5s3.5,1.57,3.5,3.5S13.93,15.5,12,15.5z"/></svg>
         </div>
         <div class="text-gray-300 text-sm font-medium">Sets: <span id="current-score" class="text-pink-400 font-bold">0</span></div>
@@ -60,7 +60,7 @@
         </div>
 
         <div class="bottom-actions">
-            <button onpointerdown="finishGame()" class="btn-action">Finish</button>
+            <button onpointerdown="handleGameFinish()" class="btn-action">Finish</button>
             <button id="shuffle-btn" onpointerdown="handleShuffleClick()" class="btn-action">Shuffle</button>
         </div>
     </div>
@@ -71,8 +71,8 @@
           <div class="settings-row">
               <span class="text-sm font-bold uppercase">Shapes</span>
               <div class="flex gap-2">
-                  <div id="btn-std" class="preset-chip" onpointerdown="setShape('standard')">Standard</div>
-                  <div id="btn-cls" class="preset-chip" onpointerdown="setShape('classic')">Classic</div>
+                  <div id="btn-std" class="preset-chip" onpointerdown="updatePreset('standard')">Standard</div>
+                  <div id="btn-cls" class="preset-chip" onpointerdown="updatePreset('classic')">Classic</div>
               </div>
           </div>
           <div class="settings-row">
@@ -91,31 +91,31 @@
               <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
               <div id="toggle-auto-select" class="toggle-switch" onpointerdown="toggleOption('autoSelectThird')"></div>
           </div>
-          
+
           <div class="settings-row desktop-only mt-4">
               <span class="text-sm font-bold uppercase">Controls</span>
-              <button onpointerdown="openKeybinds()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Edit Keybinds</button>
+              <button onpointerdown="openKeybindsModal()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Edit Keybinds</button>
           </div>
-          
+
           <div class="settings-row">
               <span class="text-sm font-bold uppercase">Extra</span>
-              <button onpointerdown="openAdvanced()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Advanced</button>
+              <button onpointerdown="openAdvancedModal()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Advanced</button>
           </div>
       </div>
-      <button onpointerdown="toggleSettings(false)" class="btn-action !w-64 text-xl py-4 uppercase mt-8">Close</button>
+      <button onpointerdown="toggleSettingsModal(false)" class="btn-action !w-64 text-xl py-4 uppercase mt-8">Close</button>
     </div>
 
     <div id="advanced-modal" class="overlay">
         <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Advanced</h2>
         <div class="w-full flex flex-col items-center">
-            
+
             <div class="settings-row !flex-col !items-start gap-3 !h-auto py-4">
                 <div class="flex justify-between w-full">
                     <span class="text-sm font-bold uppercase">Speed Mod</span>
                     <span id="speed-val" class="text-sm font-bold font-sans text-pink-400">1.0x</span>
                 </div>
-                <input type="range" id="speed-range" min="0.1" max="2.0" step="0.1" 
-                       oninput="setSpeedMod(this.value)">
+                <input type="range" id="speed-range" min="0.1" max="2.0" step="0.1"
+                       oninput="updateSpeedModifier(this.value)">
             </div>
 
             <div class="settings-row">
@@ -132,43 +132,43 @@
             </div>
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Record min sets</span>
-                <input type="number" id="min-sets-input" class="input-mini" onchange="setMinSets(this.value)">
+                <input type="number" id="min-sets-input" class="input-mini" onchange="updateMinSets(this.value)">
             </div>
         </div>
-        <button onpointerdown="closeAdvanced()" class="btn-action !w-64 text-xl py-4 uppercase mt-8">Done</button>
+        <button onpointerdown="closeAdvancedModal()" class="btn-action !w-64 text-xl py-4 uppercase mt-8">Done</button>
     </div>
 
     <div id="keybinds-modal" class="overlay">
         <h2 class="text-2xl font-black mb-4 text-pink-400 uppercase tracking-widest">Keybinds</h2>
         <p class="text-[10px] text-gray-400 mb-4 uppercase text-center">Click a cell then press any key to rebind</p>
-        
+
         <div class="w-full max-w-[320px]">
             <div class="kb-grid mb-4" id="kb-board-grid"></div>
             <div class="flex flex-col gap-1">
                 <div class="settings-row !mb-1 !py-2 !rounded-xl">
                     <span class="text-sm font-bold uppercase">Shuffle Deck</span>
-                    <div id="kb-shuffle" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onclick="startCapture('shuffle')"></div>
+                    <div id="kb-shuffle" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onpointerdown="startKeyCapture('shuffle')"></div>
                 </div>
                 <div class="settings-row !mb-1 !py-2 !rounded-xl">
                     <span class="text-sm font-bold uppercase">Shuffle Board</span>
-                    <div id="kb-shuffle-ex" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onclick="startCapture('shuffleEx')"></div>
+                    <div id="kb-shuffle-ex" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onpointerdown="startKeyCapture('shuffleEx')"></div>
                 </div>
                 <div class="settings-row !mb-1 !py-2 !rounded-xl">
                     <span class="text-sm font-bold uppercase">Finish Game</span>
-                    <div id="kb-finish" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onclick="startCapture('finish')"></div>
+                    <div id="kb-finish" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onpointerdown="startKeyCapture('finish')"></div>
                 </div>
             </div>
         </div>
-        
+
         <div class="flex gap-2 mt-4">
-            <button onpointerdown="resetKeybinds()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
-            <button onpointerdown="closeKeybinds()" class="btn-action !w-32 text-sm">Done</button>
+            <button onpointerdown="handleKeybindsReset()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
+            <button onpointerdown="closeKeybindsModal()" class="btn-action !w-32 text-sm">Done</button>
         </div>
     </div>
 
     <div id="result-modal" class="overlay">
         <div id="share-content" class="flex flex-col items-center w-full">
-            <div class="more-details-btn no-export" onpointerdown="showExtraStats()">
+            <div class="more-details-btn no-export" onpointerdown="openExtraStatsModal()">
                 <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
             </div>
             <div id="export-header" class="text-[10px] text-pink-400/50 font-black uppercase tracking-[0.2em] mb-1 export-only">Set Pro Trainer</div>
@@ -197,7 +197,7 @@
                     <div id="final-ext-find" class="stat-value small-mono mt-auto"></div>
                 </div>
             </div>
-            
+
             <div id="final-modifiers" class="modifiers-container"></div>
 
             <div class="chart-container">
@@ -208,27 +208,27 @@
 
         <div class="flex flex-col gap-3 items-center w-full mt-4">
             <div class="flex gap-2 w-64">
-                <button onpointerdown="openRecords()" class="btn-action flex-grow text-xl py-4 uppercase !bg-gray-600 !shadow-[#444]">Records</button>
-                <button onpointerdown="shareResult()" class="share-btn">
+                <button onpointerdown="openRecordsModal()" class="btn-action flex-grow text-xl py-4 uppercase !bg-gray-600 !shadow-[#444]">Records</button>
+                <button onpointerdown="handleShareResult()" class="share-btn">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
                 </button>
             </div>
-            <button onpointerdown="resetGame()" class="btn-action !w-64 text-xl py-4 uppercase">Restart</button>
+            <button onpointerdown="handleGameReset()" class="btn-action !w-64 text-xl py-4 uppercase">Restart</button>
         </div>
     </div>
 
-    <div id="extra-stats-modal" class="overlay" onpointerdown="closeExtraStats()">
+    <div id="extra-stats-modal" class="overlay" onpointerdown="closeExtraStatsModal()">
         <div class="extra-stats-modal" onpointerdown="event.stopPropagation()">
             <h3 class="text-pink-400 font-black uppercase text-center mb-4">Match Details</h3>
             <div id="extra-stats-content"></div>
-            <button onpointerdown="closeExtraStats()" class="btn-action !w-full !py-2 text-sm uppercase mt-4">Close</button>
+            <button onpointerdown="closeExtraStatsModal()" class="btn-action !w-full !py-2 text-sm uppercase mt-4">Close</button>
         </div>
     </div>
 
     <div id="records-modal" class="overlay">
         <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Top Scores</h2>
         <div id="records-container" class="records-list"></div>
-        <button onpointerdown="closeRecords()" class="btn-action !w-64 text-xl py-4 uppercase mt-6">Back</button>
+        <button onpointerdown="closeRecordsModal()" class="btn-action !w-64 text-xl py-4 uppercase mt-6">Back</button>
     </div>
 </div>
 
