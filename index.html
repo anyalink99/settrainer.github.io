@@ -212,11 +212,12 @@
         .record-item {
             background: #3d3442; border-radius: 12px; padding: 10px 15px;
             margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;
-            border: 1px solid #5a4d61;
+            border: 1px solid #5a4d61; cursor: pointer;
         }
+        .record-item:active { background: #4a3f50; }
         .record-info { font-size: 0.85rem; color: #ccc; pointer-events: none; }
         .record-val { font-weight: bold; color: #ec4899; font-size: 1.1rem; }
-        .btn-del { color: #ff4d4d; padding: 10px; opacity: 0.6; cursor: pointer; }
+        .btn-del { color: #ff4d4d; padding: 10px; opacity: 0.6; cursor: pointer; z-index: 10; }
         .btn-del:active { opacity: 1; transform: scale(1.1); }
         .records-list::-webkit-scrollbar { width: 4px; }
         .records-list::-webkit-scrollbar-thumb { background: #a34e78; border-radius: 10px; }
@@ -319,6 +320,26 @@
         }
         .share-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #374151; }
 
+        .more-details-btn {
+            background: #3d3442; border-radius: 10px;
+            width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+            color: #ec4899; position: absolute; right: 10px; top: 10px;
+            cursor: pointer;
+        }
+
+        .extra-stats-modal {
+            background: #3d3442; border: 1px solid #5a4d61; border-radius: 15px;
+            padding: 20px; width: 100%; max-width: 320px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .extra-stat-row {
+            display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 8px 0; font-size: 0.8rem;
+        }
+        .extra-stat-row:last-child { border-bottom: none; }
+        .extra-stat-label { color: #9ca3af; text-transform: uppercase; font-weight: bold; }
+        .extra-stat-value { color: white; font-family: monospace; }
+
         .export-only { display: none; }
 
         .kb-grid {
@@ -359,7 +380,6 @@
         .resizer-l { left: 0; }
         .resizer-r { right: 0; }
 
-        /* ADVANCED STYLES */
         input[type=range] {
             -webkit-appearance: none;
             width: 100%;
@@ -555,6 +575,9 @@
 
     <div id="result-modal" class="overlay">
         <div id="share-content" class="flex flex-col items-center w-full">
+            <div class="more-details-btn no-export" onpointerdown="showExtraStats()">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+            </div>
             <div id="export-header" class="text-[10px] text-pink-400/50 font-black uppercase tracking-[0.2em] mb-1 export-only">Set Pro Trainer</div>
             <h2 id="result-title" class="text-4xl font-black mb-6 text-pink-400 uppercase tracking-widest">Result</h2>
             <div class="stat-grid mb-4">
@@ -601,6 +624,14 @@
         </div>
     </div>
 
+    <div id="extra-stats-modal" class="overlay" onpointerdown="closeExtraStats()">
+        <div class="extra-stats-modal" onpointerdown="event.stopPropagation()">
+            <h3 class="text-pink-400 font-black uppercase text-center mb-4">Match Details</h3>
+            <div id="extra-stats-content"></div>
+            <button onpointerdown="closeExtraStats()" class="btn-action !w-full !py-2 text-sm uppercase mt-4">Close</button>
+        </div>
+    </div>
+
     <div id="records-modal" class="overlay">
         <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Top Scores</h2>
         <div id="records-container" class="records-list"></div>
@@ -644,8 +675,10 @@
 
     let deck = [], board = [], selected = [], collectedSets = 0, badShuffles = 0;
     let startTime = Date.now(), isAnimating = false, isGameOver = false, isBtnLocked = false;
-    let setTimestamps = [], possibleHistory = []; 
+    let setTimestamps = [], possibleHistory = [], mistakes = 0, shuffleExCount = 0;
     let speedChartInstance = null;
+    let lastSetFoundTime = Date.now();
+    let currentExtraStats = null;
 
     const appContainer = document.getElementById('app-container');
     const resizerL = document.getElementById('resizer-l');
@@ -806,7 +839,6 @@
         rowDet.style.pointerEvents = config.showPossible ? 'auto' : 'none';
         document.getElementById('toggle-detailed').classList.toggle('active', config.showDetailedPossible);
         
-        // Advanced Section
         document.getElementById('toggle-auto').classList.toggle('active', config.autoShuffle);
         document.getElementById('toggle-auto-select').classList.toggle('active', config.autoSelectThird);
         document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
@@ -836,11 +868,8 @@
 
     function toggleOption(key) {
 		config[key] = !config[key];
-    
     	const storageKey = 'set_' + key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-    
     	localStorage.setItem(storageKey, config[key]);
-    
     	syncSettingsUI();
     	if (key === 'useFixedSeed') {
 			initNewDeckAndBoard();
@@ -895,7 +924,7 @@
 
     function updateUI() {
         const stats = analyzePossibleSets();
-        possibleHistory.push(stats.total);
+        if (!isGameOver && !isAnimating) possibleHistory.push(stats.total);
         
         if (config.showPossible) gameModifiers.SP = true;
         if (config.showPossible && config.showDetailedPossible) gameModifiers.DP = true;
@@ -915,7 +944,7 @@
         document.getElementById('det-2').innerText = stats[2];
         document.getElementById('det-1').innerText = stats[1];
         if (stats.total === 0 && config.autoShuffle && deck.length > 0 && !isAnimating && !isGameOver) {
-            setTimeout(() => shuffleBoard(true), 0);
+            setTimeout(() => shuffleBoard(true), 50);
         }
     }
 
@@ -939,29 +968,24 @@
         selected.push(idx); 
         el.classList.add('selected');
 
+        const currentPossible = analyzePossibleSets().total;
+
         if (selected.length === 2 && config.autoSelectThird) {
             const c1 = board[selected[0]];
             const c2 = board[selected[1]];
-            
             const target = {};
-            ['c','s','f','n'].forEach(p => {
-                target[p] = (3 - (c1[p] + c2[p]) % 3) % 3;
-            });
-
+            ['c','s','f','n'].forEach(p => { target[p] = (3 - (c1[p] + c2[p]) % 3) % 3; });
             let thirdIdx = -1;
             for(let i=0; i<board.length; i++) {
                 if (!board[i] || selected.includes(i)) continue;
-                if (['c','s','f','n'].every(p => board[i][p] === target[p])) {
-                    thirdIdx = i;
-                    break;
-                }
+                if (['c','s','f','n'].every(p => board[i][p] === target[p])) { thirdIdx = i; break; }
             }
-
             if (thirdIdx !== -1) {
                 const thirdEl = document.getElementById('board').children[thirdIdx].querySelector('.card');
                 selected.push(thirdIdx);
                 thirdEl.classList.add('selected');
             } else {
+                mistakes++;
                 isAnimating = true;
                 await new Promise(r => setTimeout(r, 150));
                 selected.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.remove('selected'));
@@ -978,7 +1002,11 @@
             const isCorrect = ['c','s','f','n'].every(p => (cards[0][p] + cards[1][p] + cards[2][p]) % 3 === 0);
             if (isCorrect) {
                 collectedSets++;
-                setTimestamps.push(startTime + (Date.now() - startTime));
+                const now = Date.now();
+                const findTime = now - lastSetFoundTime;
+                setTimestamps.push({ time: now, findTime: findTime, possibleAtStart: currentPossible });
+                lastSetFoundTime = now;
+
                 sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
                 await new Promise(r => setTimeout(r, 70));
                 sIdx.forEach(i => { board[i] = deck.length > 0 ? deck.pop() : null; updateSlot(i, true); });
@@ -986,9 +1014,10 @@
                 isAnimating = false; 
                 updateUI();
                 if (collectedSets >= 23 && analyzePossibleSets().total === 0 && !isGameOver) {
-                    setTimeout(() => finishGame(), 300);
+                    setTimeout(() => finishGame(true), 300);
                 }
             } else {
+                mistakes++;
                 await new Promise(r => setTimeout(r, 150));
                 sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.remove('selected'));
                 selected = [];
@@ -1019,6 +1048,7 @@
     function shuffleExistingCards() {
         if (isAnimating || isGameOver) return;
         isAnimating = true;
+        shuffleExCount++;
         for (let i = board.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [board[i], board[j]] = [board[j], board[i]];
@@ -1053,26 +1083,36 @@
         }, 80);
     }
 
-    function saveRecord() {
+    function saveRecord(extra) {
         if (collectedSets < config.minSetsToRecord) return;
-        const elapsedMs = (Date.now() - startTime);
-        const now = new Date();
-        const dateStr = `${String(now.getDate()).padStart(2,'0')}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getFullYear()).slice(-2)} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
         const records = JSON.parse(localStorage.getItem('set_pro_records') || '[]');
-        records.push({ id: Date.now(), sets: collectedSets, time: elapsedMs, badShuffles: badShuffles, date: dateStr, isSeed: config.useFixedSeed });
+        const rec = { 
+            id: Date.now(), 
+            sets: collectedSets, 
+            time: extra.elapsedMs, 
+            badShuffles: badShuffles, 
+            date: extra.dateStr, 
+            isSeed: config.useFixedSeed,
+            timestamps: setTimestamps,
+            modifiers: {...gameModifiers},
+            extra: extra
+        };
+        records.push(rec);
         localStorage.setItem('set_pro_records', JSON.stringify(records));
     }
 
-    function calculateSpeedData(totalTimeMs) {
+    function calculateSpeedData(totalTimeMs, timestampsInput) {
         const intervalMs = 10000; 
         const points = Math.ceil(totalTimeMs / intervalMs);
         const labels = [];
         const data = [];
+        const ts = timestampsInput || setTimestamps.map(t => t.time);
+        
         for (let i = 1; i <= points; i++) {
             const currentTime = i * intervalMs;
             labels.push(formatTime(currentTime));
-            const setsInInterval = setTimestamps.filter(ts => {
-                const relativeTs = ts - startTime;
+            const setsInInterval = ts.filter(val => {
+                const relativeTs = (typeof val === 'object' ? val.time : val) - startTime;
                 return relativeTs > (currentTime - intervalMs) && relativeTs <= currentTime;
             }).length;
             const spm = (setsInInterval / (intervalMs / 1000)) * 60;
@@ -1081,9 +1121,11 @@
         return { labels, data };
     }
 
-    function renderSpeedChart(totalTimeMs) {
-        const ctx = document.getElementById('speedChart').getContext('2d');
-        const { labels, data } = calculateSpeedData(totalTimeMs);
+    function renderSpeedChart(totalTimeMs, timestampsInput) {
+        const canvas = document.getElementById('speedChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const { labels, data } = calculateSpeedData(totalTimeMs, timestampsInput);
         if (speedChartInstance) speedChartInstance.destroy();
         speedChartInstance = new Chart(ctx, {
             type: 'line',
@@ -1112,12 +1154,13 @@
         });
     }
 
-    function buildModifiersUI() {
+    function buildModifiersUI(mods) {
         const container = document.getElementById('final-modifiers');
+        if (!container) return;
         container.innerHTML = '';
         let count = 0;
-        
-        Object.entries(gameModifiers).forEach(([key, active]) => {
+        const target = mods || gameModifiers;
+        Object.entries(target).forEach(([key, active]) => {
             if (active) {
                 const chip = document.createElement('div');
                 chip.className = 'mod-chip';
@@ -1126,7 +1169,6 @@
                 count++;
             }
         });
-
         if (count === 0) {
             const none = document.createElement('div');
             none.className = 'mod-none';
@@ -1146,6 +1188,8 @@
         const statValues = clone.querySelectorAll('.stat-value');
         const modContainer = clone.querySelector('#final-modifiers');
         const modChips = clone.querySelectorAll('.mod-chip');
+
+        clone.querySelectorAll('.no-export').forEach(n => n.remove());
 
         const exportW = 430, exportH = 480;
         clone.style.width = `${exportW}px`;
@@ -1230,28 +1274,57 @@
         } catch (err) { console.error("Error sharing:", err); } finally { document.body.removeChild(clone); }
     }
 
-    function finishGame() {
+    async function closeExtraStats() {
+        const modal = document.getElementById('extra-stats-modal');
+        modal.classList.add('hide');
+        await new Promise(r => setTimeout(r, 200));
+        modal.classList.remove('show', 'hide');
+    }
+
+    function showExtraStats() {
+        const s = currentExtraStats;
+        const container = document.getElementById('extra-stats-content');
+
+        const modal = document.getElementById('extra-stats-modal');
+        modal.classList.remove('hide');
+        modal.classList.add('show');
+
+        const avgPossible = (s.possibleHistory.reduce((a,b) => a+b, 0) / s.possibleHistory.length).toFixed(1);
+        const diff1 = s.timestamps.filter(t => t.possibleAtStart === 1);
+        const diff2 = s.timestamps.filter(t => t.possibleAtStart === 2);
+        const diff3 = s.timestamps.filter(t => t.possibleAtStart >= 3);
+        const getAvg = (arr) => arr.length ? formatTime(arr.reduce((a,b) => a+b.findTime, 0) / arr.length, true) : '--';
+
+        container.innerHTML = `
+            <div class="extra-stat-row"><span class="extra-stat-label">Avg sets on board</span><span class="extra-stat-value">${avgPossible}</span></div>
+            <div class="extra-stat-row"><span class="extra-stat-label">Wrong selections</span><span class="extra-stat-value">${s.mistakes}</span></div>
+            <div class="extra-stat-row"><span class="extra-stat-label">Search (1 set)</span><span class="extra-stat-value">${getAvg(diff1)}</span></div>
+            <div class="extra-stat-row"><span class="extra-stat-label">Search (2 sets)</span><span class="extra-stat-value">${getAvg(diff2)}</span></div>
+            <div class="extra-stat-row"><span class="extra-stat-label">Search (3+ sets)</span><span class="extra-stat-value">${getAvg(diff3)}</span></div>
+            <div class="extra-stat-row"><span class="extra-stat-label">Shuffle Board uses</span><span class="extra-stat-value">${s.shuffleExCount}</span></div>
+            <div class="extra-stat-row"><span class="extra-stat-label">Auto finish</span><span class="extra-stat-value">${s.isAutoFinish ? 'YES' : 'NO'}</span></div>
+            <div class="extra-stat-row"><span class="extra-stat-label">Platform</span><span class="extra-stat-value">${s.platform}</span></div>
+        `;
+    }
+
+    function finishGame(isAuto = false) {
         if (isGameOver) return;
         isGameOver = true;
         const elapsedMs = (Date.now() - startTime);
-        saveRecord();
         const now = new Date();
         const dateStr = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        document.getElementById('final-date-display').innerText = dateStr;
-        let findIntervals = [];
-        let prev = startTime;
-        setTimestamps.forEach(ts => { findIntervals.push(ts - prev); prev = ts; });
-        const maxFind = findIntervals.length ? Math.max(...findIntervals) : 0;
-        const minFind = findIntervals.length ? Math.min(...findIntervals) : 0;
-        const avgFind = findIntervals.length ? (findIntervals.reduce((a, b) => a + b, 0) / findIntervals.length) : 0;
-        document.getElementById('final-time').innerText = formatTime(elapsedMs, true);
-        document.getElementById('final-score').innerText = collectedSets;
-        document.getElementById('final-bad-shuffles').innerText = badShuffles;
-        document.getElementById('final-avg-find').innerText = avgFind ? formatTime(avgFind, true) : '--:--';
-        document.getElementById('final-ext-find').innerHTML = `F: ${minFind ? formatTime(minFind, true) : '--'}<br>S: ${maxFind ? formatTime(maxFind, true) : '--'}`;
         
-        buildModifiersUI();
-        renderSpeedChart(elapsedMs);
+        const platform = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'Mobile' : 'PC';
+        
+        currentExtraStats = {
+            elapsedMs, dateStr, platform, isAutoFinish: isAuto, 
+            mistakes, shuffleExCount, 
+            possibleHistory: [...possibleHistory],
+            timestamps: [...setTimestamps]
+        };
+
+        saveRecord(currentExtraStats);
+        displayResults(collectedSets, badShuffles, currentExtraStats);
         
         const modal = document.getElementById('result-modal');
         modal.classList.remove('hide');
@@ -1262,6 +1335,23 @@
         }, 150);
     }
 
+    function displayResults(sets, bs, s) {
+        document.getElementById('final-date-display').innerText = s.dateStr;
+        let findIntervals = s.timestamps.map(t => t.findTime);
+        const maxFind = findIntervals.length ? Math.max(...findIntervals) : 0;
+        const minFind = findIntervals.length ? Math.min(...findIntervals) : 0;
+        const avgFind = findIntervals.length ? (findIntervals.reduce((a, b) => a + b, 0) / findIntervals.length) : 0;
+        
+        document.getElementById('final-time').innerText = formatTime(s.elapsedMs, true);
+        document.getElementById('final-score').innerText = sets;
+        document.getElementById('final-bad-shuffles').innerText = bs;
+        document.getElementById('final-avg-find').innerText = avgFind ? formatTime(avgFind, true) : '--:--';
+        document.getElementById('final-ext-find').innerHTML = `F: ${minFind ? formatTime(minFind, true) : '--'}<br>S: ${maxFind ? formatTime(maxFind, true) : '--'}`;
+        
+        buildModifiersUI(s.modifiers || gameModifiers);
+        renderSpeedChart(s.elapsedMs, s.timestamps);
+    }
+
     function initNewDeckAndBoard() {
         deck = createDeck();
         board = deck.splice(0, 12);
@@ -1270,12 +1360,14 @@
     }
 
     function resetStats() {
-        collectedSets = 0; badShuffles = 0;
+        collectedSets = 0; badShuffles = 0; mistakes = 0; shuffleExCount = 0;
         startTime = Date.now();
+        lastSetFoundTime = startTime;
         setTimestamps = [];
         possibleHistory = [];
         gameModifiers = { SP: config.showPossible, DP: config.showPossible && config.showDetailedPossible, AS: config.autoShuffle, PBS: config.preventBadShuffle, A3RD: config.autoSelectThird, SS: config.useFixedSeed };
         document.getElementById('timer').innerText = "00:00";
+        currentExtraStats = null;
     }
 
     async function resetGame() {
@@ -1298,6 +1390,7 @@
         records.forEach(r => {
             const item = document.createElement('div');
             item.className = 'record-item';
+            item.onclick = () => showSavedRecord(r);
             item.innerHTML = `
                 <div class="record-info"><div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div><div class="text-[10px] uppercase opacity-70">${r.date}</div></div>
                 <div class="record-info text-right"><div class="text-white font-mono">${formatTime(r.time, true)}</div><div class="text-[10px] uppercase text-red-400">BS: ${r.badShuffles}</div></div>
@@ -1307,6 +1400,17 @@
         });
         document.getElementById('records-modal').classList.remove('hide');
         document.getElementById('records-modal').classList.add('show');
+    }
+
+    function showSavedRecord(r) {
+        if (!r.extra) { alert("Detailed info not available for old records"); return; }
+        closeRecords();
+        currentExtraStats = r.extra;
+        currentExtraStats.modifiers = r.modifiers;
+        currentExtraStats.timestamps = r.timestamps;
+        displayResults(r.sets, r.badShuffles, currentExtraStats);
+        document.getElementById('result-modal').classList.remove('hide');
+        document.getElementById('result-modal').classList.add('show');
     }
 
     function deleteRecord(event, id) {
