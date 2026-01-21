@@ -35,7 +35,10 @@
         </div>
         <div class="hud-right">
             <div class="flex flex-col items-end">
-                <div id="timer" class="font-mono bg-black/20 px-3 py-1 rounded text-lg font-bold">00:00</div>
+                <div class="flex items-center gap-2">
+                    <div id="live-spm" class="font-mono text-lg font-black" style="display:none; text-shadow: 0 0 10px currentColor;">0.0</div>
+                    <div id="timer" class="font-mono bg-black/20 px-3 py-1 rounded text-lg font-bold">00:00</div>
+                </div>
                 <div id="seed-label" class="seed-indicator" style="display:none">Synchronized Seed ON</div>
             </div>
         </div>
@@ -79,6 +82,10 @@
           <div id="row-detailed" class="settings-row transition-opacity">
               <span class="text-sm font-bold uppercase text-[12px]">Detailed Possible</span>
               <div id="toggle-detailed" class="toggle-switch" onpointerdown="toggleOption('showDetailedPossible')"></div>
+          </div>
+          <div class="settings-row">
+              <span class="text-sm font-bold uppercase text-[12px]">Show Sets Per Minute</span>
+              <div id="toggle-spm" class="toggle-switch" onpointerdown="toggleOption('showSPM')"></div>
           </div>
           <div class="settings-row">
               <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
