@@ -1387,14 +1387,24 @@
         records.sort((a, b) => b.sets - a.sets || a.time - b.time);
         const container = document.getElementById('records-container');
         container.innerHTML = records.length ? '' : '<p class="text-center text-gray-500 mt-10">No records yet</p>';
+
         records.forEach(r => {
             const item = document.createElement('div');
             item.className = 'record-item';
             item.onclick = () => showSavedRecord(r);
             item.innerHTML = `
-                <div class="record-info"><div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div><div class="text-[10px] uppercase opacity-70">${r.date}</div></div>
-                <div class="record-info text-right"><div class="text-white font-mono">${formatTime(r.time, true)}</div><div class="text-[10px] uppercase text-red-400">BS: ${r.badShuffles}</div></div>
-                <div class="btn-del" onclick="deleteRecord(event, ${r.id})"><svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></div>
+                <div class="record-info">
+                    <div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div>
+                    <div class="text-[10px] uppercase opacity-70">${r.date}</div>
+                </div>
+                <div class="record-info text-right flex-grow flex justify-end items-center mr-2">
+                    <div class="text-white font-mono text-lg leading-none">${formatTime(r.time, true)}</div>
+                </div>
+                <div class="btn-del" onclick="deleteRecord(event, ${r.id})">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                    </svg>
+                </div>
             `;
             container.appendChild(item);
         });
