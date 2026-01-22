@@ -241,7 +241,7 @@ function openRecordsModal() {
   if (finishes.length > 0) {
     const finishHeader = document.createElement('div');
     finishHeader.className = 'text-pink-400 font-black uppercase text-sm mb-2 mt-4 first:mt-0 tracking-wider';
-    finishHeader.innerText = '🏁 Finishes';
+    finishHeader.innerText = 'Finishes';
     container.appendChild(finishHeader);
 
     finishes.forEach(r => {
