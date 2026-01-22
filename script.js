@@ -108,6 +108,7 @@ let setTimestamps = [], possibleHistory = [], mistakes = 0, shuffleExCount = 0;
 let speedChartInstance = null;
 let lastSetFoundTime = Date.now();
 let currentExtraStats = null;
+let autoShuffleFromSet = false;
 
 // ============================================================================
 // RESIZER
@@ -565,8 +566,17 @@ function updateUI() {
   document.getElementById('det-2').innerText = stats[2];
   document.getElementById('det-1').innerText = stats[1];
 
-  if (stats.total === 0 && config.autoShuffle && deck.length > 0 && !isAnimating && !isGameOver) {
-    setTimeout(() => handleShuffleDeck(true), 0);
+  if (
+    stats.total === 0 &&
+    config.autoShuffle &&
+    deck.length > 0 &&
+    !isAnimating &&
+    !isGameOver
+  ) {
+    const fromSet = autoShuffleFromSet;
+    autoShuffleFromSet = false;
+    handleShuffleDeck(true, fromSet);
+    return;
   }
 
   updateLiveSPM();
@@ -633,9 +643,16 @@ async function handleCardSelect(idx, el) {
 
       sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
       await new Promise(r => setTimeout(r, GAME_CONFIG.ANIMATION_DURATION));
-      sIdx.forEach(i => { board[i] = deck.length > 0 ? deck.pop() : null; updateSlot(i, true); });
+      sIdx.forEach(i => {
+        board[i] = deck.length > 0 ? deck.pop() : null;
+        updateSlot(i, true);
+      });
+
       selected = [];
       isAnimating = false;
+
+      autoShuffleFromSet = true;
+
       updateUI();
       if (collectedSets >= GAME_CONFIG.SETS_TO_WIN && analyzePossibleSets().total === 0 && !isGameOver) {
         setTimeout(() => handleGameFinish(true), 300);
@@ -690,17 +707,58 @@ function shuffleExistingCards() {
   setTimeout(() => { isAnimating = false; updateUI(); }, GAME_CONFIG.SHUFFLE_DELAY);
 }
 
-function handleShuffleDeck(isAuto = false) {
+function handleShuffleDeck(isAuto = false, fromSet = false) {
   if (isAnimating) return;
+
+  if (isAuto && !fromSet) {
+    const currentCards = board.filter(c => c !== null);
+    deck.push(...currentCards);
+    deck.sort(() => Math.random() - 0.5);
+    board = deck.splice(0, 12);
+    selected = [];
+
+    for (let i = 0; i < 12; i++) updateSlot(i, true);
+
+    updateUI();
+    return;
+  }
+
+  if (isAuto && fromSet) {
+    isAnimating = true;
+
+    document.querySelectorAll('.card')
+      .forEach(c => c.classList.add('anim-out'));
+
+    setTimeout(() => {
+      const currentCards = board.filter(c => c !== null);
+      deck.push(...currentCards);
+      deck.sort(() => Math.random() - 0.5);
+      board = deck.splice(0, 12);
+      selected = [];
+
+      for (let i = 0; i < 12; i++) updateSlot(i, true);
+
+      isAnimating = false;
+      updateUI();
+    }, GAME_CONFIG.CARD_FADE_DURATION);
+
+    return;
+  }
+
   isAnimating = true;
-  document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
+
+  document.querySelectorAll('.card')
+    .forEach(c => c.classList.add('anim-out'));
+
   setTimeout(() => {
     const currentCards = board.filter(c => c !== null);
     deck.push(...currentCards);
     deck.sort(() => Math.random() - 0.5);
     board = deck.splice(0, 12);
     selected = [];
-    for (let i=0; i<12; i++) updateSlot(i, true);
+
+    for (let i = 0; i < 12; i++) updateSlot(i, true);
+
     isAnimating = false;
     updateUI();
   }, GAME_CONFIG.CARD_FADE_DURATION);
