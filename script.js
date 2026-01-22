@@ -814,13 +814,8 @@ function initNewDeckAndBoard() {
   for (let i=0; i<12; i++) updateSlot(i, false);
 }
 
-function resetStats() {
-  collectedSets = 0; badShuffles = 0; mistakes = 0; shuffleExCount = 0;
-  startTime = Date.now();
-  lastSetFoundTime = startTime;
-  setTimestamps = [];
-  possibleHistory = [];
-  startGameModifiers = {
+function syncGameModifiers() {
+  const currentMods = {
     SP: config.showPossible,
     DP: config.showPossible && config.showDetailedPossible,
     AS: config.autoShuffle,
@@ -828,7 +823,19 @@ function resetStats() {
     A3RD: config.autoSelectThird,
     SS: config.useFixedSeed
   };
-  usedGameModifiers = { ...startGameModifiers };
+  startGameModifiers = { ...currentMods };
+  usedGameModifiers = { ...currentMods };
+}
+
+function resetStats() {
+  collectedSets = 0; badShuffles = 0; mistakes = 0; shuffleExCount = 0;
+  startTime = Date.now();
+  lastSetFoundTime = startTime;
+  setTimestamps = [];
+  possibleHistory = [];
+
+  syncGameModifiers();
+
   document.getElementById('timer').innerText = "00:00";
   currentExtraStats = null;
 }
@@ -1216,4 +1223,5 @@ setInterval(() => {
 initNewDeckAndBoard();
 updateColors();
 syncSettingsUI();
+syncGameModifiers();
 updateUI();
