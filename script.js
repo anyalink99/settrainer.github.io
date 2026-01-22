@@ -85,13 +85,13 @@ const Storage = {
 let config = {
   preset: Storage.get(STORAGE_KEYS.PRESET, 'standard'),
   speedMod: Storage.get(STORAGE_KEYS.SPEED_MOD, '1.0'),
-  showPossible: Storage.get(STORAGE_KEYS.SHOW_POSSIBLE, 'true') !== 'false',
-  showDetailedPossible: Storage.get(STORAGE_KEYS.SHOW_DETAILED) === 'true',
-  showSPM: Storage.get(STORAGE_KEYS.SHOW_SPM) === 'true',
-  autoShuffle: Storage.get(STORAGE_KEYS.AUTO_SHUFFLE, 'true') !== 'false',
-  autoSelectThird: Storage.get(STORAGE_KEYS.AUTO_SELECT_THIRD) === 'true',
-  preventBadShuffle: Storage.get(STORAGE_KEYS.PREVENT_BAD_SHUFFLE) === 'true',
-  useFixedSeed: Storage.get(STORAGE_KEYS.USE_FIXED_SEED) === 'true',
+  showPossible: Storage.get(STORAGE_KEYS.SHOW_POSSIBLE, true),
+  showDetailedPossible: Storage.get(STORAGE_KEYS.SHOW_DETAILED, false),
+  showSPM: Storage.get(STORAGE_KEYS.SHOW_SPM, false),
+  autoShuffle: Storage.get(STORAGE_KEYS.AUTO_SHUFFLE, true),
+  autoSelectThird: Storage.get(STORAGE_KEYS.AUTO_SELECT_THIRD, false),
+  preventBadShuffle: Storage.get(STORAGE_KEYS.PREVENT_BAD_SHUFFLE, false),
+  useFixedSeed: Storage.get(STORAGE_KEYS.USE_FIXED_SEED, false),
   minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23)
 };
 
@@ -241,7 +241,7 @@ function openRecordsModal() {
   if (finishes.length > 0) {
     const finishHeader = document.createElement('div');
     finishHeader.className = 'text-pink-400 font-black uppercase text-sm mb-2 mt-4 first:mt-0 tracking-wider';
-    finishHeader.innerText = 'Finishes';
+    finishHeader.innerText = '🏁 Finishes';
     container.appendChild(finishHeader);
 
     finishes.forEach(r => {
@@ -469,7 +469,7 @@ function updateSpeedModifier(val) {
 function toggleOption(key) {
   config[key] = !config[key];
   const storageKey = 'set_' + key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-  Storage.set(storageKey, config[key]);
+  Storage.set(storageKey, String(config[key]));
   syncSettingsUI();
 
   if (key === 'useFixedSeed') {
