@@ -109,6 +109,8 @@ let speedChartInstance = null;
 let lastSetFoundTime = Date.now();
 let currentExtraStats = null;
 let autoShuffleFromSet = false;
+let startGameModifiers = {};
+let usedGameModifiers = {};
 
 // ============================================================================
 // RESIZER
@@ -471,6 +473,23 @@ function toggleOption(key) {
   config[key] = !config[key];
   const storageKey = 'set_' + key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
   Storage.set(storageKey, String(config[key]));
+
+  const keyMap = {
+    'showPossible': 'SP',
+    'showDetailedPossible': 'DP',
+    'autoShuffle': 'AS',
+    'preventBadShuffle': 'PBS',
+    'autoSelectThird': 'A3RD',
+    'useFixedSeed': 'SS'
+  };
+
+  const modShortName = keyMap[key];
+  if (modShortName && !isGameOver) {
+      if (config[key]) {
+          usedGameModifiers[modShortName] = true;
+      }
+  }
+
   syncSettingsUI();
 
   if (key === 'useFixedSeed') {
@@ -541,6 +560,12 @@ function updateLiveSPM() {
   } else {
     spmElement.innerText = "0.0";
     spmElement.style.color = getSPMColor(0);
+  }
+}
+
+function markModUsed(key) {
+  if (usedGameModifiers[key] !== undefined) {
+    usedGameModifiers[key] = true;
   }
 }
 
@@ -795,7 +820,7 @@ function resetStats() {
   lastSetFoundTime = startTime;
   setTimestamps = [];
   possibleHistory = [];
-  gameModifiers = {
+  startGameModifiers = {
     SP: config.showPossible,
     DP: config.showPossible && config.showDetailedPossible,
     AS: config.autoShuffle,
@@ -803,6 +828,7 @@ function resetStats() {
     A3RD: config.autoSelectThird,
     SS: config.useFixedSeed
   };
+  usedGameModifiers = { ...startGameModifiers };
   document.getElementById('timer').innerText = "00:00";
   currentExtraStats = null;
 }
@@ -826,12 +852,17 @@ function handleGameFinish(isAuto = false) {
 
   const platform = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'Mobile' : 'PC';
 
+  const finalModifiers = {};
+  Object.keys(startGameModifiers).forEach(key => {
+    finalModifiers[key] = startGameModifiers[key] || usedGameModifiers[key];
+  });
+
   currentExtraStats = {
     elapsedMs, dateStr, platform, isAutoFinish: isAuto,
     mistakes, shuffleExCount,
     possibleHistory: [...possibleHistory],
     timestamps: [...setTimestamps],
-    modifiers: {...gameModifiers}
+    modifiers: finalModifiers
   };
 
   saveRecord(currentExtraStats);
