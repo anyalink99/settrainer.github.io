@@ -278,7 +278,7 @@ function openRecordsModal() {
     others.forEach(r => {
       const item = document.createElement('div');
       item.className = 'record-item';
-      item.onpointerdown = () => showSavedRecord(r);
+      item.onclick = () => showSavedRecord(r);
       item.innerHTML = `
         <div class="record-info">
           <div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div>
