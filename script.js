@@ -417,16 +417,17 @@ function updateSlot(i, animateIn = false) {
   if (card) {
     const el = document.createElement('div');
     el.className = 'card' + (animateIn ? ' anim-in' : '');
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (config.preset === 'standard') {
       if (config.boardRotated) {
-        el.style.gap = ['0px', '4px', '1px'][card.n];
+        el.style.gap = isMobile ? ['0px', '3px', '1px'][card.n] : ['0px', '4px', '1px'][card.n];
       } else {
         el.style.gap = ['0px', '9px', '3px'][card.n];
       }
     } else {
       // classic preset
       if (config.boardRotated) {
-        el.style.gap = ['0px', '3px', '1px'][card.n];
+        el.style.gap = isMobile ? ['0px', '2px', '0px'][card.n] : ['0px', '3px', '1px'][card.n];
       } else {
         el.style.gap = '0px';
       }
@@ -444,6 +445,8 @@ function updateSlot(i, animateIn = false) {
 function syncSettingsUI() {
   document.getElementById('btn-std').className = `preset-chip ${config.preset === 'standard' ? 'active' : ''}`;
   document.getElementById('btn-cls').className = `preset-chip ${config.preset === 'classic' ? 'active' : ''}`;
+  document.getElementById('btn-vertical').className = `preset-chip ${!config.boardRotated ? 'active' : ''}`;
+  document.getElementById('btn-horizontal').className = `preset-chip ${config.boardRotated ? 'active' : ''}`;
   document.getElementById('toggle-possible').classList.toggle('active', config.showPossible);
   const rowDet = document.getElementById('row-detailed');
   rowDet.style.opacity = config.showPossible ? '1' : '0.3';
@@ -457,7 +460,6 @@ function syncSettingsUI() {
   document.getElementById('toggle-auto-select').classList.toggle('active', config.autoSelectThird);
   document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
   document.getElementById('toggle-seed').classList.toggle('active', config.useFixedSeed);
-  document.getElementById('toggle-rotated').classList.toggle('active', config.boardRotated);
   document.getElementById('min-sets-input').value = config.minSetsToRecord;
   document.getElementById('seed-label').style.display = config.useFixedSeed ? 'block' : 'none';
 
@@ -469,7 +471,14 @@ function syncSettingsUI() {
 
   document.documentElement.style.setProperty('--speed-mod', config.speedMod);
   
-  updateBoardOrientation();
+  const boardEl = document.getElementById('board');
+  if (boardEl) {
+    if (config.boardRotated) {
+      boardEl.classList.add('rotated');
+    } else {
+      boardEl.classList.remove('rotated');
+    }
+  }
 }
 
 function updatePreset(p) {
@@ -517,10 +526,6 @@ function toggleOption(key) {
     initNewDeckAndBoard();
     resetStats();
     updateUI();
-  } else if (key === 'boardRotated') {
-    transposeBoardLayout();
-    for (let i = 0; i < 12; i++) updateSlot(i, false);
-    updateUI();
   } else {
     updateUI();
   }
@@ -532,15 +537,43 @@ function updateMinSets(val) {
   Storage.set(STORAGE_KEYS.MIN_SETS, num);
 }
 
-function updateBoardOrientation() {
-  const boardEl = document.getElementById('board');
-  if (!boardEl) return;
+function updateBoardOrientation(orientation) {
+  const wasRotated = config.boardRotated;
   
-  if (config.boardRotated) {
-    boardEl.classList.add('rotated');
-  } else {
-    boardEl.classList.remove('rotated');
+  if (orientation === 'vertical') {
+    config.boardRotated = false;
+  } else if (orientation === 'horizontal') {
+    config.boardRotated = true;
   }
+  
+  // If orientation didn't change, just return
+  if (wasRotated === config.boardRotated) return;
+  
+  Storage.set(STORAGE_KEYS.BOARD_ROTATED, String(config.boardRotated));
+  
+  // Update button states
+  document.getElementById('btn-vertical').className = `preset-chip ${!config.boardRotated ? 'active' : ''}`;
+  document.getElementById('btn-horizontal').className = `preset-chip ${config.boardRotated ? 'active' : ''}`;
+  
+  const activeBtn = config.boardRotated ? document.getElementById('btn-horizontal') : document.getElementById('btn-vertical');
+  if (activeBtn) {
+    activeBtn.classList.add('chip-animate');
+    activeBtn.addEventListener('animationend', () => { activeBtn.classList.remove('chip-animate'); }, { once: true });
+  }
+  
+  // Apply changes
+  const boardEl = document.getElementById('board');
+  if (boardEl) {
+    if (config.boardRotated) {
+      boardEl.classList.add('rotated');
+    } else {
+      boardEl.classList.remove('rotated');
+    }
+  }
+  
+  transposeBoardLayout();
+  for (let i = 0; i < 12; i++) updateSlot(i, false);
+  updateUI();
 }
 
 function transposeBoardLayout() {
