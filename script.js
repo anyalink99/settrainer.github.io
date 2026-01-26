@@ -13,7 +13,8 @@ const STORAGE_KEYS = {
   MIN_SETS: 'set_min_sets',
   KEYBINDS: 'set_keybinds',
   RECORDS: 'set_pro_records',
-  APP_WIDTH: 'set_app_width'
+  APP_WIDTH: 'set_app_width',
+  BOARD_ROTATED: 'set_board_rotated'
 };
 
 const GAME_CONFIG = {
@@ -92,7 +93,8 @@ let config = {
   autoSelectThird: Storage.get(STORAGE_KEYS.AUTO_SELECT_THIRD, false),
   preventBadShuffle: Storage.get(STORAGE_KEYS.PREVENT_BAD_SHUFFLE, false),
   useFixedSeed: Storage.get(STORAGE_KEYS.USE_FIXED_SEED, false),
-  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23)
+  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23),
+  boardRotated: Storage.get(STORAGE_KEYS.BOARD_ROTATED, false)
 };
 
 let gameModifiers = {
@@ -307,6 +309,8 @@ async function closeRecordsModal() {
 function openKeybindsModal() {
   const grid = document.getElementById('kb-board-grid');
   grid.innerHTML = '';
+  grid.style.gridTemplateColumns = config.boardRotated ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)';
+  
   binds.board.forEach((key, i) => {
     const cell = document.createElement('div');
     cell.className = 'kb-cell';
@@ -388,14 +392,15 @@ function getShapeSVG(card) {
     const waveD = "M29.5,12 C30.8,14.5 30.8,17.2 30.2,19.9 C29.7,22.2 28,23 26,22 C25.4,21.7 24.8,21.4 24.3,21.1 C21.7,19.5 19,19.3 16.1,20.4 C13.4,21.5 10.6,21.6 7.8,20.8 C3.3,19.4 0.4,14.6 1.4,10.2 C2,7.7 3.7,7 5.9,8.2 C6.2,8.4 6.5,8.6 6.8,8.8 C9.7,10.6 12.7,11.2 16,9.9 C17.3,9.3 18.7,8.9 20,8.6 C24,7.6 27.5,8.9 29.5,12 Z";
     let inner = '';
     let extraClass = '';
+    const rotateTransform = config.boardRotated ? 'rotate(90 16 16) ' : '';
     if (card.s === 0) {
-      inner = `<polygon transform="translate(16,16) scale(1.08) translate(-16,-16)" points="1,16 16,8.5 31,16 16,23.5" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" stroke-linejoin="round" />`;
+      inner = `<polygon transform="${rotateTransform}translate(16,16) scale(1.08) translate(-16,-16)" points="1,16 16,8.5 31,16 16,23.5" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" stroke-linejoin="round" />`;
       extraClass = 'diamond';
     } else if (card.s === 1) {
-      inner = `<rect transform="translate(16,16) scale(1.08, 1.16) translate(-16,-16)" x="1" y="9.5" width="30" height="13" rx="6.5" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" />`;
+      inner = `<rect transform="${rotateTransform}translate(16,16) scale(1.08, 1.16) translate(-16,-16)" x="1" y="9.5" width="30" height="13" rx="6.5" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" />`;
       extraClass = 'oval';
     } else {
-      inner = `<path transform="translate(16,16) scale(1.08) translate(-16,-16)" d="${waveD}" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" stroke-linejoin="round" />`;
+      inner = `<path transform="${rotateTransform}translate(16,16) scale(1.08) translate(-16,-16)" d="${waveD}" stroke="${color}" stroke-width="${strokeW}" fill="${fill}" stroke-linejoin="round" />`;
       extraClass = 'wave';
     }
     return `<svg class="shape-svg-classic ${extraClass}" viewBox="0 0 32 32">${inner}</svg>`;
@@ -412,7 +417,20 @@ function updateSlot(i, animateIn = false) {
   if (card) {
     const el = document.createElement('div');
     el.className = 'card' + (animateIn ? ' anim-in' : '');
-    if (config.preset === 'standard') el.style.gap = ['0px', '9px', '3px'][card.n];
+    if (config.preset === 'standard') {
+      if (config.boardRotated) {
+        el.style.gap = ['0px', '4px', '1px'][card.n];
+      } else {
+        el.style.gap = ['0px', '9px', '3px'][card.n];
+      }
+    } else {
+      // classic preset
+      if (config.boardRotated) {
+        el.style.gap = ['0px', '3px', '1px'][card.n];
+      } else {
+        el.style.gap = '0px';
+      }
+    }
     for (let n=0; n<=card.n; n++) el.innerHTML += getShapeSVG(card);
     el.onpointerdown = (e) => { e.preventDefault(); handleCardSelect(i, el); };
     slot.appendChild(el);
@@ -439,6 +457,7 @@ function syncSettingsUI() {
   document.getElementById('toggle-auto-select').classList.toggle('active', config.autoSelectThird);
   document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
   document.getElementById('toggle-seed').classList.toggle('active', config.useFixedSeed);
+  document.getElementById('toggle-rotated').classList.toggle('active', config.boardRotated);
   document.getElementById('min-sets-input').value = config.minSetsToRecord;
   document.getElementById('seed-label').style.display = config.useFixedSeed ? 'block' : 'none';
 
@@ -449,6 +468,8 @@ function syncSettingsUI() {
   if (speedVal) speedVal.innerText = config.speedMod + 'x';
 
   document.documentElement.style.setProperty('--speed-mod', config.speedMod);
+  
+  updateBoardOrientation();
 }
 
 function updatePreset(p) {
@@ -496,6 +517,10 @@ function toggleOption(key) {
     initNewDeckAndBoard();
     resetStats();
     updateUI();
+  } else if (key === 'boardRotated') {
+    transposeBoardLayout();
+    for (let i = 0; i < 12; i++) updateSlot(i, false);
+    updateUI();
   } else {
     updateUI();
   }
@@ -505,6 +530,40 @@ function updateMinSets(val) {
   const num = parseInt(val) || 0;
   config.minSetsToRecord = num;
   Storage.set(STORAGE_KEYS.MIN_SETS, num);
+}
+
+function updateBoardOrientation() {
+  const boardEl = document.getElementById('board');
+  if (!boardEl) return;
+  
+  if (config.boardRotated) {
+    boardEl.classList.add('rotated');
+  } else {
+    boardEl.classList.remove('rotated');
+  }
+}
+
+function transposeBoardLayout() {
+  // Transpose the actual board array to match the new layout
+  // 4x3 to 3x4: [0,1,2,3,4,5,6,7,8,9,10,11] -> [0,4,8,1,5,9,2,6,10,3,7,11]
+  // 3x4 to 4x3: [0,1,2,3,4,5,6,7,8,9,10,11] -> [0,3,6,9,1,4,7,10,2,5,8,11]
+  
+  const newBoard = [];
+  if (config.boardRotated) {
+    // Going from 4x3 to 3x4
+    const mapping = [0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11];
+    for (let i = 0; i < 12; i++) {
+      newBoard[i] = board[mapping[i]];
+    }
+  } else {
+    // Going from 3x4 back to 4x3
+    const mapping = [0, 3, 6, 9, 1, 4, 7, 10, 2, 5, 8, 11];
+    for (let i = 0; i < 12; i++) {
+      newBoard[i] = board[mapping[i]];
+    }
+  }
+  board = newBoard;
+  selected = [];
 }
 
 // ============================================================================
