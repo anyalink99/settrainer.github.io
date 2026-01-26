@@ -76,6 +76,13 @@
               </div>
           </div>
           <div class="settings-row">
+              <span class="text-sm font-bold uppercase">Board</span>
+              <div class="flex gap-2">
+                  <div id="btn-vertical" class="preset-chip" onpointerdown="updateBoardOrientation('vertical')">Vertical</div>
+                  <div id="btn-horizontal" class="preset-chip" onpointerdown="updateBoardOrientation('horizontal')">Horizontal</div>
+              </div>
+          </div>
+          <div class="settings-row">
               <span class="text-sm font-bold uppercase">Show Possible</span>
               <div id="toggle-possible" class="toggle-switch" onpointerdown="toggleOption('showPossible')"></div>
           </div>
@@ -90,10 +97,6 @@
           <div class="settings-row">
               <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
               <div id="toggle-auto-select" class="toggle-switch" onpointerdown="toggleOption('autoSelectThird')"></div>
-          </div>
-          <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Rotate Board 90°</span>
-              <div id="toggle-rotated" class="toggle-switch" onpointerdown="toggleOption('boardRotated')"></div>
           </div>
 
           <div class="settings-row desktop-only mt-4">
