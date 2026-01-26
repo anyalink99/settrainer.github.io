@@ -149,7 +149,7 @@ body {
 .shape-svg-classic { width: 95%; height: 50px; flex-shrink: 0; }
 .shape-svg-classic.oval { margin-top: -13.2px; }
 .shape-svg-classic.diamond { margin-top: -14.9px; }
-.shape-svg-classic.wave { height: 56px; margin-top: -21px; }
+.shape-svg-classic.wave { height: 56px; margin-top: -21px; transform: translateY(3px); }
 .shape-svg-classic:first-child { margin-top: 0 !important; }
 
 #board.rotated .shape-svg-classic { 
@@ -168,6 +168,7 @@ body {
 #board.rotated .shape-svg-classic.wave { 
     width: 56px; 
     margin-left: -21px;
+    transform: translateX(-3px);
 }
 #board.rotated .shape-svg-classic:first-child { 
     margin-left: 0 !important;
@@ -393,6 +394,27 @@ body {
 
 @media (pointer: coarse) {
     .desktop-only { display: none !important; }
+    
+    #board.rotated .shape-svg-classic { 
+        width: 44px; 
+        height: 90%; 
+    }
+    #board.rotated .shape-svg-classic.oval { 
+        margin-left: -12px;
+    }
+    #board.rotated .shape-svg-classic.diamond { 
+        margin-left: -13px;
+    }
+    #board.rotated .shape-svg-classic.wave { 
+        width: 49px; 
+        margin-left: -18px;
+        transform: translateX(-3px);
+    }
+    
+    #board.rotated .card svg:not(.shape-svg-classic) {
+        width: 27px;
+        height: 27px;
+    }
 }
 
 .resizer {
