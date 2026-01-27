@@ -231,9 +231,10 @@ body {
 
 .records-list {
     width: 100%; max-width: 350px; height: 320px;
-    overflow-y: auto; 
+    overflow-y: auto;
     touch-action: pan-y !important;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
     padding-right: 5px;
     scrollbar-gutter: stable;
 }
@@ -241,6 +242,7 @@ body {
     background: #3d3442; border-radius: 12px; padding: 10px 15px;
     margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;
     border: 1px solid #5a4d61; cursor: pointer;
+    touch-action: pan-y;
 }
 .record-item:active { background: #4a3f50; }
 .record-info { font-size: 0.85rem; color: #ccc; pointer-events: none; }
