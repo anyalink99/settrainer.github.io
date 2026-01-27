@@ -2,8 +2,8 @@ const STORAGE_KEYS = {
   PRESET: 'set_shape_preset',
   SPEED_MOD: 'set_speed_mod',
   SHOW_POSSIBLE: 'set_show_possible',
-  SHOW_DETAILED: 'set_show_detailed_possible',
   SHOW_SPM: 'set_show_s_p_m',
+  DEBUG_MODE: 'set_debug_mode',
   SHOW_TIMER: 'set_show_timer',
   AUTO_SHUFFLE: 'set_auto_shuffle',
   AUTO_SELECT_THIRD: 'set_auto_select_third',
@@ -21,12 +21,13 @@ const GAME_CONFIG = {
   SETS_TO_WIN: 23,
   ANIMATION_DURATION: 70,
   CARD_FADE_DURATION: 100,
-  SHUFFLE_DELAY: 200,
+  CARD_ANIM_IN_DURATION: 180,
+  SHUFFLE_DELAY: 280,
   MISTAKE_DELAY: 150,
   TOAST_DURATION: 800,
   LOCK_DURATION: 1000,
   MODAL_TRANSITION: 200,
-  EXPORT_DELAY: 150
+  EXPORT_DELAY: 30
 };
 
 const DEFAULT_GAME_COLORS = ['#fd0000', '#01a43b', '#0000fe'];
@@ -96,8 +97,8 @@ let config = {
   })(),
   // Settings
   showPossible: Storage.get(STORAGE_KEYS.SHOW_POSSIBLE, true),
-  showDetailedPossible: Storage.get(STORAGE_KEYS.SHOW_DETAILED, false),
   showSPM: Storage.get(STORAGE_KEYS.SHOW_SPM, false),
+  debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false),
   showTimer: Storage.get(STORAGE_KEYS.SHOW_TIMER, true),
   // Advanced
   autoShuffle: Storage.get(STORAGE_KEYS.AUTO_SHUFFLE, true),
@@ -108,7 +109,7 @@ let config = {
 };
 
 let gameModifiers = {
-  SP: false, DP: false, AS: false, PBS: false, A3RD: false, SS: false
+  SP: false, AS: false, PBS: false, A3RD: false, SS: false, DM: false
 };
 
 let binds = Storage.getJSON(STORAGE_KEYS.KEYBINDS) || JSON.parse(JSON.stringify(DEFAULT_BINDS));
@@ -116,6 +117,7 @@ let isCapturingKey = null;
 
 let deck = [], board = [], selected = [], collectedSets = 0, badShuffles = 0;
 let startTime = Date.now(), isAnimating = false, isGameOver = false, isBtnLocked = false;
+let shuffleBtnCooldownUntil = 0;
 let setTimestamps = [], possibleHistory = [], mistakes = 0, shuffleExCount = 0;
 let speedChartInstance = null;
 let lastSetFoundTime = Date.now();
@@ -123,6 +125,7 @@ let currentExtraStats = null;
 let autoShuffleFromSet = false;
 let startGameModifiers = {};
 let usedGameModifiers = {};
+let debugHighlightSet = null;
 
 // ============================================================================
 // RESIZER
@@ -518,11 +521,9 @@ function syncSettingsUI() {
   document.getElementById('btn-vertical').className = `preset-chip ${!config.boardRotated ? 'active' : ''}`;
   document.getElementById('btn-horizontal').className = `preset-chip ${config.boardRotated ? 'active' : ''}`;
   document.getElementById('toggle-possible').classList.toggle('active', config.showPossible);
-  const rowDet = document.getElementById('row-detailed');
-  rowDet.style.opacity = config.showPossible ? '1' : '0.3';
-  rowDet.style.pointerEvents = config.showPossible ? 'auto' : 'none';
-  document.getElementById('toggle-detailed').classList.toggle('active', config.showDetailedPossible);
   document.getElementById('toggle-spm').classList.toggle('active', config.showSPM);
+  const toggleDebug = document.getElementById('toggle-debug');
+  if (toggleDebug) toggleDebug.classList.toggle('active', config.debugMode);
   document.getElementById('live-spm').style.display = config.showSPM ? 'block' : 'none';
   if (config.showSPM) updateLiveSPM();
   document.getElementById('toggle-timer').classList.toggle('active', config.showTimer);
@@ -582,11 +583,11 @@ function toggleOption(key) {
 
   const keyMap = {
     'showPossible': 'SP',
-    'showDetailedPossible': 'DP',
     'autoShuffle': 'AS',
     'preventBadShuffle': 'PBS',
     'autoSelectThird': 'A3RD',
-    'useFixedSeed': 'SS'
+    'useFixedSeed': 'SS',
+    'debugMode': 'DM'
   };
 
   const modShortName = keyMap[key];
@@ -708,6 +709,34 @@ function analyzePossibleSets() {
   return stats;
 }
 
+function getPossibleSetsIndices() {
+  const out = [];
+  for (let i = 0; i < board.length; i++) {
+    for (let j = i + 1; j < board.length; j++) {
+      for (let k = j + 1; k < board.length; k++) {
+        if (board[i] && board[j] && board[k] && validateSet([board[i], board[j], board[k]])) {
+          out.push([i, j, k]);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function applyDebugHighlight() {
+  if (!config.debugMode) return;
+  const boardEl = document.getElementById('board');
+  if (!boardEl) return;
+  for (let i = 0; i < 12; i++) {
+    const slot = boardEl.children[i];
+    const card = slot?.querySelector('.card');
+    if (card) {
+      const inSet = debugHighlightSet && debugHighlightSet.includes(i);
+      card.classList.toggle('debug-set-highlight', !!inSet);
+    }
+  }
+}
+
 function updateLiveSPM() {
   if (isGameOver || !config.showSPM) return;
 
@@ -735,22 +764,29 @@ function updateUI() {
   if (!isGameOver && !isAnimating) possibleHistory.push(stats.total);
 
   gameModifiers.SP = config.showPossible;
-  gameModifiers.DP = config.showPossible && config.showDetailedPossible;
   gameModifiers.AS = config.autoShuffle;
   gameModifiers.PBS = config.preventBadShuffle;
   gameModifiers.A3RD = config.autoSelectThird;
   gameModifiers.SS = config.useFixedSeed;
+  gameModifiers.DM = config.debugMode;
 
   document.getElementById('deck-count').innerText = deck.length;
   document.getElementById('current-score').innerText = collectedSets;
   document.getElementById('possible-count').innerText = stats.total;
   document.getElementById('possible-label').style.opacity = config.showPossible ? '1' : '0';
   const detContainer = document.getElementById('detailed-possible');
-  detContainer.style.opacity = (config.showPossible && config.showDetailedPossible) ? '1' : '0';
+  detContainer.style.opacity = (config.showPossible && config.debugMode) ? '1' : '0';
   document.getElementById('det-4').innerText = stats[4];
   document.getElementById('det-3').innerText = stats[3];
   document.getElementById('det-2').innerText = stats[2];
   document.getElementById('det-1').innerText = stats[1];
+
+  if (config.debugMode && !isGameOver && !isAnimating) {
+    const sets = getPossibleSetsIndices();
+    debugHighlightSet = sets.length > 0 ? sets[Math.floor(Math.random() * sets.length)] : null;
+  } else {
+    debugHighlightSet = null;
+  }
 
   if (
     stats.total === 0 &&
@@ -759,6 +795,7 @@ function updateUI() {
     !isAnimating &&
     !isGameOver
   ) {
+    if (config.debugMode) showToast('Auto-shuffle');
     const fromSet = autoShuffleFromSet;
     autoShuffleFromSet = false;
     handleShuffleDeck(true, fromSet);
@@ -766,6 +803,7 @@ function updateUI() {
   }
 
   updateLiveSPM();
+  applyDebugHighlight();
 }
 
 function showToast(text) {
@@ -854,6 +892,8 @@ async function handleCardSelect(idx, el) {
 }
 
 function handleShuffleClick() {
+  const now = Date.now();
+  if (now < shuffleBtnCooldownUntil) return;
   if (isAnimating || isGameOver || isBtnLocked) return;
   const possibleCount = analyzePossibleSets().total;
   if (possibleCount > 0) {
@@ -869,6 +909,8 @@ function handleShuffleClick() {
       return;
     }
   }
+  const cooldownMs = GAME_CONFIG.CARD_FADE_DURATION + GAME_CONFIG.CARD_ANIM_IN_DURATION;
+  shuffleBtnCooldownUntil = now + cooldownMs;
   handleShuffleDeck(false);
 }
 
@@ -911,6 +953,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false) {
 
   if (isAuto && fromSet) {
     isAnimating = true;
+    const cooldownMs = GAME_CONFIG.CARD_FADE_DURATION + GAME_CONFIG.CARD_ANIM_IN_DURATION;
 
     document.querySelectorAll('.card')
       .forEach(c => c.classList.add('anim-out'));
@@ -923,10 +966,12 @@ function handleShuffleDeck(isAuto = false, fromSet = false) {
       selected = [];
 
       for (let i = 0; i < 12; i++) updateSlot(i, true);
+    }, GAME_CONFIG.CARD_FADE_DURATION);
 
+    setTimeout(() => {
       isAnimating = false;
       updateUI();
-    }, GAME_CONFIG.CARD_FADE_DURATION);
+    }, cooldownMs);
 
     return;
   }
@@ -936,6 +981,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false) {
   document.querySelectorAll('.card')
     .forEach(c => c.classList.add('anim-out'));
 
+  const cooldownMs = GAME_CONFIG.CARD_FADE_DURATION + GAME_CONFIG.CARD_ANIM_IN_DURATION;
   setTimeout(() => {
     const currentCards = board.filter(c => c !== null);
     deck.push(...currentCards);
@@ -944,10 +990,12 @@ function handleShuffleDeck(isAuto = false, fromSet = false) {
     selected = [];
 
     for (let i = 0; i < 12; i++) updateSlot(i, true);
+  }, GAME_CONFIG.CARD_FADE_DURATION);
 
+  setTimeout(() => {
     isAnimating = false;
     updateUI();
-  }, GAME_CONFIG.CARD_FADE_DURATION);
+  }, cooldownMs);
 }
 
 function saveRecord(extra) {
@@ -978,11 +1026,11 @@ function initNewDeckAndBoard() {
 function syncGameModifiers() {
   const currentMods = {
     SP: config.showPossible,
-    DP: config.showPossible && config.showDetailedPossible,
     AS: config.autoShuffle,
     PBS: config.preventBadShuffle,
     A3RD: config.autoSelectThird,
-    SS: config.useFixedSeed
+    SS: config.useFixedSeed,
+    DM: config.debugMode
   };
   startGameModifiers = { ...currentMods };
   usedGameModifiers = { ...currentMods };
@@ -1131,10 +1179,12 @@ function buildModifiersUI(mods) {
   const container = document.getElementById('final-modifiers');
   if (!container) return;
   container.innerHTML = '';
-  let count = 0;
   const target = mods || gameModifiers;
-  Object.entries(target).forEach(([key, active]) => {
-    if (active) {
+  const order = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM'];
+  let count = 0;
+  order.forEach(key => {
+    if (key === 'DP') return;
+    if (target[key]) {
       const chip = document.createElement('div');
       chip.className = 'mod-chip';
       chip.innerText = key;
