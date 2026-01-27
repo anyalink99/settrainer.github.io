@@ -36,14 +36,14 @@ A "Set" consists of **three cards** where each of the four individual features m
 ### The Four Features:
 
 1. **Color:** Red, Green, or Blue.
-2. **Shape:** Diamond, Oval, or Wave (Squiggle).
+2. **Shape:** Triangle, Circle, or Square.
 3. **Number:** 1, 2, or 3 symbols.
-4. **Shading (Fill):** Solid, Striped (outlined with lines), or Empty (outline only).
+4. **Shading (Fill):** Solid, Striped, or Empty (outline only).
 
 > **Example of a Valid Set:**
-> * **Card 1:** Two Red Solid Ovals
-> * **Card 2:** Two Green Solid Diamonds
-> * **Card 3:** Two Blue Solid Waves
+> * **Card 1:** Two Red Solid Circles
+> * **Card 2:** Two Green Solid Triangles
+> * **Card 3:** Two Blue Solid Squares
 > 
 > 
 > *Result: **Valid.** (Number and Shading are all the same; Color and Shape are all different.)*
