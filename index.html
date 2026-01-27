@@ -69,18 +69,8 @@
         <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Settings</h2>
         <div class="w-full flex flex-col items-center">
           <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Shapes</span>
-              <div class="flex gap-2">
-                  <div id="btn-std" class="preset-chip" onpointerdown="updatePreset('standard')">Standard</div>
-                  <div id="btn-cls" class="preset-chip" onpointerdown="updatePreset('classic')">Classic</div>
-              </div>
-          </div>
-          <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Board</span>
-              <div class="flex gap-2">
-                  <div id="btn-vertical" class="preset-chip" onpointerdown="updateBoardOrientation('vertical')">Vertical</div>
-                  <div id="btn-horizontal" class="preset-chip" onpointerdown="updateBoardOrientation('horizontal')">Horizontal</div>
-              </div>
+              <span class="text-sm font-bold uppercase">Appearance</span>
+              <button onpointerdown="openBoardAppearanceModal()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Edit Board</button>
           </div>
           <div class="settings-row">
               <span class="text-sm font-bold uppercase">Show Possible</span>
@@ -95,10 +85,9 @@
               <div id="toggle-spm" class="toggle-switch" onpointerdown="toggleOption('showSPM')"></div>
           </div>
           <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
-              <div id="toggle-auto-select" class="toggle-switch" onpointerdown="toggleOption('autoSelectThird')"></div>
+              <span class="text-sm font-bold uppercase">Show Timer</span>
+              <div id="toggle-timer" class="toggle-switch" onpointerdown="toggleOption('showTimer')"></div>
           </div>
-
           <div class="settings-row desktop-only mt-4">
               <span class="text-sm font-bold uppercase">Controls</span>
               <button onpointerdown="openKeybindsModal()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Edit Keybinds</button>
@@ -112,18 +101,64 @@
       <button onpointerdown="toggleSettingsModal(false)" class="btn-action !w-64 text-xl py-4 uppercase mt-8">Close</button>
     </div>
 
+    <div id="board-appearance-modal" class="overlay">
+        <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Board</h2>
+        <div class="w-full flex flex-col items-center max-w-[320px]">
+          <div class="settings-row">
+              <span class="text-sm font-bold uppercase">Shapes</span>
+              <div class="flex gap-2">
+                  <div id="btn-std" class="preset-chip" onpointerdown="updatePreset('standard')">Standard</div>
+                  <div id="btn-cls" class="preset-chip" onpointerdown="updatePreset('classic')">Classic</div>
+              </div>
+          </div>
+          <div class="settings-row">
+              <span class="text-sm font-bold uppercase">Orientation</span>
+              <div class="flex gap-2">
+                  <div id="btn-vertical" class="preset-chip" onpointerdown="updateBoardOrientation('vertical')">Vertical</div>
+                  <div id="btn-horizontal" class="preset-chip" onpointerdown="updateBoardOrientation('horizontal')">Horizontal</div>
+              </div>
+          </div>
+          <div class="settings-row !flex-col !items-start gap-3 !h-auto py-4">
+              <div class="flex justify-between w-full">
+                  <span class="text-sm font-bold uppercase">Animation Speed</span>
+                  <span id="speed-val" class="text-sm font-bold font-sans text-pink-400">1.0x</span>
+              </div>
+              <input type="range" id="speed-range" min="0.1" max="2.0" step="0.1"
+                     oninput="updateSpeedModifier(this.value)">
+          </div>
+          <div class="board-preview-row" id="board-preview-wrap">
+              <div class="board-preview-slot">
+                  <div id="board-preview-card-0" class="board-preview-card"></div>
+                  <label class="board-preview-color-wrap">
+                      <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 1</span>
+                      <input type="color" id="board-preview-color-0" class="board-preview-color" value="#fd0000" oninput="updateGameColor(0, this.value)">
+                  </label>
+              </div>
+              <div class="board-preview-slot">
+                  <div id="board-preview-card-1" class="board-preview-card"></div>
+                  <label class="board-preview-color-wrap">
+                      <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 2</span>
+                      <input type="color" id="board-preview-color-1" class="board-preview-color" value="#01a43b" oninput="updateGameColor(1, this.value)">
+                  </label>
+              </div>
+              <div class="board-preview-slot">
+                  <div id="board-preview-card-2" class="board-preview-card"></div>
+                  <label class="board-preview-color-wrap">
+                      <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 3</span>
+                      <input type="color" id="board-preview-color-2" class="board-preview-color" value="#0000fe" oninput="updateGameColor(2, this.value)">
+                  </label>
+              </div>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-4">
+            <button onpointerdown="handleBoardAppearanceReset()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
+            <button onpointerdown="closeBoardAppearanceModal()" class="btn-action !w-32 text-sm">Done</button>
+        </div>
+    </div>
+
     <div id="advanced-modal" class="overlay">
         <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Advanced</h2>
         <div class="w-full flex flex-col items-center">
-
-            <div class="settings-row !flex-col !items-start gap-3 !h-auto py-4">
-                <div class="flex justify-between w-full">
-                    <span class="text-sm font-bold uppercase">Speed Mod</span>
-                    <span id="speed-val" class="text-sm font-bold font-sans text-pink-400">1.0x</span>
-                </div>
-                <input type="range" id="speed-range" min="0.1" max="2.0" step="0.1"
-                       oninput="updateSpeedModifier(this.value)">
-            </div>
 
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Auto Shuffle</span>
@@ -136,6 +171,10 @@
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Synchronized Seed</span>
                 <div id="toggle-seed" class="toggle-switch" onpointerdown="toggleOption('useFixedSeed')"></div>
+            </div>
+            <div class="settings-row">
+                <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
+                <div id="toggle-auto-select" class="toggle-switch" onpointerdown="toggleOption('autoSelectThird')"></div>
             </div>
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Record min sets</span>
