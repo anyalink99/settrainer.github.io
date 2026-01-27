@@ -121,6 +121,7 @@ let speedChartInstance = null;
 let lastSetFoundTime = Date.now();
 let currentExtraStats = null;
 let autoShuffleFromSet = false;
+let recordsListLastScrollTime = 0;
 let startGameModifiers = {};
 let usedGameModifiers = {};
 
@@ -317,7 +318,10 @@ function openRecordsModal() {
     finishes.forEach(r => {
       const item = document.createElement('div');
       item.className = 'record-item';
-      item.onclick = () => showSavedRecord(r);
+      item.onclick = () => {
+        if (Date.now() - recordsListLastScrollTime < 200) return;
+        showSavedRecord(r);
+      };
       item.innerHTML = `
         <div class="record-info">
           <div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div>
@@ -345,7 +349,10 @@ function openRecordsModal() {
     others.forEach(r => {
       const item = document.createElement('div');
       item.className = 'record-item';
-      item.onclick = () => showSavedRecord(r);
+      item.onclick = () => {
+        if (Date.now() - recordsListLastScrollTime < 200) return;
+        showSavedRecord(r);
+      };
       item.innerHTML = `
         <div class="record-info">
           <div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div>
@@ -364,6 +371,7 @@ function openRecordsModal() {
     });
   }
 
+  container.onscroll = () => { recordsListLastScrollTime = Date.now(); };
   openModal('records-modal');
 }
 
