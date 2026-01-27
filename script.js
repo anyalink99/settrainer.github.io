@@ -1,11 +1,10 @@
-const GAME_COLORS = ['#fd0000', '#01a43b', '#0000fe'];
-
 const STORAGE_KEYS = {
   PRESET: 'set_shape_preset',
   SPEED_MOD: 'set_speed_mod',
   SHOW_POSSIBLE: 'set_show_possible',
   SHOW_DETAILED: 'set_show_detailed_possible',
   SHOW_SPM: 'set_show_s_p_m',
+  SHOW_TIMER: 'set_show_timer',
   AUTO_SHUFFLE: 'set_auto_shuffle',
   AUTO_SELECT_THIRD: 'set_auto_select_third',
   PREVENT_BAD_SHUFFLE: 'set_prevent_bad_shuffle',
@@ -14,7 +13,8 @@ const STORAGE_KEYS = {
   KEYBINDS: 'set_keybinds',
   RECORDS: 'set_pro_records',
   APP_WIDTH: 'set_app_width',
-  BOARD_ROTATED: 'set_board_rotated'
+  BOARD_ROTATED: 'set_board_rotated',
+  GAME_COLORS: 'set_game_colors'
 };
 
 const GAME_CONFIG = {
@@ -28,6 +28,8 @@ const GAME_CONFIG = {
   MODAL_TRANSITION: 200,
   EXPORT_DELAY: 150
 };
+
+const DEFAULT_GAME_COLORS = ['#fd0000', '#01a43b', '#0000fe'];
 
 const UI_COLORS = {
   BACKGROUND: '#2d2631',
@@ -84,17 +86,25 @@ const Storage = {
 // ============================================================================
 
 let config = {
+  // Board (Board Appearance)
   preset: Storage.get(STORAGE_KEYS.PRESET, 'standard'),
+  boardRotated: Storage.get(STORAGE_KEYS.BOARD_ROTATED, false),
   speedMod: Storage.get(STORAGE_KEYS.SPEED_MOD, '1.0'),
+  gameColors: (() => {
+    const saved = Storage.getJSON(STORAGE_KEYS.GAME_COLORS);
+    return Array.isArray(saved) && saved.length === 3 ? saved : DEFAULT_GAME_COLORS;
+  })(),
+  // Settings
   showPossible: Storage.get(STORAGE_KEYS.SHOW_POSSIBLE, true),
   showDetailedPossible: Storage.get(STORAGE_KEYS.SHOW_DETAILED, false),
   showSPM: Storage.get(STORAGE_KEYS.SHOW_SPM, false),
+  showTimer: Storage.get(STORAGE_KEYS.SHOW_TIMER, true),
+  // Advanced
   autoShuffle: Storage.get(STORAGE_KEYS.AUTO_SHUFFLE, true),
-  autoSelectThird: Storage.get(STORAGE_KEYS.AUTO_SELECT_THIRD, false),
   preventBadShuffle: Storage.get(STORAGE_KEYS.PREVENT_BAD_SHUFFLE, false),
   useFixedSeed: Storage.get(STORAGE_KEYS.USE_FIXED_SEED, false),
-  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23),
-  boardRotated: Storage.get(STORAGE_KEYS.BOARD_ROTATED, false)
+  autoSelectThird: Storage.get(STORAGE_KEYS.AUTO_SELECT_THIRD, false),
+  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23)
 };
 
 let gameModifiers = {
@@ -223,6 +233,61 @@ function openAdvancedModal() {
 
 async function closeAdvancedModal() {
   await closeModal('advanced-modal');
+}
+
+function openBoardAppearanceModal() {
+  syncSettingsUI();
+  refreshBoardAppearancePreviews();
+  openModal('board-appearance-modal');
+}
+
+async function closeBoardAppearanceModal() {
+  await closeModal('board-appearance-modal');
+}
+
+function handleBoardAppearanceReset() {
+  if (!confirm('Reset board appearance to default?')) return;
+  config.preset = 'standard';
+  config.boardRotated = false;
+  config.gameColors = [...DEFAULT_GAME_COLORS];
+  config.speedMod = '1.0';
+  Storage.set(STORAGE_KEYS.PRESET, config.preset);
+  Storage.set(STORAGE_KEYS.BOARD_ROTATED, String(config.boardRotated));
+  Storage.setJSON(STORAGE_KEYS.GAME_COLORS, config.gameColors);
+  Storage.set(STORAGE_KEYS.SPEED_MOD, config.speedMod);
+  updateColors();
+  syncSettingsUI();
+  refreshBoardAppearancePreviews();
+  const boardEl = document.getElementById('board');
+  if (boardEl) {
+    boardEl.classList.toggle('rotated', config.boardRotated);
+  }
+  transposeBoardLayout();
+  for (let i = 0; i < 12; i++) updateSlot(i, false);
+}
+
+function refreshBoardAppearancePreviews() {
+  const wrap = document.getElementById('board-preview-wrap');
+  if (!wrap) return;
+  wrap.classList.toggle('rotated', config.boardRotated);
+  const colors = getGameColors();
+  for (let i = 0; i < 3; i++) {
+    const cardEl = document.getElementById(`board-preview-card-${i}`);
+    const colorInput = document.getElementById(`board-preview-color-${i}`);
+    if (cardEl) {
+      const card = { c: i, s: i, f: 1, n: 0 };
+      cardEl.innerHTML = getShapeSVG(card);
+    }
+    if (colorInput) colorInput.value = colors[i];
+  }
+}
+
+function updateGameColor(index, hex) {
+  if (index < 0 || index > 2) return;
+  config.gameColors[index] = hex;
+  Storage.setJSON(STORAGE_KEYS.GAME_COLORS, config.gameColors);
+  updateColors();
+  refreshBoardAppearancePreviews();
 }
 
 function openRecordsModal() {
@@ -360,14 +425,19 @@ async function closeExtraStatsModal() {
 // GRAPHICS & RENDERING
 // ============================================================================
 
+function getGameColors() {
+  return config.gameColors;
+}
+
 function updateColors() {
   const defs = document.getElementById('svg-defs');
   if (!defs) return;
+  const colors = getGameColors();
   const isStd = config.preset === 'standard';
   const step = isStd ? 3 : 1.5;
   const sWidth = isStd ? 1.2 : 0.6;
   const xOffset = isStd ? 1 : 0;
-  defs.innerHTML = GAME_COLORS.map((c, i) =>
+  defs.innerHTML = colors.map((c, i) =>
     `<pattern id="s-${i}" patternUnits="userSpaceOnUse" width="${step}" height="${step}">
       <line x1="${xOffset}" y1="0" x2="${xOffset}" y2="${step}" stroke="${c}" stroke-width="${sWidth}" />
     </pattern>`
@@ -376,7 +446,7 @@ function updateColors() {
 }
 
 function getShapeSVG(card) {
-  const color = GAME_COLORS[card.c];
+  const color = getGameColors()[card.c];
   let fill = card.f === 0 ? 'none' : color;
   if (card.f === 1) fill = `url(#s-${card.c})`;
   let strokeW = config.preset === 'classic' ? (card.f === 1 ? 1 : 1.7) : 1.8;
@@ -455,6 +525,8 @@ function syncSettingsUI() {
   document.getElementById('toggle-spm').classList.toggle('active', config.showSPM);
   document.getElementById('live-spm').style.display = config.showSPM ? 'block' : 'none';
   if (config.showSPM) updateLiveSPM();
+  document.getElementById('toggle-timer').classList.toggle('active', config.showTimer);
+  document.getElementById('timer').style.display = config.showTimer ? '' : 'none';
 
   document.getElementById('toggle-auto').classList.toggle('active', config.autoShuffle);
   document.getElementById('toggle-auto-select').classList.toggle('active', config.autoSelectThird);
@@ -469,7 +541,8 @@ function syncSettingsUI() {
   const speedVal = document.getElementById('speed-val');
   if (speedVal) speedVal.innerText = config.speedMod + 'x';
 
-  document.documentElement.style.setProperty('--speed-mod', config.speedMod);
+  const mod = 1 / parseFloat(config.speedMod || '1');
+  document.documentElement.style.setProperty('--speed-mod', String(mod));
   
   const boardEl = document.getElementById('board');
   if (boardEl) {
@@ -490,13 +563,16 @@ function updatePreset(p) {
   activeBtn.addEventListener('animationend', () => { activeBtn.classList.remove('chip-animate'); }, { once: true });
   updateColors();
   syncSettingsUI();
+  refreshBoardAppearancePreviews();
 }
 
 function updateSpeedModifier(val) {
   config.speedMod = val;
   Storage.set(STORAGE_KEYS.SPEED_MOD, val);
-  document.documentElement.style.setProperty('--speed-mod', val);
-  document.getElementById('speed-val').innerText = val + 'x';
+  const mod = 1 / parseFloat(val || '1');
+  document.documentElement.style.setProperty('--speed-mod', String(mod));
+  const speedVal = document.getElementById('speed-val');
+  if (speedVal) speedVal.innerText = val + 'x';
 }
 
 function toggleOption(key) {
@@ -546,12 +622,10 @@ function updateBoardOrientation(orientation) {
     config.boardRotated = true;
   }
   
-  // If orientation didn't change, just return
   if (wasRotated === config.boardRotated) return;
   
   Storage.set(STORAGE_KEYS.BOARD_ROTATED, String(config.boardRotated));
   
-  // Update button states
   document.getElementById('btn-vertical').className = `preset-chip ${!config.boardRotated ? 'active' : ''}`;
   document.getElementById('btn-horizontal').className = `preset-chip ${config.boardRotated ? 'active' : ''}`;
   
@@ -561,7 +635,6 @@ function updateBoardOrientation(orientation) {
     activeBtn.addEventListener('animationend', () => { activeBtn.classList.remove('chip-animate'); }, { once: true });
   }
   
-  // Apply changes
   const boardEl = document.getElementById('board');
   if (boardEl) {
     if (config.boardRotated) {
@@ -574,22 +647,18 @@ function updateBoardOrientation(orientation) {
   transposeBoardLayout();
   for (let i = 0; i < 12; i++) updateSlot(i, false);
   updateUI();
+  refreshBoardAppearancePreviews();
 }
 
 function transposeBoardLayout() {
-  // Transpose the actual board array to match the new layout
-  // 4x3 to 3x4: [0,1,2,3,4,5,6,7,8,9,10,11] -> [0,4,8,1,5,9,2,6,10,3,7,11]
-  // 3x4 to 4x3: [0,1,2,3,4,5,6,7,8,9,10,11] -> [0,3,6,9,1,4,7,10,2,5,8,11]
   
   const newBoard = [];
   if (config.boardRotated) {
-    // Going from 4x3 to 3x4
     const mapping = [0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11];
     for (let i = 0; i < 12; i++) {
       newBoard[i] = board[mapping[i]];
     }
   } else {
-    // Going from 3x4 back to 4x3
     const mapping = [0, 3, 6, 9, 1, 4, 7, 10, 2, 5, 8, 11];
     for (let i = 0; i < 12; i++) {
       newBoard[i] = board[mapping[i]];
