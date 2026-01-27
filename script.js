@@ -121,7 +121,6 @@ let speedChartInstance = null;
 let lastSetFoundTime = Date.now();
 let currentExtraStats = null;
 let autoShuffleFromSet = false;
-let recordsListLastScrollTime = 0;
 let startGameModifiers = {};
 let usedGameModifiers = {};
 
@@ -318,10 +317,6 @@ function openRecordsModal() {
     finishes.forEach(r => {
       const item = document.createElement('div');
       item.className = 'record-item';
-      item.onclick = () => {
-        if (Date.now() - recordsListLastScrollTime < 200) return;
-        showSavedRecord(r);
-      };
       item.innerHTML = `
         <div class="record-info">
           <div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div>
@@ -336,6 +331,7 @@ function openRecordsModal() {
           </svg>
         </div>
       `;
+      bindRecordItemTap(item, r);
       container.appendChild(item);
     });
   }
@@ -349,10 +345,6 @@ function openRecordsModal() {
     others.forEach(r => {
       const item = document.createElement('div');
       item.className = 'record-item';
-      item.onclick = () => {
-        if (Date.now() - recordsListLastScrollTime < 200) return;
-        showSavedRecord(r);
-      };
       item.innerHTML = `
         <div class="record-info">
           <div class="record-val">${r.sets} Sets ${r.isSeed ? '🧬' : ''}</div>
@@ -367,11 +359,11 @@ function openRecordsModal() {
           </svg>
         </div>
       `;
+      bindRecordItemTap(item, r);
       container.appendChild(item);
     });
   }
 
-  container.onscroll = () => { recordsListLastScrollTime = Date.now(); };
   openModal('records-modal');
 }
 
@@ -1253,6 +1245,22 @@ async function handleShareResult() {
       }
     }, 'image/png');
   } catch (err) { console.error("Error sharing:", err); } finally { document.body.removeChild(clone); }
+}
+
+function bindRecordItemTap(item, r) {
+  item.onpointerdown = (e) => {
+    if (e.target.closest('.btn-del')) return;
+    item._recordTap = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId };
+  };
+  item.onpointerup = (e) => {
+    if (e.target.closest('.btn-del')) return;
+    const s = item._recordTap;
+    if (!s || s.id !== e.pointerId) return;
+    const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    if ((Date.now() - s.t) < 400 && dx * dx + dy * dy < 225) showSavedRecord(r);
+    item._recordTap = null;
+  };
+  item.onpointercancel = () => { item._recordTap = null; };
 }
 
 function handleRecordDelete(event, id) {
