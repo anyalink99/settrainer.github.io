@@ -272,9 +272,13 @@
     </div>
 
     <div id="records-modal" class="overlay">
-        <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Top Scores</h2>
-        <div id="records-container" class="records-list"></div>
-        <button onpointerdown="closeRecordsModal()" class="btn-action !w-64 text-xl py-4 uppercase mt-6">Back</button>
+        <div class="records-modal-inner">
+            <div class="records-modal-scroll">
+                <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Top Scores</h2>
+                <div id="records-container" class="records-list"></div>
+            </div>
+            <button onpointerdown="closeRecordsModal()" class="btn-action records-modal-back">Back</button>
+        </div>
     </div>
 </div>
 
