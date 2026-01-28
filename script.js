@@ -123,6 +123,7 @@ let speedChartInstance = null;
 let lastSetFoundTime = Date.now();
 let currentExtraStats = null;
 let autoShuffleFromSet = false;
+let nextAutoShuffleSkipsAnimOut = false;
 let startGameModifiers = {};
 let usedGameModifiers = {};
 let debugHighlightSet = null;
@@ -798,9 +799,15 @@ function updateUI() {
     if (config.debugMode) showToast('Auto-shuffle');
     const fromSet = autoShuffleFromSet;
     autoShuffleFromSet = false;
-    handleShuffleDeck(true, fromSet);
+    if (nextAutoShuffleSkipsAnimOut) {
+      nextAutoShuffleSkipsAnimOut = false;
+      handleShuffleDeck(true, false, true);
+    } else {
+      handleShuffleDeck(true, fromSet, false);
+    }
     return;
   }
+  nextAutoShuffleSkipsAnimOut = false;
 
   updateLiveSPM();
   applyDebugHighlight();
@@ -891,6 +898,14 @@ async function handleCardSelect(idx, el) {
   }
 }
 
+function getShuffleDurations() {
+  const mod = 1 / parseFloat(config.speedMod || '1');
+  return {
+    fadeOutMs: Math.round(GAME_CONFIG.CARD_FADE_DURATION * mod),
+    animInMs: Math.round(GAME_CONFIG.CARD_ANIM_IN_DURATION * mod)
+  };
+}
+
 function handleShuffleClick() {
   const now = Date.now();
   if (now < shuffleBtnCooldownUntil) return;
@@ -909,8 +924,8 @@ function handleShuffleClick() {
       return;
     }
   }
-  const cooldownMs = GAME_CONFIG.CARD_FADE_DURATION + GAME_CONFIG.CARD_ANIM_IN_DURATION;
-  shuffleBtnCooldownUntil = now + cooldownMs;
+  const { fadeOutMs, animInMs } = getShuffleDurations();
+  shuffleBtnCooldownUntil = now + fadeOutMs + animInMs;
   handleShuffleDeck(false);
 }
 
@@ -935,8 +950,27 @@ function shuffleExistingCards() {
   setTimeout(() => { isAnimating = false; updateUI(); }, GAME_CONFIG.SHUFFLE_DELAY);
 }
 
-function handleShuffleDeck(isAuto = false, fromSet = false) {
+function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false) {
   if (isAnimating) return;
+
+  if (isAuto && skipAnimOut) {
+    isAnimating = true;
+    const { animInMs } = getShuffleDurations();
+    const currentCards = board.filter(c => c !== null);
+    deck.push(...currentCards);
+    deck.sort(() => Math.random() - 0.5);
+    board = deck.splice(0, 12);
+    selected = [];
+
+    for (let i = 0; i < 12; i++) updateSlot(i, true);
+
+    setTimeout(() => {
+      isAnimating = false;
+      nextAutoShuffleSkipsAnimOut = true;
+      updateUI();
+    }, animInMs);
+    return;
+  }
 
   if (isAuto && !fromSet) {
     const currentCards = board.filter(c => c !== null);
@@ -953,7 +987,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false) {
 
   if (isAuto && fromSet) {
     isAnimating = true;
-    const cooldownMs = GAME_CONFIG.CARD_FADE_DURATION + GAME_CONFIG.CARD_ANIM_IN_DURATION;
+    const { fadeOutMs } = getShuffleDurations();
 
     document.querySelectorAll('.card')
       .forEach(c => c.classList.add('anim-out'));
@@ -966,22 +1000,22 @@ function handleShuffleDeck(isAuto = false, fromSet = false) {
       selected = [];
 
       for (let i = 0; i < 12; i++) updateSlot(i, true);
-    }, GAME_CONFIG.CARD_FADE_DURATION);
 
-    setTimeout(() => {
+      nextAutoShuffleSkipsAnimOut = true;
       isAnimating = false;
       updateUI();
-    }, cooldownMs);
+    }, fadeOutMs);
 
     return;
   }
 
   isAnimating = true;
 
+  const { fadeOutMs } = getShuffleDurations();
+
   document.querySelectorAll('.card')
     .forEach(c => c.classList.add('anim-out'));
 
-  const cooldownMs = GAME_CONFIG.CARD_FADE_DURATION + GAME_CONFIG.CARD_ANIM_IN_DURATION;
   setTimeout(() => {
     const currentCards = board.filter(c => c !== null);
     deck.push(...currentCards);
@@ -990,12 +1024,10 @@ function handleShuffleDeck(isAuto = false, fromSet = false) {
     selected = [];
 
     for (let i = 0; i < 12; i++) updateSlot(i, true);
-  }, GAME_CONFIG.CARD_FADE_DURATION);
 
-  setTimeout(() => {
     isAnimating = false;
     updateUI();
-  }, cooldownMs);
+  }, fadeOutMs);
 }
 
 function saveRecord(extra) {
