@@ -5,7 +5,7 @@ let config = {
   speedMod: Storage.get(STORAGE_KEYS.SPEED_MOD, '1.0'),
   gameColors: (() => {
     const saved = Storage.getJSON(STORAGE_KEYS.GAME_COLORS);
-    return Array.isArray(saved) && saved.length === 3 ? saved : DEFAULT_GAME_COLORS;
+    return Array.isArray(saved) && saved.length === 3 ? [...saved] : [...DEFAULT_GAME_COLORS];
   })(),
   // Settings
   showPossible: Storage.get(STORAGE_KEYS.SHOW_POSSIBLE, true),
