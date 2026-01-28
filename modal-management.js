@@ -168,6 +168,29 @@ async function closeRecordsModal() {
   await closeModal('records-modal');
 }
 
+function openOnlineRecordsModal() {
+  refreshOnlineNicknameDisplay();
+  openModal('online-records-modal');
+  renderOnlineRecords(document.getElementById('online-records-container'));
+}
+
+function handleRecordsButtonClick() {
+  if (typeof resultOpenedFrom !== 'undefined' && resultOpenedFrom === 'online') {
+    openModal('records-modal');
+    openOnlineRecordsModal();
+    return;
+  }
+  if (typeof resultOpenedFrom !== 'undefined' && resultOpenedFrom === 'local') {
+    openRecordsModal();
+    return;
+  }
+  openRecordsModal();
+}
+
+async function closeOnlineRecordsModal() {
+  await closeModal('online-records-modal');
+}
+
 function openKeybindsModal() {
   const grid = document.getElementById('kb-board-grid');
   grid.innerHTML = '';
