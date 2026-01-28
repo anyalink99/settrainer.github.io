@@ -1354,11 +1354,11 @@ async function handleShareResult() {
 }
 
 function bindRecordItemTap(item, r) {
-  item.onpointerdown = (e) => {
+  const onDown = (e) => {
     if (e.target.closest('.btn-del')) return;
     item._recordTap = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId };
   };
-  item.onpointerup = (e) => {
+  const onUp = (e) => {
     if (e.target.closest('.btn-del')) return;
     const s = item._recordTap;
     if (!s || s.id !== e.pointerId) return;
@@ -1366,7 +1366,10 @@ function bindRecordItemTap(item, r) {
     if ((Date.now() - s.t) < 400 && dx * dx + dy * dy < 225) showSavedRecord(r);
     item._recordTap = null;
   };
-  item.onpointercancel = () => { item._recordTap = null; };
+  const onCancel = () => { item._recordTap = null; };
+  item.addEventListener('pointerdown', onDown, { passive: true });
+  item.addEventListener('pointerup', onUp, { passive: true });
+  item.addEventListener('pointercancel', onCancel, { passive: true });
 }
 
 function handleRecordDelete(event, id) {
