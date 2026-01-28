@@ -99,7 +99,7 @@
 
     <div id="board-appearance-modal" class="overlay">
         <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Board</h2>
-        <div class="w-full flex flex-col items-center max-w-[320px]">
+        <div id="board-appearance-content" class="board-appearance-content w-full flex flex-col items-center max-w-[320px]">
           <div class="settings-row">
               <span class="text-sm font-bold uppercase">Shapes</span>
               <div class="flex gap-2">
@@ -125,25 +125,31 @@
           <div class="board-preview-row" id="board-preview-wrap">
               <div class="board-preview-slot">
                   <div id="board-preview-card-0" class="board-preview-card"></div>
-                  <label class="board-preview-color-wrap">
+                  <div class="board-preview-color-wrap">
                       <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 1</span>
-                      <input type="color" id="board-preview-color-0" class="board-preview-color" value="#fd0000" oninput="updateGameColor(0, this.value)">
-                  </label>
+                      <button type="button" id="board-preview-swatch-0" class="board-preview-swatch" data-color-index="0" aria-label="Choose color 1"></button>
+                  </div>
               </div>
               <div class="board-preview-slot">
                   <div id="board-preview-card-1" class="board-preview-card"></div>
-                  <label class="board-preview-color-wrap">
+                  <div class="board-preview-color-wrap">
                       <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 2</span>
-                      <input type="color" id="board-preview-color-1" class="board-preview-color" value="#01a43b" oninput="updateGameColor(1, this.value)">
-                  </label>
+                      <button type="button" id="board-preview-swatch-1" class="board-preview-swatch" data-color-index="1" aria-label="Choose color 2"></button>
+                  </div>
               </div>
               <div class="board-preview-slot">
                   <div id="board-preview-card-2" class="board-preview-card"></div>
-                  <label class="board-preview-color-wrap">
+                  <div class="board-preview-color-wrap">
                       <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 3</span>
-                      <input type="color" id="board-preview-color-2" class="board-preview-color" value="#0000fe" oninput="updateGameColor(2, this.value)">
-                  </label>
+                      <button type="button" id="board-preview-swatch-2" class="board-preview-swatch" data-color-index="2" aria-label="Choose color 3"></button>
+                  </div>
               </div>
+          </div>
+          <div id="board-picker-backdrop" class="board-picker-backdrop" hidden aria-hidden="true"></div>
+          <div id="board-color-picker-popover" class="board-color-picker-popover" hidden>
+              <div id="hex-picker-mount" class="hex-picker-mount"></div>
+              <input type="text" id="hex-input" class="hex-input" placeholder="#ffffff" maxlength="9" autocomplete="off" />
+              <button type="button" class="btn-action !w-full !py-2 text-sm mt-2" id="board-picker-done">Done</button>
           </div>
         </div>
         <div class="flex gap-2 mt-4">
@@ -282,6 +288,26 @@
     </div>
 </div>
 
-<script src="script.js"></script>
+<script src="constants.js"></script>
+<script src="storage-module.js"></script>
+<script src="state.js"></script>
+<script src="resizer.js"></script>
+<script src="utilities.js"></script>
+<script src="modal-management.js"></script>
+<script src="graphics-rendering.js"></script>
+<script src="settings.js"></script>
+<script src="color-picker.js"></script>
+<script src="game-logic.js"></script>
+<script src="results-stats.js"></script>
+<script src="keybinds.js"></script>
+<script src="event-listeners.js"></script>
+<script src="timer.js"></script>
+<script>
+  initNewDeckAndBoard();
+  updateColors();
+  syncSettingsUI();
+  syncGameModifiers();
+  updateUI();
+</script>
 </body>
 </html>
