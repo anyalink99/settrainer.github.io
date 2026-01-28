@@ -1,5 +1,85 @@
+function randomInt(maxExclusive) {
+  maxExclusive = Math.max(1, maxExclusive | 0);
+  try {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      var a = new Uint32Array(1);
+      crypto.getRandomValues(a);
+      return a[0] % maxExclusive;
+    }
+  } catch (_) {}
+  return Math.floor(Math.random() * maxExclusive);
+}
+
+function generateDefaultOnlineNickname() {
+  // One-time default nickname when user hasn't set one yet.
+  var fixed = [
+    'Huge Set fan',
+    'Set enthusiast',
+    'Set enjoyer',
+    'Set aficionado',
+    'Set connoisseur',
+    'Set appreciator',
+    'Set addict',
+    'Set hunter',
+    'Set seeker',
+    'Set solver',
+    'Set speedrunner',
+    'Set grinder',
+    'Set enjoyer supreme',
+    'Set pattern lover',
+    'Set vibes only',
+    'Set wizard',
+    'Set mage',
+    'Set ninja',
+    'Set detective',
+    'Set tactician',
+    'Set strategist',
+    'Set machine',
+    'Set enjoyer deluxe',
+    'Card whisperer',
+    'Pattern whisperer',
+    'Triple threat',
+    'Chaos tamer',
+    'Board cleaner',
+    'Fastest fingers',
+    'Focus mode',
+    'Zen solver',
+    'Hyperfocus',
+    'Shape scholar',
+    'Pattern scholar',
+    'Mind palace',
+    'Clean combos',
+    'Combo captain',
+    'Logic sprinter',
+    'Silky picks',
+    'Sharp eyes'
+  ];
+
+  var adjectives = [
+    'Huge', 'Dedicated', 'Casual', 'Legendary', 'Friendly', 'Curious', 'Swift', 'Calm', 'Focused', 'Brave',
+    'Clever', 'Sneaky', 'Patient', 'Relentless', 'Chill', 'Cozy', 'Silly', 'Serious', 'Sharp', 'Tiny'
+  ];
+  var roles = [
+    'set fan', 'set enthusiast', 'set enjoyer', 'set hunter', 'set solver', 'set wizard', 'set tactician',
+    'pattern lover', 'card whisperer', 'shape scholar'
+  ];
+
+  if (randomInt(10) < 7) return fixed[randomInt(fixed.length)];
+  return adjectives[randomInt(adjectives.length)] + ' ' + roles[randomInt(roles.length)];
+}
+
+function ensureOnlineNickname() {
+  var nick = (Storage.get(STORAGE_KEYS.ONLINE_NICKNAME) || '').trim();
+  // Also treat a stored placeholder as "not set" (in case it ever got persisted).
+  if (!nick || nick.toLowerCase() === 'not set') {
+    nick = generateDefaultOnlineNickname();
+    Storage.set(STORAGE_KEYS.ONLINE_NICKNAME, nick);
+  }
+  return nick;
+}
+
 function getOnlineNickname() {
-  return (Storage.get(STORAGE_KEYS.ONLINE_NICKNAME) || '').trim();
+  return ensureOnlineNickname();
 }
 
 function getLeaderboardBaseUrl() {
@@ -118,7 +198,7 @@ function modifiersToStr(mods) {
 async function submitRecordToOnline(record) {
   var url = getLeaderboardBaseUrl();
   if (!url) return { ok: false, error: 'URL not configured' };
-  var nick = getOnlineNickname();
+  var nick = ensureOnlineNickname();
   if (!nick) return { ok: false, error: 'Set your nickname first' };
   try {
     var extraJson = '';
@@ -312,7 +392,7 @@ function escapeHtml(s) {
 }
 
 function openNicknamePrompt() {
-  const current = getOnlineNickname();
+  const current = ensureOnlineNickname();
   const raw = prompt('Your nickname for online leaderboard:', current || 'Player');
   if (raw === null) return;
   const nick = setOnlineNickname(raw);
@@ -322,7 +402,7 @@ function openNicknamePrompt() {
 function refreshOnlineNicknameDisplay() {
   const el = document.getElementById('online-nickname-display');
   if (!el) return;
-  const nick = getOnlineNickname();
+  const nick = ensureOnlineNickname();
   el.textContent = nick || 'Not set';
   el.classList.toggle('text-gray-500', !nick);
   el.classList.toggle('font-bold', !!nick);
