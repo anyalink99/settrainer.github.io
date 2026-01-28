@@ -18,6 +18,7 @@ function displayResults(sets, bs, s) {
 function showSavedRecord(r) {
   if (!r.extra) { alert("Detailed info not available for old records"); return; }
   closeRecordsModal();
+  resultOpenedFrom = 'local';
   currentExtraStats = r.extra;
   currentExtraStats.modifiers = r.modifiers;
   currentExtraStats.timestamps = r.timestamps;
@@ -32,15 +33,31 @@ function calculateSpeedData(totalTimeMs, timestampsInput) {
   const data = [];
   const ts = timestampsInput || setTimestamps.map(t => t.time);
 
+  let baseStartTime = startTime;
+  if (timestampsInput && Array.isArray(ts) && ts.length) {
+    const first = ts[0];
+    if (typeof first === 'object' && first) {
+      if (typeof first.time === 'number' && typeof first.findTime === 'number') {
+        baseStartTime = first.time - first.findTime;
+      } else if (typeof first.time === 'number') {
+        baseStartTime = first.time;
+      }
+    } else if (typeof first === 'number') {
+      baseStartTime = Math.min.apply(null, ts.filter(v => typeof v === 'number'));
+    }
+  }
+
   for (let i = 1; i <= points; i++) {
     const currentTime = i * intervalMs;
     labels.push(formatTime(currentTime));
     const setsInInterval = ts.filter(val => {
-      const relativeTs = (typeof val === 'object' ? val.time : val) - startTime;
+      const t = (typeof val === 'object' && val) ? val.time : val;
+      if (typeof t !== 'number') return false;
+      const relativeTs = t - baseStartTime;
       return relativeTs > (currentTime - intervalMs) && relativeTs <= currentTime;
     }).length;
     const spm = (setsInInterval / (intervalMs / 1000)) * 60;
-    data.push(spm.toFixed(1));
+    data.push(Number(spm.toFixed(1)));
   }
   return { labels, data };
 }
