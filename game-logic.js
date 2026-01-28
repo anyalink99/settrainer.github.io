@@ -465,6 +465,8 @@ function handleGameFinish(isAuto = false) {
   saveRecord(currentExtraStats);
   displayResults(collectedSets, badShuffles, currentExtraStats);
 
+  if (typeof resetOnlineSubmitForNewFinish === 'function') resetOnlineSubmitForNewFinish();
+
   openModal('result-modal');
   setTimeout(() => {
     document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
