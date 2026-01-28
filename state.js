@@ -42,3 +42,5 @@ let nextAutoShuffleSkipsAnimOut = false;
 let startGameModifiers = {};
 let usedGameModifiers = {};
 let debugHighlightSet = null;
+let lastFinishResult = null;
+let resultOpenedFrom = null;
