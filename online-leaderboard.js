@@ -12,6 +12,7 @@ function randomInt(maxExclusive) {
 
 function generateDefaultOnlineNickname() {
   // One-time default nickname when user hasn't set one yet.
+  // Keep these human-friendly (no numbers by default).
   var fixed = [
     'Huge Set fan',
     'Set enthusiast',
@@ -55,6 +56,7 @@ function generateDefaultOnlineNickname() {
     'Sharp eyes'
   ];
 
+  // Optional combinator for variety without looking random-gibberish.
   var adjectives = [
     'Huge', 'Dedicated', 'Casual', 'Legendary', 'Friendly', 'Curious', 'Swift', 'Calm', 'Focused', 'Brave',
     'Clever', 'Sneaky', 'Patient', 'Relentless', 'Chill', 'Cozy', 'Silly', 'Serious', 'Sharp', 'Tiny'
@@ -64,6 +66,7 @@ function generateDefaultOnlineNickname() {
     'pattern lover', 'card whisperer', 'shape scholar'
   ];
 
+  // 70% fixed list, 30% constructed.
   if (randomInt(10) < 7) return fixed[randomInt(fixed.length)];
   return adjectives[randomInt(adjectives.length)] + ' ' + roles[randomInt(roles.length)];
 }
@@ -190,6 +193,38 @@ function modifiersToStr(mods) {
   return keys.filter(function (k) { return mods[k]; }).join(',');
 }
 
+function rowsContainRecord(rows, record, nickname) {
+  if (!Array.isArray(rows) || !record) return false;
+  var nick = (nickname || '').trim();
+  return rows.some(function (r) {
+    if (!r) return false;
+    var rowNick = (r.nickname || r.nick || '').trim();
+    if (nick && rowNick && rowNick !== nick) return false;
+    var rowSets = r.sets != null ? Number(r.sets) : null;
+    var rowTime = r.time != null ? Number(r.time) : (r.time_ms != null ? Number(r.time_ms) : null);
+    var rowDate = (r.date || '').trim();
+    if (rowSets !== Number(record.sets)) return false;
+    if (rowTime !== Number(record.time)) return false;
+    if (record.dateStr && rowDate && rowDate !== String(record.dateStr).trim()) return false;
+    return true;
+  });
+}
+
+async function verifyRecordInOnlineLeaderboard(record, nickname, attempts, delayMs) {
+  attempts = attempts || 3;
+  delayMs = delayMs || 1500;
+  for (var i = 0; i < attempts; i++) {
+    try {
+      var rows = await fetchOnlineLeaderboard();
+      if (rowsContainRecord(rows, record, nickname)) return true;
+    } catch (_) {}
+    if (i < attempts - 1) {
+      await new Promise(function (r) { setTimeout(r, delayMs); });
+    }
+  }
+  return false;
+}
+
 /**
  * Submit a record to the online leaderboard (via JSONP GET — POST is blocked by CORS).
  * @param {{ sets: number, time: number, dateStr: string, isAutoFinish: boolean, badShuffles?: number, modifiers?: object, extra?: object }} record
@@ -219,14 +254,28 @@ async function submitRecordToOnline(record) {
     var q = Object.keys(params).map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
     var fullUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + q;
     var data;
+    var timedOut = false;
     try {
       data = await fetchViaIframe(fullUrl);
-    } catch (_) {
-      throw new Error('Failed to fetch');
+    } catch (err) {
+      if (err && err.message === 'Timeout') {
+        timedOut = true;
+      } else {
+        throw err;
+      }
     }
     var errVal = (data && data.error);
     var errStr = typeof errVal === 'object' && errVal !== null && errVal.message ? errVal.message : (errVal || 'Failed');
-    return data && data.ok ? { ok: true } : { ok: false, error: errStr };
+
+    var verified = await verifyRecordInOnlineLeaderboard(record, nick, 3, 1500);
+    if (verified) {
+      return { ok: true };
+    }
+
+    if (timedOut) {
+      return { ok: false, error: 'Timeout and record not found in leaderboard' };
+    }
+    return { ok: false, error: errStr || 'Record not found in leaderboard' };
   } catch (e) {
     return { ok: false, error: e.message || 'Network error' };
   }
@@ -239,15 +288,79 @@ function submitLastResultToOnline() {
 
 var lastSubmittedResultId = null;
 
+function getCurrentFinishResultId() {
+  if (!lastFinishResult) return null;
+  return lastFinishResult.sets + '-' + lastFinishResult.time + '-' + (lastFinishResult.dateStr || '');
+}
+
+function setSubmitOnlineButtonState(state) {
+  var btn = document.getElementById('submit-online-btn');
+  if (!btn) return;
+
+  if (!btn.dataset.defaultHtml) btn.dataset.defaultHtml = btn.innerHTML;
+
+  btn.classList.remove('locked', 'online-submit-loading', 'online-submit-saved');
+
+  if (state === 'loading') {
+    btn.disabled = true;
+    btn.classList.add('online-submit-loading');
+    btn.title = 'Saving to online leaderboard…';
+    btn.setAttribute('aria-label', 'Saving to online');
+    return;
+  }
+
+  if (state === 'saved') {
+    btn.disabled = true;
+    btn.classList.add('online-submit-saved');
+    btn.title = 'Saved to online leaderboard';
+    btn.setAttribute('aria-label', 'Saved to online');
+    btn.innerHTML =
+      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M20 6L9 17l-5-5" />' +
+      '</svg>';
+    return;
+  }
+
+  btn.disabled = false;
+  btn.title = 'Submit to online leaderboard';
+  btn.setAttribute('aria-label', 'Submit to online');
+  btn.innerHTML = btn.dataset.defaultHtml;
+}
+
+function syncSubmitOnlineButtonState() {
+  var currentId = getCurrentFinishResultId();
+  if (!currentId) {
+    setSubmitOnlineButtonState('idle');
+    return;
+  }
+  if (lastSubmittedResultId === currentId) setSubmitOnlineButtonState('saved');
+  else setSubmitOnlineButtonState('idle');
+}
+
+function resetOnlineSubmitForNewFinish() {
+  syncSubmitOnlineButtonState();
+}
+
 async function handleSubmitToOnline() {
   if (!lastFinishResult) return;
-  var resultId = lastFinishResult.sets + '-' + lastFinishResult.time + '-' + (lastFinishResult.dateStr || '');
-  if (lastSubmittedResultId === resultId) return;
-  var btn = document.getElementById('submit-online-btn');
-  if (btn) btn.disabled = true;
+  var resultId = getCurrentFinishResultId();
+  if (!resultId) return;
+
+  if (lastSubmittedResultId === resultId) {
+    setSubmitOnlineButtonState('saved');
+    return;
+  }
+
+  setSubmitOnlineButtonState('loading');
   var result = await submitLastResultToOnline();
-  if (btn) btn.disabled = false;
-  if (result.ok) lastSubmittedResultId = resultId;
+
+  if (result && result.ok) {
+    lastSubmittedResultId = resultId;
+    setSubmitOnlineButtonState('saved');
+  } else {
+    setSubmitOnlineButtonState('idle');
+    if (typeof showToast === 'function') showToast((result && result.error) ? result.error : 'Failed');
+  }
 }
 
 function getManualSubmitUrl() {
@@ -319,7 +432,6 @@ async function renderOnlineRecords(container) {
         '<div class="text-white font-mono text-lg leading-none">' + escapeHtml(timeStr) + '</div>' +
       '</div>';
 
-    // Build a record-like object so we can show full stats on tap, similar to local records.
     var bsVal = r.badShuffles != null ? r.badShuffles : r.bad_shuffles;
     if (bsVal === undefined || bsVal === null || bsVal === '') bsVal = 0;
     var extraJson = r.extraJson || r.extra_json || r.extra || '';
