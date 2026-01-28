@@ -98,14 +98,14 @@ let config = {
   // Settings
   showPossible: Storage.get(STORAGE_KEYS.SHOW_POSSIBLE, true),
   showSPM: Storage.get(STORAGE_KEYS.SHOW_SPM, false),
-  debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false),
   showTimer: Storage.get(STORAGE_KEYS.SHOW_TIMER, true),
   // Advanced
   autoShuffle: Storage.get(STORAGE_KEYS.AUTO_SHUFFLE, true),
   preventBadShuffle: Storage.get(STORAGE_KEYS.PREVENT_BAD_SHUFFLE, false),
   useFixedSeed: Storage.get(STORAGE_KEYS.USE_FIXED_SEED, false),
   autoSelectThird: Storage.get(STORAGE_KEYS.AUTO_SELECT_THIRD, false),
-  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23)
+  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23),
+  debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false)
 };
 
 let gameModifiers = {
