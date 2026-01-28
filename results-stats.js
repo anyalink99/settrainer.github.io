@@ -24,6 +24,7 @@ function showSavedRecord(r) {
   currentExtraStats.timestamps = r.timestamps;
   displayResults(r.sets, r.badShuffles, currentExtraStats);
   openModal('result-modal');
+  if (typeof syncSubmitOnlineButtonState === 'function') syncSubmitOnlineButtonState();
 }
 
 function calculateSpeedData(totalTimeMs, timestampsInput) {
