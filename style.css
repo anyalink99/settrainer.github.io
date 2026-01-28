@@ -298,6 +298,11 @@ body {
     width: 50px; text-align: center; color: white; font-weight: bold; padding: 4px 0;
     font-family: inherit; outline: none;
 }
+.input-online {
+    background: #2d2631; border: 1px solid #5a4d61; border-radius: 8px;
+    color: white; padding: 6px 10px; font-family: inherit; outline: none;
+    min-width: 100px;
+}
 
 .board-preview-row {
     display: flex;
@@ -584,6 +589,9 @@ body {
 }
 .share-btn.online-submit-loading {
     filter: saturate(0.9);
+}
+.share-btn.online-submit-locked {
+    filter: saturate(0.5);
 }
 .share-btn.online-submit-saved {
     background: #16a34a;
