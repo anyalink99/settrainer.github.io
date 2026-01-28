@@ -98,14 +98,14 @@ let config = {
   // Settings
   showPossible: Storage.get(STORAGE_KEYS.SHOW_POSSIBLE, true),
   showSPM: Storage.get(STORAGE_KEYS.SHOW_SPM, false),
+  debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false),
   showTimer: Storage.get(STORAGE_KEYS.SHOW_TIMER, true),
   // Advanced
   autoShuffle: Storage.get(STORAGE_KEYS.AUTO_SHUFFLE, true),
   preventBadShuffle: Storage.get(STORAGE_KEYS.PREVENT_BAD_SHUFFLE, false),
   useFixedSeed: Storage.get(STORAGE_KEYS.USE_FIXED_SEED, false),
   autoSelectThird: Storage.get(STORAGE_KEYS.AUTO_SELECT_THIRD, false),
-  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23),
-  debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false)
+  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23)
 };
 
 let gameModifiers = {
@@ -118,6 +118,9 @@ let isCapturingKey = null;
 let deck = [], board = [], selected = [], collectedSets = 0, badShuffles = 0;
 let startTime = Date.now(), isAnimating = false, isGameOver = false, isBtnLocked = false;
 let shuffleBtnCooldownUntil = 0;
+let lastFinishTime = 0;
+let isResetting = false;
+let restartPending = false;
 let setTimestamps = [], possibleHistory = [], mistakes = 0, shuffleExCount = 0;
 let speedChartInstance = null;
 let lastSetFoundTime = Date.now();
@@ -1082,6 +1085,19 @@ function resetStats() {
 }
 
 async function handleGameReset() {
+  if (isResetting) return;
+
+  const cooldownMs = GAME_CONFIG.MODAL_TRANSITION + GAME_CONFIG.CARD_FADE_DURATION + 10;
+  const elapsed = Date.now() - lastFinishTime;
+
+  if (lastFinishTime > 0 && elapsed < cooldownMs) {
+    restartPending = true;
+    return;
+  }
+
+  isResetting = true;
+  restartPending = false;
+
   const modal = document.getElementById('result-modal');
   if (modal.classList.contains('show')) {
     await closeModal('result-modal');
@@ -1089,11 +1105,14 @@ async function handleGameReset() {
   isGameOver = false;
   resetStats();
   updateUI();
+
+  isResetting = false;
 }
 
 function handleGameFinish(isAuto = false) {
   if (isGameOver) return;
   isGameOver = true;
+  lastFinishTime = Date.now();
   const elapsedMs = (Date.now() - startTime);
   const now = new Date();
   const dateStr = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -1119,7 +1138,12 @@ function handleGameFinish(isAuto = false) {
   openModal('result-modal');
   setTimeout(() => {
     document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
-    setTimeout(() => { initNewDeckAndBoard(); }, GAME_CONFIG.CARD_FADE_DURATION);
+    setTimeout(() => {
+      initNewDeckAndBoard();
+      setTimeout(() => {
+        if (restartPending) handleGameReset();
+      }, 50);
+    }, GAME_CONFIG.CARD_FADE_DURATION);
   }, GAME_CONFIG.MODAL_TRANSITION);
 }
 
@@ -1440,7 +1464,10 @@ window.addEventListener('keydown', (e) => {
   }
 
   if (isGameOver) {
-    if (key === binds.finish && key !== '') handleGameReset();
+    if (key === binds.finish && key !== '') {
+      e.preventDefault();
+      handleGameReset();
+    }
     return;
   }
 
