@@ -423,6 +423,7 @@ async function handleGameReset() {
   if (modal.classList.contains('show')) {
     await closeModal('result-modal');
   }
+  if (typeof resultOpenedFrom !== 'undefined') resultOpenedFrom = null;
   isGameOver = false;
   resetStats();
   updateUI();
@@ -453,6 +454,14 @@ function handleGameFinish(isAuto = false) {
     modifiers: finalModifiers
   };
 
+  lastFinishResult = {
+    sets: collectedSets,
+    time: elapsedMs,
+    dateStr,
+    isAutoFinish: isAuto,
+    badShuffles: badShuffles,
+    modifiers: finalModifiers
+  };
   saveRecord(currentExtraStats);
   displayResults(collectedSets, badShuffles, currentExtraStats);
 
