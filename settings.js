@@ -1,0 +1,153 @@
+function syncSettingsUI() {
+  document.getElementById('btn-std').className = `preset-chip ${config.preset === 'standard' ? 'active' : ''}`;
+  document.getElementById('btn-cls').className = `preset-chip ${config.preset === 'classic' ? 'active' : ''}`;
+  document.getElementById('btn-vertical').className = `preset-chip ${!config.boardRotated ? 'active' : ''}`;
+  document.getElementById('btn-horizontal').className = `preset-chip ${config.boardRotated ? 'active' : ''}`;
+  document.getElementById('toggle-possible').classList.toggle('active', config.showPossible);
+  document.getElementById('toggle-spm').classList.toggle('active', config.showSPM);
+  const toggleDebug = document.getElementById('toggle-debug');
+  if (toggleDebug) toggleDebug.classList.toggle('active', config.debugMode);
+  document.getElementById('live-spm').style.display = config.showSPM ? 'block' : 'none';
+  if (config.showSPM) updateLiveSPM();
+  document.getElementById('toggle-timer').classList.toggle('active', config.showTimer);
+  document.getElementById('timer').style.display = config.showTimer ? '' : 'none';
+
+  document.getElementById('toggle-auto').classList.toggle('active', config.autoShuffle);
+  document.getElementById('toggle-auto-select').classList.toggle('active', config.autoSelectThird);
+  document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
+  document.getElementById('toggle-seed').classList.toggle('active', config.useFixedSeed);
+  document.getElementById('min-sets-input').value = config.minSetsToRecord;
+  document.getElementById('seed-label').style.display = config.useFixedSeed ? 'block' : 'none';
+
+  const speedRange = document.getElementById('speed-range');
+  if (speedRange) speedRange.value = config.speedMod;
+
+  const speedVal = document.getElementById('speed-val');
+  if (speedVal) speedVal.innerText = config.speedMod + 'x';
+
+  const mod = 1 / parseFloat(config.speedMod || '1');
+  document.documentElement.style.setProperty('--speed-mod', String(mod));
+  
+  const boardEl = document.getElementById('board');
+  if (boardEl) {
+    if (config.boardRotated) {
+      boardEl.classList.add('rotated');
+    } else {
+      boardEl.classList.remove('rotated');
+    }
+  }
+}
+
+function updatePreset(p) {
+  if (config.preset === p) return;
+  config.preset = p;
+  Storage.set(STORAGE_KEYS.PRESET, p);
+  const activeBtn = p === 'standard' ? document.getElementById('btn-std') : document.getElementById('btn-cls');
+  activeBtn.classList.add('chip-animate');
+  activeBtn.addEventListener('animationend', () => { activeBtn.classList.remove('chip-animate'); }, { once: true });
+  updateColors();
+  syncSettingsUI();
+  refreshBoardAppearancePreviews();
+}
+
+function updateSpeedModifier(val) {
+  config.speedMod = val;
+  Storage.set(STORAGE_KEYS.SPEED_MOD, val);
+  const mod = 1 / parseFloat(val || '1');
+  document.documentElement.style.setProperty('--speed-mod', String(mod));
+  const speedVal = document.getElementById('speed-val');
+  if (speedVal) speedVal.innerText = val + 'x';
+}
+
+function toggleOption(key) {
+  config[key] = !config[key];
+  const storageKey = 'set_' + key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+  Storage.set(storageKey, String(config[key]));
+
+  const keyMap = {
+    'showPossible': 'SP',
+    'autoShuffle': 'AS',
+    'preventBadShuffle': 'PBS',
+    'autoSelectThird': 'A3RD',
+    'useFixedSeed': 'SS',
+    'debugMode': 'DM'
+  };
+
+  const modShortName = keyMap[key];
+  if (modShortName && !isGameOver) {
+      if (config[key]) {
+          usedGameModifiers[modShortName] = true;
+      }
+  }
+
+  syncSettingsUI();
+
+  if (key === 'useFixedSeed') {
+    initNewDeckAndBoard();
+    resetStats();
+    updateUI();
+  } else {
+    updateUI();
+  }
+}
+
+function updateMinSets(val) {
+  const num = parseInt(val) || 0;
+  config.minSetsToRecord = num;
+  Storage.set(STORAGE_KEYS.MIN_SETS, num);
+}
+
+function updateBoardOrientation(orientation) {
+  const wasRotated = config.boardRotated;
+  
+  if (orientation === 'vertical') {
+    config.boardRotated = false;
+  } else if (orientation === 'horizontal') {
+    config.boardRotated = true;
+  }
+  
+  if (wasRotated === config.boardRotated) return;
+  
+  Storage.set(STORAGE_KEYS.BOARD_ROTATED, String(config.boardRotated));
+  
+  document.getElementById('btn-vertical').className = `preset-chip ${!config.boardRotated ? 'active' : ''}`;
+  document.getElementById('btn-horizontal').className = `preset-chip ${config.boardRotated ? 'active' : ''}`;
+  
+  const activeBtn = config.boardRotated ? document.getElementById('btn-horizontal') : document.getElementById('btn-vertical');
+  if (activeBtn) {
+    activeBtn.classList.add('chip-animate');
+    activeBtn.addEventListener('animationend', () => { activeBtn.classList.remove('chip-animate'); }, { once: true });
+  }
+  
+  const boardEl = document.getElementById('board');
+  if (boardEl) {
+    if (config.boardRotated) {
+      boardEl.classList.add('rotated');
+    } else {
+      boardEl.classList.remove('rotated');
+    }
+  }
+  
+  transposeBoardLayout();
+  for (let i = 0; i < 12; i++) updateSlot(i, false);
+  updateUI();
+  refreshBoardAppearancePreviews();
+}
+
+function transposeBoardLayout() {
+  
+  const newBoard = [];
+  if (config.boardRotated) {
+    const mapping = [0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11];
+    for (let i = 0; i < 12; i++) {
+      newBoard[i] = board[mapping[i]];
+    }
+  } else {
+    const mapping = [0, 3, 6, 9, 1, 4, 7, 10, 2, 5, 8, 11];
+    for (let i = 0; i < 12; i++) {
+      newBoard[i] = board[mapping[i]];
+    }
+  }
+  board = newBoard;
+  selected = [];
+}
