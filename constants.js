@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
   KEYBINDS: 'set_keybinds',
   RECORDS: 'set_pro_records',
   ONLINE_NICKNAME: 'set_online_nickname',
+  ONLINE_SHOW_ONLY_NICKS: 'set_online_show_only_nicks',
   APP_WIDTH: 'set_app_width',
   BOARD_ROTATED: 'set_board_rotated',
   GAME_COLORS: 'set_game_colors'
