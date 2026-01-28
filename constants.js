@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   MIN_SETS: 'set_min_sets',
   KEYBINDS: 'set_keybinds',
   RECORDS: 'set_pro_records',
+  ONLINE_NICKNAME: 'set_online_nickname',
   APP_WIDTH: 'set_app_width',
   BOARD_ROTATED: 'set_board_rotated',
   GAME_COLORS: 'set_game_colors'
@@ -50,3 +51,6 @@ const DEFAULT_BINDS = {
   shuffleEx: ' ',
   finish: 'enter'
 };
+
+// Leave empty to disable. 
+const ONLINE_LEADERBOARD_URL = 'https://script.google.com/macros/s/AKfycbzs-XcC56kdbxwz8cNTeGUbJxdDmzw0W8U1WNm7bY896r2iFok2cX0bpDiYCBIdc6eKIA/exec';
