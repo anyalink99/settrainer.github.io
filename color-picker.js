@@ -1,7 +1,3 @@
-/**
- * Minimal custom color picker for Edit Board appearance.
- * Plain script, no modules – works with file:// and no server.
- */
 (function () {
   'use strict';
 
@@ -193,10 +189,20 @@
       return typeof getGameColors === 'function' ? getGameColors() : [];
     }
 
+    var PICKER_TRANSITION_MS = 200;
+
     function closePicker() {
       window._boardPickerEditingIndex = -1;
-      popover.hidden = true;
-      backdrop.hidden = true;
+      backdrop.classList.remove('show');
+      backdrop.classList.add('hide');
+      popover.classList.remove('show');
+      popover.classList.add('hide');
+      setTimeout(function () {
+        popover.hidden = true;
+        backdrop.hidden = true;
+        popover.classList.remove('hide');
+        backdrop.classList.remove('hide');
+      }, PICKER_TRANSITION_MS);
     }
 
     function openForIndex(idx) {
@@ -205,6 +211,11 @@
       window._boardPickerEditingIndex = idx;
       backdrop.hidden = false;
       popover.hidden = false;
+      backdrop.classList.remove('hide');
+      popover.classList.remove('hide');
+      void popover.offsetHeight;
+      backdrop.classList.add('show');
+      popover.classList.add('show');
       picker.setHex(colors[idx]);
       hexInput.value = colors[idx];
     }
