@@ -359,7 +359,23 @@ body {
 .board-preview-swatch:active { transform: scale(0.95); }
 .board-preview-swatch:focus-visible { outline: 2px solid #ec4899; outline-offset: 2px; }
 
-/* Custom color picker popover (vanilla-colorful) */
+@keyframes popoverShow {
+    from { opacity: 0; transform: translate(-50%, calc(-50% + 16px)) scale(0.92); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes popoverHide {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    to { opacity: 0; transform: translate(-50%, calc(-50% - 12px)) scale(1.04); }
+}
+@keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes backdropFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
 .board-color-picker-popover {
     position: fixed;
     left: 50%;
@@ -374,6 +390,13 @@ body {
     box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
 .board-color-picker-popover[hidden] { display: none !important; }
+.board-color-picker-popover.show {
+    animation: popoverShow 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.board-color-picker-popover.hide {
+    animation: popoverHide 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .board-picker-backdrop {
     position: fixed;
     inset: 0;
@@ -382,6 +405,12 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 .board-picker-backdrop[hidden] { display: none !important; }
+.board-picker-backdrop.show {
+    animation: backdropFadeIn 0.2s ease forwards;
+}
+.board-picker-backdrop.hide {
+    animation: backdropFadeOut 0.2s ease forwards;
+}
 .hex-picker-mount {
     width: 100%;
     border-radius: 12px;
