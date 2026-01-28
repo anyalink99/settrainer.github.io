@@ -29,6 +29,24 @@ async function closeAdvancedModal() {
   await closeModal('advanced-modal');
 }
 
+function openOnlineSettingsModal() {
+  const nickEl = document.getElementById('online-settings-nickname');
+  const filterEl = document.getElementById('online-settings-filter');
+  let nick = (Storage.get(STORAGE_KEYS.ONLINE_NICKNAME) || '').trim();
+  if (!nick && typeof ensureOnlineNickname === 'function') nick = ensureOnlineNickname();
+  if (nickEl) nickEl.value = nick;
+  if (filterEl) filterEl.value = Storage.get(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, '');
+  openModal('online-settings-modal');
+}
+
+async function closeOnlineSettingsModal() {
+  const nickEl = document.getElementById('online-settings-nickname');
+  const filterEl = document.getElementById('online-settings-filter');
+  if (nickEl && typeof setOnlineNickname === 'function') setOnlineNickname(nickEl.value);
+  if (filterEl) Storage.set(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, (filterEl.value || '').trim());
+  await closeModal('online-settings-modal');
+}
+
 function openBoardAppearanceModal() {
   syncSettingsUI();
   refreshBoardAppearancePreviews();
@@ -169,7 +187,6 @@ async function closeRecordsModal() {
 }
 
 function openOnlineRecordsModal() {
-  refreshOnlineNicknameDisplay();
   openModal('online-records-modal');
   renderOnlineRecords(document.getElementById('online-records-container'));
 }
