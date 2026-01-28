@@ -299,7 +299,7 @@ function setSubmitOnlineButtonState(state) {
 
   if (!btn.dataset.defaultHtml) btn.dataset.defaultHtml = btn.innerHTML;
 
-  btn.classList.remove('locked', 'online-submit-loading', 'online-submit-saved');
+  btn.classList.remove('locked', 'online-submit-loading', 'online-submit-saved', 'online-submit-locked');
 
   if (state === 'loading') {
     btn.disabled = true;
@@ -321,6 +321,15 @@ function setSubmitOnlineButtonState(state) {
     return;
   }
 
+  if (state === 'locked') {
+    btn.disabled = true;
+    btn.classList.add('online-submit-locked');
+    btn.title = 'Submit only for current finish';
+    btn.setAttribute('aria-label', 'Submit only for current finish');
+    btn.innerHTML = btn.dataset.defaultHtml;
+    return;
+  }
+
   btn.disabled = false;
   btn.title = 'Submit to online leaderboard';
   btn.setAttribute('aria-label', 'Submit to online');
@@ -328,6 +337,10 @@ function setSubmitOnlineButtonState(state) {
 }
 
 function syncSubmitOnlineButtonState() {
+  if (typeof resultOpenedFrom !== 'undefined' && (resultOpenedFrom === 'local' || resultOpenedFrom === 'online')) {
+    setSubmitOnlineButtonState('locked');
+    return;
+  }
   var currentId = getCurrentFinishResultId();
   if (!currentId) {
     setSubmitOnlineButtonState('idle');
@@ -343,6 +356,7 @@ function resetOnlineSubmitForNewFinish() {
 
 async function handleSubmitToOnline() {
   if (!lastFinishResult) return;
+  if (typeof resultOpenedFrom !== 'undefined' && (resultOpenedFrom === 'local' || resultOpenedFrom === 'online')) return;
   var resultId = getCurrentFinishResultId();
   if (!resultId) return;
 
@@ -361,6 +375,12 @@ async function handleSubmitToOnline() {
     setSubmitOnlineButtonState('idle');
     if (typeof showToast === 'function') showToast((result && result.error) ? result.error : 'Failed');
   }
+}
+
+function getOnlineShowOnlyNicks() {
+  var raw = Storage.get(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, '');
+  if (!raw || typeof raw !== 'string') return [];
+  return raw.split(',').map(function (s) { return s.trim().toLowerCase(); }).filter(Boolean);
 }
 
 function getManualSubmitUrl() {
@@ -408,8 +428,22 @@ async function renderOnlineRecords(container) {
     container.innerHTML = '<p class="text-gray-500 text-sm">No online records yet.</p>';
     return;
   }
-  const finishRows = rows.filter(r => r.isFinish || r.is_finish);
-  const otherRows = rows.filter(r => !r.isFinish && !r.is_finish);
+  var nicks = getOnlineShowOnlyNicks();
+  var filtered = rows;
+  if (nicks.length > 0) {
+    var set = {};
+    nicks.forEach(function (n) { set[n] = true; });
+    filtered = rows.filter(function (r) {
+      var nick = (r.nickname || r.nick || '').trim().toLowerCase();
+      return nick && set[nick];
+    });
+  }
+  if (filtered.length === 0) {
+    container.innerHTML = '<p class="text-gray-500 text-sm">No records match the current filter.</p>';
+    return;
+  }
+  const finishRows = filtered.filter(r => r.isFinish || r.is_finish);
+  const otherRows = filtered.filter(r => !r.isFinish && !r.is_finish);
   finishRows.sort((a, b) => (a.time || a.time_ms || 0) - (b.time || b.time_ms || 0));
   otherRows.sort((a, b) => (b.sets || 0) - (a.sets || 0) || (a.time || a.time_ms || 0) - (b.time || b.time_ms || 0));
   const sorted = [...finishRows, ...otherRows];
@@ -495,6 +529,7 @@ async function showOnlineRecordDetails(rec) {
   currentExtraStats.timestamps = rec.timestamps || currentExtraStats.timestamps || [];
   displayResults(rec.sets, rec.badShuffles || 0, currentExtraStats);
   openModal('result-modal');
+  if (typeof syncSubmitOnlineButtonState === 'function') syncSubmitOnlineButtonState();
 }
 
 function escapeHtml(s) {
