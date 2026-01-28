@@ -43,9 +43,10 @@ async function closeBoardAppearanceModal() {
 
 function handleBoardAppearanceReset() {
   if (!confirm('Reset board appearance to default?')) return;
+  if (typeof closeBoardColorPicker === 'function') closeBoardColorPicker();
   config.preset = 'standard';
   config.boardRotated = false;
-  config.gameColors = [...DEFAULT_GAME_COLORS];
+  config.gameColors = ['#fd0000', '#01a43b', '#0000fe'];
   config.speedMod = '1.0';
   Storage.set(STORAGE_KEYS.PRESET, config.preset);
   Storage.set(STORAGE_KEYS.BOARD_ROTATED, String(config.boardRotated));
