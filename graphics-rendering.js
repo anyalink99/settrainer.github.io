@@ -30,7 +30,7 @@ function getShapeSVG(card) {
       `<circle cx="16" cy="16" r="12" stroke="${color}" stroke-width="1.8" fill="${fill}" />`,
       `<polygon points="16,4 29,27 3,27" stroke="${color}" stroke-width="1.8" fill="${fill}" stroke-linejoin="round" />`
     ];
-    return `<svg style="width:36px; height:36px" viewBox="0 0 32 32">${shapes[card.s]}</svg>`;
+    return `<svg class="shape-svg-standard" viewBox="0 0 32 32">${shapes[card.s]}</svg>`;
   } else {
     const waveD = "M29.5,12 C30.8,14.5 30.8,17.2 30.2,19.9 C29.7,22.2 28,23 26,22 C25.4,21.7 24.8,21.4 24.3,21.1 C21.7,19.5 19,19.3 16.1,20.4 C13.4,21.5 10.6,21.6 7.8,20.8 C3.3,19.4 0.4,14.6 1.4,10.2 C2,7.7 3.7,7 5.9,8.2 C6.2,8.4 6.5,8.6 6.8,8.8 C9.7,10.6 12.7,11.2 16,9.9 C17.3,9.3 18.7,8.9 20,8.6 C24,7.6 27.5,8.9 29.5,12 Z";
     let inner = '';
@@ -59,7 +59,7 @@ function updateSlot(i, animateIn = false) {
   slot.innerHTML = '';
   if (card) {
     const el = document.createElement('div');
-    el.className = 'card' + (animateIn ? ' anim-in' : '');
+    el.className = 'card' + (config.preset === 'classic' ? ' classic' : '') + (animateIn ? ' anim-in' : '');
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (config.preset === 'standard') {
       if (config.boardRotated) {
@@ -68,12 +68,10 @@ function updateSlot(i, animateIn = false) {
         el.style.gap = ['0px', '9px', '3px'][card.n];
       }
     } else {
-      // classic preset
-      if (config.boardRotated) {
-        el.style.gap = isMobile ? ['0px', '2px', '0px'][card.n] : ['0px', '3px', '1px'][card.n];
-      } else {
-        el.style.gap = '0px';
-      }
+      /* classic: same gap as horizontal for vertical (row gap = column gap of horizontal) */
+      el.style.gap = config.boardRotated
+        ? (isMobile ? ['0px', '2px', '0px'][card.n] : ['0px', '3px', '1px'][card.n])
+        : (isMobile ? '0px 0px 2px 0px' : '0px 0px 3px 0px');
     }
     for (let n=0; n<=card.n; n++) el.innerHTML += getShapeSVG(card);
     el.onpointerdown = (e) => { e.preventDefault(); handleCardSelect(i, el); };
