@@ -75,12 +75,13 @@ function handleBoardAppearanceReset() {
   if (!confirm('Reset board appearance to default?')) return;
   if (typeof closeBoardColorPicker === 'function') closeBoardColorPicker();
   config.preset = 'standard';
-  config.boardRotated = false;
+  config.boardOrientation = 'vertical';
   config.shapeSizeRatio = 0.9;
   config.gameColors = ['#fd0000', '#01a43b', '#0000fe'];
   config.speedMod = '1.0';
   Storage.set(STORAGE_KEYS.PRESET, config.preset);
-  Storage.set(STORAGE_KEYS.BOARD_ROTATED, String(config.boardRotated));
+  Storage.set(STORAGE_KEYS.BOARD_ORIENTATION, config.boardOrientation);
+  binds = loadBindsForOrientation(config.boardOrientation);
   Storage.set(STORAGE_KEYS.SHAPE_SIZE_RATIO, '0.9');
   Storage.setJSON(STORAGE_KEYS.GAME_COLORS, config.gameColors);
   Storage.set(STORAGE_KEYS.SPEED_MOD, config.speedMod);
@@ -89,8 +90,8 @@ function handleBoardAppearanceReset() {
   refreshBoardAppearancePreviews();
   const boardEl = document.getElementById('board');
   if (boardEl) {
-    boardEl.classList.toggle('rotated', config.boardRotated);
-    boardEl.style.setProperty('--shape-size-ratio', String(config.shapeSizeRatio));
+boardEl.classList.toggle('rotated', config.boardOrientation === 'horizontal');
+  boardEl.style.setProperty('--shape-size-ratio', String(config.shapeSizeRatio));
   }
   transposeBoardLayout();
   for (let i = 0; i < 12; i++) updateSlot(i, false);
@@ -99,7 +100,7 @@ function handleBoardAppearanceReset() {
 function refreshBoardAppearancePreviews() {
   const wrap = document.getElementById('board-preview-wrap');
   if (!wrap) return;
-  wrap.classList.toggle('rotated', config.boardRotated);
+  wrap.classList.toggle('rotated', config.boardOrientation === 'horizontal');
   const colors = getGameColors();
   for (let i = 0; i < 3; i++) {
     const cardEl = document.getElementById(`board-preview-card-${i}`);
@@ -218,7 +219,7 @@ async function closeOnlineRecordsModal() {
 function openKeybindsModal() {
   const grid = document.getElementById('kb-board-grid');
   grid.innerHTML = '';
-  grid.style.gridTemplateColumns = config.boardRotated ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)';
+  grid.style.gridTemplateColumns = config.boardOrientation === 'horizontal' ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)';
   
   binds.board.forEach((key, i) => {
     const cell = document.createElement('div');
@@ -234,7 +235,8 @@ function openKeybindsModal() {
 
 async function closeKeybindsModal() {
   await closeModal('keybinds-modal');
-  Storage.setJSON(STORAGE_KEYS.KEYBINDS, binds);
+  const key = config.boardOrientation === 'horizontal' ? STORAGE_KEYS.KEYBINDS_HORIZONTAL : STORAGE_KEYS.KEYBINDS;
+  Storage.setJSON(key, binds);
 }
 
 function openExtraStatsModal() {
