@@ -121,6 +121,14 @@
           </div>
           <div class="settings-row !flex-col !items-start gap-3 !h-auto py-4">
               <div class="flex justify-between w-full">
+                  <span class="text-sm font-bold uppercase">Shape size</span>
+                  <span id="shape-size-val" class="text-sm font-bold font-sans text-pink-400">90%</span>
+              </div>
+              <input type="range" id="shape-size-range" min="0.7" max="1" step="0.01"
+                     oninput="updateShapeSizeRatio(this.value)">
+          </div>
+          <div class="settings-row !flex-col !items-start gap-3 !h-auto py-4">
+              <div class="flex justify-between w-full">
                   <span class="text-sm font-bold uppercase">Animation Speed</span>
                   <span id="speed-val" class="text-sm font-bold font-sans text-pink-400">1.0x</span>
               </div>
@@ -352,6 +360,10 @@
 <script src="event-listeners.js"></script>
 <script src="timer.js"></script>
 <script>
+  (function() {
+    var boardEl = document.getElementById('board');
+    if (boardEl) boardEl.style.setProperty('--shape-size-ratio', String(config.shapeSizeRatio));
+  })();
   initNewDeckAndBoard();
   updateColors();
   syncSettingsUI();
