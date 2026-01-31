@@ -1,6 +1,12 @@
+/**
+ * Game logic: deck creation, UI updates, input handlers, game lifecycle.
+ * Depends on: config, board, deck, etc. (state), set-math.js, tps-logic.js,
+ * graphics-rendering (updateSlot), utilities (mulberry32), constants (GAME_CONFIG, STORAGE_KEYS).
+ */
+
 function createDeck() {
   const d = [];
-  for (let c=0; c<3; c++) for (let s=0; s<3; s++) for (let f=0; f<3; f++) for (let n=0; n<3; n++) d.push({c,s,f,n});
+  for (let c = 0; c < 3; c++) for (let s = 0; s < 3; s++) for (let f = 0; f < 3; f++) for (let n = 0; n < 3; n++) d.push({ c, s, f, n });
   let randomFunc = Math.random;
   if (config.useFixedSeed) {
     const now = new Date();
@@ -12,40 +18,6 @@ function createDeck() {
     [d[i], d[j]] = [d[j], d[i]];
   }
   return d;
-}
-
-function analyzePossibleSets() {
-  let stats = { total: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
-  for(let i=0; i<board.length; i++) {
-    for(let j=i+1; j<board.length; j++) {
-      for(let k=j+1; k<board.length; k++) {
-        if(board[i] && board[j] && board[k]) {
-          let diffCount = 0;
-          let isSet = true;
-          ['c','s','f','n'].forEach(p => {
-            if ((board[i][p]+board[j][p]+board[k][p])%3 !== 0) isSet = false;
-            if (board[i][p] !== board[j][p]) diffCount++;
-          });
-          if (isSet) { stats.total++; stats[diffCount]++; }
-        }
-      }
-    }
-  }
-  return stats;
-}
-
-function getPossibleSetsIndices() {
-  const out = [];
-  for (let i = 0; i < board.length; i++) {
-    for (let j = i + 1; j < board.length; j++) {
-      for (let k = j + 1; k < board.length; k++) {
-        if (board[i] && board[j] && board[k] && validateSet([board[i], board[j], board[k]])) {
-          out.push([i, j, k]);
-        }
-      }
-    }
-  }
-  return out;
 }
 
 function applyDebugHighlight() {
@@ -94,6 +66,7 @@ function updateUI() {
   gameModifiers.A3RD = config.autoSelectThird;
   gameModifiers.SS = config.useFixedSeed;
   gameModifiers.DM = config.debugMode;
+  gameModifiers.TPS = !!(config.targetSetX && config.targetSetX > 0);
 
   document.getElementById('deck-count').innerText = deck.length;
   document.getElementById('current-score').innerText = collectedSets;
@@ -163,11 +136,11 @@ async function handleCardSelect(idx, el) {
     const c1 = board[selected[0]];
     const c2 = board[selected[1]];
     const target = {};
-    ['c','s','f','n'].forEach(p => { target[p] = (3 - (c1[p] + c2[p]) % 3) % 3; });
+    ['c', 's', 'f', 'n'].forEach(p => { target[p] = (3 - (c1[p] + c2[p]) % 3) % 3; });
     let thirdIdx = -1;
-    for(let i=0; i<board.length; i++) {
+    for (let i = 0; i < board.length; i++) {
       if (!board[i] || selected.includes(i)) continue;
-      if (['c','s','f','n'].every(p => board[i][p] === target[p])) { thirdIdx = i; break; }
+      if (['c', 's', 'f', 'n'].every(p => board[i][p] === target[p])) { thirdIdx = i; break; }
     }
     if (thirdIdx !== -1) {
       const thirdEl = document.getElementById('board').children[thirdIdx].querySelector('.card');
@@ -198,10 +171,30 @@ async function handleCardSelect(idx, el) {
 
       sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
       await new Promise(r => setTimeout(r, GAME_CONFIG.ANIMATION_DURATION));
-      sIdx.forEach(i => {
-        board[i] = deck.length > 0 ? deck.pop() : null;
-        updateSlot(i, true);
-      });
+      if (config.targetSetX && deck.length >= 3) {
+        const result = pickTargetedReplenishmentThree(sIdx);
+        if (result && result.threeCards) {
+          removeCardsFromDeck(result.threeCards);
+          sIdx.forEach((slot, i) => {
+            board[slot] = result.threeCards[i];
+            updateSlot(slot, true);
+          });
+          if (config.debugMode) {
+            const label = result.perfect ? 'perfect' : 'closest';
+            showToast('TPS replenish: ' + result.iterations + ' iter (' + label + ')');
+          }
+        } else {
+          sIdx.forEach(i => {
+            board[i] = deck.length > 0 ? deck.pop() : null;
+            updateSlot(i, true);
+          });
+        }
+      } else {
+        sIdx.forEach(i => {
+          board[i] = deck.length > 0 ? deck.pop() : null;
+          updateSlot(i, true);
+        });
+      }
 
       selected = [];
       isAnimating = false;
@@ -284,6 +277,10 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     deck.push(...currentCards);
     deck.sort(() => Math.random() - 0.5);
     board = deck.splice(0, 12);
+    if (config.targetSetX) {
+      const iters = runPendulumBalancing();
+      if (config.debugMode && iters > 0) showToast('TPS iterations: ' + iters);
+    }
     selected = [];
 
     for (let i = 0; i < 12; i++) updateSlot(i, true);
@@ -301,6 +298,10 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     deck.push(...currentCards);
     deck.sort(() => Math.random() - 0.5);
     board = deck.splice(0, 12);
+    if (config.targetSetX) {
+      const iters = runPendulumBalancing();
+      if (config.debugMode && iters > 0) showToast('TPS iterations: ' + iters);
+    }
     selected = [];
 
     for (let i = 0; i < 12; i++) updateSlot(i, true);
@@ -321,6 +322,10 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
       deck.push(...currentCards);
       deck.sort(() => Math.random() - 0.5);
       board = deck.splice(0, 12);
+      if (config.targetSetX) {
+        const iters = runPendulumBalancing();
+        if (config.debugMode && iters > 0) showToast('TPS iterations: ' + iters);
+      }
       selected = [];
 
       for (let i = 0; i < 12; i++) updateSlot(i, true);
@@ -345,6 +350,10 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     deck.push(...currentCards);
     deck.sort(() => Math.random() - 0.5);
     board = deck.splice(0, 12);
+    if (config.targetSetX) {
+      const iters = runPendulumBalancing();
+      if (config.debugMode && iters > 0) showToast('TPS iterations: ' + iters);
+    }
     selected = [];
 
     for (let i = 0; i < 12; i++) updateSlot(i, true);
@@ -365,7 +374,7 @@ function saveRecord(extra) {
     date: extra.dateStr,
     isSeed: config.useFixedSeed,
     timestamps: setTimestamps,
-    modifiers: {...gameModifiers},
+    modifiers: { ...gameModifiers },
     extra: extra
   };
   records.push(rec);
@@ -375,8 +384,12 @@ function saveRecord(extra) {
 function initNewDeckAndBoard() {
   deck = createDeck();
   board = deck.splice(0, 12);
+  if (config.targetSetX) {
+    const iters = runPendulumBalancing();
+    if (config.debugMode && iters > 0) showToast('TPS iterations: ' + iters);
+  }
   selected = [];
-  for (let i=0; i<12; i++) updateSlot(i, false);
+  for (let i = 0; i < 12; i++) updateSlot(i, false);
 }
 
 function syncGameModifiers() {
@@ -386,7 +399,8 @@ function syncGameModifiers() {
     PBS: config.preventBadShuffle,
     A3RD: config.autoSelectThird,
     SS: config.useFixedSeed,
-    DM: config.debugMode
+    DM: config.debugMode,
+    TPS: !!(config.targetSetX && config.targetSetX > 0)
   };
   startGameModifiers = { ...currentMods };
   usedGameModifiers = { ...currentMods };
