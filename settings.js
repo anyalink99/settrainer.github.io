@@ -37,7 +37,15 @@ function syncSettingsUI() {
     } else {
       boardEl.classList.remove('rotated');
     }
+    boardEl.classList.toggle('preset-standard', config.preset === 'standard');
+    boardEl.classList.toggle('preset-classic', config.preset === 'classic');
+    boardEl.style.setProperty('--shape-size-ratio', String(config.shapeSizeRatio));
   }
+
+  const shapeSizeRange = document.getElementById('shape-size-range');
+  const shapeSizeVal = document.getElementById('shape-size-val');
+  if (shapeSizeRange) shapeSizeRange.value = config.shapeSizeRatio;
+  if (shapeSizeVal) shapeSizeVal.textContent = Math.round(config.shapeSizeRatio * 100) + '%';
 }
 
 function updatePreset(p) {
@@ -108,6 +116,19 @@ function updateTargetSetX(val) {
     usedGameModifiers.TPS = true;
   }
   syncSettingsUI();
+}
+
+function updateShapeSizeRatio(val) {
+  const num = parseFloat(val);
+  if (isNaN(num) || num < 0.7 || num > 1) return;
+  config.shapeSizeRatio = num;
+  Storage.set(STORAGE_KEYS.SHAPE_SIZE_RATIO, String(num));
+  const boardEl = document.getElementById('board');
+  if (boardEl) boardEl.style.setProperty('--shape-size-ratio', String(num));
+  const shapeSizeVal = document.getElementById('shape-size-val');
+  if (shapeSizeVal) shapeSizeVal.textContent = Math.round(num * 100) + '%';
+  refreshBoardAppearancePreviews();
+  for (let i = 0; i < 12; i++) updateSlot(i, false);
 }
 
 function updateBoardOrientation(orientation) {
