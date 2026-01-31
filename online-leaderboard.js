@@ -228,11 +228,6 @@ async function verifyRecordInOnlineLeaderboard(record, nickname, attempts, delay
   return false;
 }
 
-/**
- * Submit a record to the online leaderboard (via JSONP GET — POST is blocked by CORS).
- * @param {{ sets: number, time: number, dateStr: string, isAutoFinish: boolean, badShuffles?: number, modifiers?: object, extra?: object }} record
- * @returns {Promise<{ ok: boolean, error?: string }>}
- */
 async function submitRecordToOnline(record) {
   var url = getLeaderboardBaseUrl();
   if (!url) return { ok: false, error: 'URL not configured' };
@@ -315,10 +310,7 @@ function setSubmitOnlineButtonState(state) {
     btn.classList.add('online-submit-saved');
     btn.title = 'Saved to online leaderboard';
     btn.setAttribute('aria-label', 'Saved to online');
-    btn.innerHTML =
-      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
-        '<path d="M20 6L9 17l-5-5" />' +
-      '</svg>';
+    btn.innerHTML = SVG_ICONS.CHECK;
     return;
   }
 
@@ -459,10 +451,6 @@ function getManualSubmitUrl() {
   return url + (url.indexOf('?') >= 0 ? '&' : '?') + q;
 }
 
-/**
- * Render online records into container. Shows loading, then list or error.
- * @param {HTMLElement} container
- */
 async function renderOnlineRecords(container) {
   if (!container) return;
   container.innerHTML = '<p class="text-gray-500 text-sm">Loading…</p>';
