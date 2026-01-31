@@ -61,47 +61,51 @@
  * -----------------------------------------------------------------------------
  * Dependencies
  * -----------------------------------------------------------------------------
- * - Globals: config (config.targetSetX), board, deck (state.js).
+ * - Globals: config (config.targetPossibleSets), board, deck, gameSeededRng (state.js).
  * - set-math.js: getComplementaryCard, findCardInDeck, getPossibleSetsIndices,
  *   getPossibleSetsIndicesForBoard.
  */
 
+function tpsRandom() {
+  return (config && config.synchronizedSeed && gameSeededRng ? gameSeededRng : Math.random)();
+}
+
 function pickTargetedReplenishmentThree(emptySlots) {
-  const X = config.targetSetX;
+  const X = config.targetPossibleSets;
   if (!X || deck.length < 3) return null;
   const MAX_ITER = 100;
   const boardIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].filter(i => !emptySlots.includes(i));
   let best = { diff: Infinity, threeCards: null };
   for (let iter = 0; iter < MAX_ITER; iter++) {
     let c0, c1, c2;
-    if (Math.random() < 0.5 && boardIndices.length >= 2) {
-      const i = boardIndices[Math.floor(Math.random() * boardIndices.length)];
-      let j = boardIndices[Math.floor(Math.random() * boardIndices.length)];
-      while (j === i) j = boardIndices[Math.floor(Math.random() * boardIndices.length)];
+    if (tpsRandom() < 0.5 && boardIndices.length >= 2) {
+      const i = boardIndices[Math.floor(tpsRandom() * boardIndices.length)];
+      let j = boardIndices[Math.floor(tpsRandom() * boardIndices.length)];
+      while (j === i) j = boardIndices[Math.floor(tpsRandom() * boardIndices.length)];
       const needed = getComplementaryCard(board[i], board[j]);
       const needIdx = findCardInDeck(deck, needed);
       if (needIdx !== -1) {
         c0 = deck[needIdx];
         const others = deck.filter((_, idx) => idx !== needIdx);
-        const r1 = Math.floor(Math.random() * others.length);
+        const r1 = Math.floor(tpsRandom() * others.length);
         c1 = others[r1];
-        const r2 = Math.floor(Math.random() * (others.length - 1));
+        const r2 = Math.floor(tpsRandom() * (others.length - 1));
         c2 = others[r2 >= r1 ? r2 + 1 : r2];
       } else {
-        c0 = deck[Math.floor(Math.random() * deck.length)];
-        let idx1 = Math.floor(Math.random() * deck.length);
-        let idx2 = Math.floor(Math.random() * deck.length);
-        while (idx1 === deck.indexOf(c0)) idx1 = Math.floor(Math.random() * deck.length);
-        while (idx2 === deck.indexOf(c0) || idx2 === idx1) idx2 = Math.floor(Math.random() * deck.length);
+        c0 = deck[Math.floor(tpsRandom() * deck.length)];
+        let idx1 = Math.floor(tpsRandom() * deck.length);
+        let idx2 = Math.floor(tpsRandom() * deck.length);
+        while (idx1 === deck.indexOf(c0)) idx1 = Math.floor(tpsRandom() * deck.length);
+        while (idx2 === deck.indexOf(c0) || idx2 === idx1) idx2 = Math.floor(tpsRandom() * deck.length);
         c1 = deck[idx1];
         c2 = deck[idx2];
       }
     } else {
-      const idx0 = Math.floor(Math.random() * deck.length);
-      let idx1 = Math.floor(Math.random() * deck.length);
-      let idx2 = Math.floor(Math.random() * deck.length);
-      while (idx1 === idx0) idx1 = Math.floor(Math.random() * deck.length);
-      while (idx2 === idx0 || idx2 === idx1) idx2 = Math.floor(Math.random() * deck.length);
+      const idx0 = Math.floor(tpsRandom() * deck.length);
+      let idx1 = Math.floor(tpsRandom() * deck.length);
+      let idx2 = Math.floor(tpsRandom() * deck.length);
+      while (idx1 === idx0) idx1 = Math.floor(tpsRandom() * deck.length);
+      while (idx2 === idx0 || idx2 === idx1) idx2 = Math.floor(tpsRandom() * deck.length);
       c0 = deck[idx0];
       c1 = deck[idx1];
       c2 = deck[idx2];
@@ -135,7 +139,7 @@ function removeCardsFromDeck(threeCards) {
 }
 
 function runPendulumBalancing() {
-  const X = config.targetSetX;
+  const X = config.targetPossibleSets;
   if (!X || X <= 0) return 0;
   const MAX_ITER = 50;
   for (let iter = 0; iter < MAX_ITER; iter++) {
@@ -144,8 +148,8 @@ function runPendulumBalancing() {
     if (S === X) return iter + 1;
     if (S < X) {
       const indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-      let i = indices[Math.floor(Math.random() * 12)];
-      let j = indices[Math.floor(Math.random() * 12)];
+      let i = indices[Math.floor(tpsRandom() * 12)];
+      let j = indices[Math.floor(tpsRandom() * 12)];
       if (i === j) continue;
       const needed = getComplementaryCard(board[i], board[j]);
       const deckIdx = findCardInDeck(deck, needed);
@@ -160,15 +164,15 @@ function runPendulumBalancing() {
       });
       const minCount = Math.min(...candidates.map(idx => setCountByPos[idx]));
       const bestK = candidates.filter(idx => setCountByPos[idx] === minCount);
-      const k = bestK[Math.floor(Math.random() * bestK.length)];
+      const k = bestK[Math.floor(tpsRandom() * bestK.length)];
       const oldK = board[k];
       board[k] = deck.splice(deckIdx, 1)[0];
       deck.push(oldK);
     } else {
       const setList = getPossibleSetsIndices();
-      const oneSet = setList[Math.floor(Math.random() * setList.length)];
-      const k = oneSet[Math.floor(Math.random() * 3)];
-      const deckIdx = Math.floor(Math.random() * deck.length);
+      const oneSet = setList[Math.floor(tpsRandom() * setList.length)];
+      const k = oneSet[Math.floor(tpsRandom() * 3)];
+      const deckIdx = Math.floor(tpsRandom() * deck.length);
       const oldK = board[k];
       board[k] = deck[deckIdx];
       deck[deckIdx] = oldK;
