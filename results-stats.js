@@ -101,7 +101,7 @@ function buildModifiersUI(mods) {
   if (!container) return;
   container.innerHTML = '';
   const target = mods || gameModifiers;
-  const order = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM'];
+  const order = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM', 'TPS'];
   let count = 0;
   order.forEach(key => {
     if (key === 'DP') return;
