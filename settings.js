@@ -17,6 +17,8 @@ function syncSettingsUI() {
   document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
   document.getElementById('toggle-seed').classList.toggle('active', config.useFixedSeed);
   document.getElementById('min-sets-input').value = config.minSetsToRecord;
+  const tpsInput = document.getElementById('target-set-x-input');
+  if (tpsInput) tpsInput.value = config.targetSetX ? config.targetSetX : '';
   document.getElementById('seed-label').style.display = config.useFixedSeed ? 'block' : 'none';
 
   const speedRange = document.getElementById('speed-range');
@@ -95,6 +97,17 @@ function updateMinSets(val) {
   const num = parseInt(val) || 0;
   config.minSetsToRecord = num;
   Storage.set(STORAGE_KEYS.MIN_SETS, num);
+}
+
+function updateTargetSetX(val) {
+  const num = parseInt(val, 10);
+  const x = (num === undefined || isNaN(num) || num < 0) ? 0 : num;
+  config.targetSetX = x;
+  Storage.set(STORAGE_KEYS.TARGET_SET_X, x);
+  if (!isGameOver && x > 0 && typeof usedGameModifiers !== 'undefined') {
+    usedGameModifiers.TPS = true;
+  }
+  syncSettingsUI();
 }
 
 function updateBoardOrientation(orientation) {
