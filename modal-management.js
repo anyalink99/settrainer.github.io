@@ -33,10 +33,10 @@ function openOnlineSettingsModal() {
   const nickEl = document.getElementById('online-settings-nickname');
   const filterEl = document.getElementById('online-settings-filter');
   const bestPerPlayerEl = document.getElementById('toggle-online-best-per-player');
-  let nick = (Storage.get(STORAGE_KEYS.ONLINE_NICKNAME) || '').trim();
+  let nick = (typeof config !== 'undefined' && config.onlineNickname != null ? config.onlineNickname : '').trim();
   if (!nick && typeof ensureOnlineNickname === 'function') nick = ensureOnlineNickname();
   if (nickEl) nickEl.value = nick;
-  if (filterEl) filterEl.value = Storage.get(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, '');
+  if (filterEl) filterEl.value = typeof config !== 'undefined' && config.onlineShowOnlyNicks != null ? config.onlineShowOnlyNicks : '';
   if (bestPerPlayerEl && typeof getOnlineBestPerPlayer === 'function') bestPerPlayerEl.classList.toggle('active', getOnlineBestPerPlayer());
   openModal('online-settings-modal');
 }
@@ -46,14 +46,16 @@ function toggleOnlineBestPerPlayer() {
   if (!el) return;
   const next = !el.classList.contains('active');
   el.classList.toggle('active', next);
-  Storage.set(STORAGE_KEYS.ONLINE_BEST_PER_PLAYER, String(next));
+  if (typeof setOnlineBestPerPlayer === 'function') setOnlineBestPerPlayer(next);
+  else Storage.set(STORAGE_KEYS.ONLINE_BEST_PER_PLAYER, String(next));
 }
 
 async function closeOnlineSettingsModal() {
   const nickEl = document.getElementById('online-settings-nickname');
   const filterEl = document.getElementById('online-settings-filter');
   if (nickEl && typeof setOnlineNickname === 'function') setOnlineNickname(nickEl.value);
-  if (filterEl) Storage.set(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, (filterEl.value || '').trim());
+  if (filterEl && typeof setOnlineShowOnlyNicks === 'function') setOnlineShowOnlyNicks(filterEl.value);
+  else if (filterEl) Storage.set(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, (filterEl.value || '').trim());
   await closeModal('online-settings-modal');
 }
 
