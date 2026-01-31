@@ -2,6 +2,10 @@ let config = {
   // Board (Board Appearance)
   preset: Storage.get(STORAGE_KEYS.PRESET, 'standard'),
   boardRotated: Storage.get(STORAGE_KEYS.BOARD_ROTATED, false),
+  shapeSizeRatio: (() => {
+    const v = parseFloat(Storage.get(STORAGE_KEYS.SHAPE_SIZE_RATIO, '0.9'));
+    return (v >= 0.7 && v <= 1) ? v : 0.9;
+  })(),
   speedMod: Storage.get(STORAGE_KEYS.SPEED_MOD, '1.0'),
   gameColors: (() => {
     const saved = Storage.getJSON(STORAGE_KEYS.GAME_COLORS);
