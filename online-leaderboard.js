@@ -72,10 +72,12 @@ function generateDefaultOnlineNickname() {
 }
 
 function ensureOnlineNickname() {
-  var nick = (Storage.get(STORAGE_KEYS.ONLINE_NICKNAME) || '').trim();
-  // Also treat a stored placeholder as "not set" (in case it ever got persisted).
+  var nick = (typeof config !== 'undefined' && config.onlineNickname != null ? config.onlineNickname : Storage.get(STORAGE_KEYS.ONLINE_NICKNAME, ''));
+  if (typeof nick !== 'string') nick = '';
+  nick = nick.trim();
   if (!nick || nick.toLowerCase() === 'not set') {
     nick = generateDefaultOnlineNickname();
+    if (typeof config !== 'undefined') config.onlineNickname = nick;
     Storage.set(STORAGE_KEYS.ONLINE_NICKNAME, nick);
   }
   return nick;
@@ -94,6 +96,7 @@ function getLeaderboardBaseUrl() {
 
 function setOnlineNickname(nick) {
   const value = (String(nick || '').trim()).slice(0, 32);
+  if (typeof config !== 'undefined') config.onlineNickname = value;
   Storage.set(STORAGE_KEYS.ONLINE_NICKNAME, value);
   return value;
 }
@@ -189,7 +192,7 @@ async function fetchOnlineLeaderboard() {
 
 function modifiersToStr(mods) {
   if (!mods || typeof mods !== 'object') return '';
-  var keys = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM'];
+  var keys = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM', 'TPS'];
   return keys.filter(function (k) { return mods[k]; }).join(',');
 }
 
@@ -211,8 +214,8 @@ function rowsContainRecord(rows, record, nickname) {
 }
 
 async function verifyRecordInOnlineLeaderboard(record, nickname, attempts, delayMs) {
-  attempts = attempts || 3;
-  delayMs = delayMs || 1500;
+  attempts = attempts || 15;
+  delayMs = delayMs || 400;
   for (var i = 0; i < attempts; i++) {
     try {
       var rows = await fetchOnlineLeaderboard();
@@ -253,28 +256,26 @@ async function submitRecordToOnline(record) {
     };
     var q = Object.keys(params).map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
     var fullUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + q;
-    var data;
-    var timedOut = false;
-    try {
-      data = await fetchViaIframe(fullUrl);
-    } catch (err) {
-      if (err && err.message === 'Timeout') {
-        timedOut = true;
-      } else {
-        throw err;
-      }
-    }
-    var errVal = (data && data.error);
-    var errStr = typeof errVal === 'object' && errVal !== null && errVal.message ? errVal.message : (errVal || 'Failed');
 
-    var verified = await verifyRecordInOnlineLeaderboard(record, nick, 3, 1500);
+    var submitPromise = fetchViaIframe(fullUrl).catch(function (err) {
+      return { _error: err };
+    });
+    var verifyPromise = verifyRecordInOnlineLeaderboard(record, nick, 15, 400);
+
+    var verified = await verifyPromise;
     if (verified) {
       return { ok: true };
     }
 
+    var data = await submitPromise;
+    var timedOut = data && data._error && data._error.message === 'Timeout';
+    var errVal = (data && !data._error && data.error);
+    var errStr = typeof errVal === 'object' && errVal !== null && errVal.message ? errVal.message : (errVal || 'Failed');
+
     if (timedOut) {
       return { ok: false, error: 'Timeout and record not found in leaderboard' };
     }
+    if (data && data._error) throw data._error;
     return { ok: false, error: errStr || 'Record not found in leaderboard' };
   } catch (e) {
     return { ok: false, error: e.message || 'Network error' };
@@ -378,9 +379,56 @@ async function handleSubmitToOnline() {
 }
 
 function getOnlineShowOnlyNicks() {
-  var raw = Storage.get(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, '');
+  var raw = typeof config !== 'undefined' && config.onlineShowOnlyNicks != null ? config.onlineShowOnlyNicks : Storage.get(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, '');
   if (!raw || typeof raw !== 'string') return [];
   return raw.split(',').map(function (s) { return s.trim().toLowerCase(); }).filter(Boolean);
+}
+
+function getOnlineBestPerPlayer() {
+  if (typeof config !== 'undefined' && config.onlineBestPerPlayer != null) {
+    var v = config.onlineBestPerPlayer;
+    return v === true || v === 'true';
+  }
+  var v = Storage.get(STORAGE_KEYS.ONLINE_BEST_PER_PLAYER, true);
+  return v === true || v === 'true';
+}
+
+function setOnlineShowOnlyNicks(str) {
+  var value = (str != null ? String(str) : '').trim();
+  if (typeof config !== 'undefined') config.onlineShowOnlyNicks = value;
+  Storage.set(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, value);
+}
+
+function setOnlineBestPerPlayer(enabled) {
+  var value = enabled === true || enabled === 'true';
+  if (typeof config !== 'undefined') config.onlineBestPerPlayer = value;
+  Storage.set(STORAGE_KEYS.ONLINE_BEST_PER_PLAYER, String(value));
+}
+
+function keepBestPerPlayer(rows) {
+  if (!rows || rows.length === 0) return rows;
+  var byNick = {};
+  rows.forEach(function (r) {
+    var nick = (r.nickname || r.nick || '').trim().toLowerCase() || '_blank';
+    var isFin = r.isFinish || r.is_finish;
+    var sets = r.sets != null ? Number(r.sets) : 0;
+    var time = r.time != null ? r.time : r.time_ms != null ? r.time_ms : 0;
+    var cur = byNick[nick];
+    if (!cur) {
+      byNick[nick] = { r: r, isFin: !!isFin, sets: sets, time: time };
+      return;
+    }
+    if (isFin && !cur.isFin) { byNick[nick] = { r: r, isFin: true, sets: sets, time: time }; return; }
+    if (!isFin && cur.isFin) return;
+    if (isFin) {
+      if (time < cur.time) byNick[nick] = { r: r, isFin: true, sets: sets, time: time };
+      return;
+    }
+    if (sets > cur.sets || (sets === cur.sets && time < cur.time)) {
+      byNick[nick] = { r: r, isFin: false, sets: sets, time: time };
+    }
+  });
+  return Object.keys(byNick).map(function (k) { return byNick[k].r; });
 }
 
 function getManualSubmitUrl() {
@@ -437,6 +485,9 @@ async function renderOnlineRecords(container) {
       var nick = (r.nickname || r.nick || '').trim().toLowerCase();
       return nick && set[nick];
     });
+  }
+  if (getOnlineBestPerPlayer()) {
+    filtered = keepBestPerPlayer(filtered);
   }
   if (filtered.length === 0) {
     container.innerHTML = '<p class="text-gray-500 text-sm">No records match the current filter.</p>';
