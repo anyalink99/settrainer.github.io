@@ -18,7 +18,7 @@ function syncKeybindsUI() {
 
 function handleKeybindsReset() {
   if (confirm('Reset keys to default?')) {
-    binds = JSON.parse(JSON.stringify(DEFAULT_BINDS));
+    binds = JSON.parse(JSON.stringify(config.boardOrientation === 'horizontal' ? DEFAULT_BINDS_HORIZONTAL : DEFAULT_BINDS));
     openKeybindsModal();
   }
 }
