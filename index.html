@@ -188,6 +188,10 @@
                 <input type="number" id="min-sets-input" class="input-mini" onchange="updateMinSets(this.value)">
             </div>
             <div class="settings-row">
+                <span class="text-sm font-bold uppercase text-[12px]">Target Possible Sets</span>
+                <input type="number" id="target-set-x-input" class="input-mini" min="0" placeholder=" " onchange="updateTargetSetX(this.value)">
+            </div>
+            <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Debug mode</span>
                 <div id="toggle-debug" class="toggle-switch" onpointerdown="toggleOption('debugMode')"></div>
             </div>
@@ -307,6 +311,10 @@
                 <span class="text-sm font-bold uppercase">Nickname</span>
                 <input type="text" id="online-settings-nickname" class="input-online" style="width: 167px;" placeholder="Your nickname" maxlength="16" />
             </div>
+            <div class="settings-row">
+                <span class="text-sm font-bold uppercase text-[12px]">Best result per player</span>
+                <div id="toggle-online-best-per-player" class="toggle-switch" onpointerdown="toggleOnlineBestPerPlayer()"></div>
+            </div>
             <div class="settings-row !flex-col !items-stretch !h-auto gap-2">
                 <span class="text-sm font-bold uppercase">Show records only from</span>
                 <input type="text" id="online-settings-filter" class="input-online !w-full" placeholder="nick1, nick2, … Leave empty for all." />
@@ -336,6 +344,8 @@
 <script src="graphics-rendering.js"></script>
 <script src="settings.js"></script>
 <script src="color-picker.js"></script>
+<script src="set-math.js"></script>
+<script src="tps-logic.js"></script>
 <script src="game-logic.js"></script>
 <script src="results-stats.js"></script>
 <script src="keybinds.js"></script>
