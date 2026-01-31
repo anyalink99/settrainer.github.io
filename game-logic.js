@@ -4,15 +4,16 @@
  * graphics-rendering (updateSlot), utilities (mulberry32), constants (GAME_CONFIG, STORAGE_KEYS).
  */
 
-function createDeck() {
+function getSeedForFixed() {
+  const now = new Date();
+  const seedStr = `${now.getFullYear()}${now.getMonth()}${now.getDate()}${now.getHours()}${now.getMinutes()}`;
+  return parseInt(seedStr, 10);
+}
+
+function createDeck(rng) {
   const d = [];
   for (let c = 0; c < 3; c++) for (let s = 0; s < 3; s++) for (let f = 0; f < 3; f++) for (let n = 0; n < 3; n++) d.push({ c, s, f, n });
-  let randomFunc = Math.random;
-  if (config.useFixedSeed) {
-    const now = new Date();
-    const seedStr = `${now.getFullYear()}${now.getMonth()}${now.getDate()}${now.getHours()}${now.getMinutes()}`;
-    randomFunc = mulberry32(parseInt(seedStr));
-  }
+  const randomFunc = rng != null ? rng : Math.random;
   for (let i = d.length - 1; i > 0; i--) {
     const j = Math.floor(randomFunc() * (i + 1));
     [d[i], d[j]] = [d[j], d[i]];
@@ -103,9 +104,9 @@ function updateUI() {
   gameModifiers.AS = config.autoShuffle;
   gameModifiers.PBS = config.preventBadShuffle;
   gameModifiers.A3RD = config.autoSelectThird;
-  gameModifiers.SS = config.useFixedSeed;
+  gameModifiers.SS = config.synchronizedSeed;
   gameModifiers.DM = config.debugMode;
-  gameModifiers.TPS = !!(config.targetSetX && config.targetSetX > 0);
+  gameModifiers.TPS = !!(config.targetPossibleSets && config.targetPossibleSets > 0);
 
   document.getElementById('deck-count').innerText = deck.length;
   document.getElementById('current-score').innerText = collectedSets;
@@ -210,7 +211,7 @@ async function handleCardSelect(idx, el) {
 
       sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
       await new Promise(r => setTimeout(r, GAME_CONFIG.ANIMATION_DURATION));
-      if (config.targetSetX && deck.length >= 3) {
+      if (config.targetPossibleSets && deck.length >= 3) {
         const result = pickTargetedReplenishmentThree(sIdx);
         if (result && result.threeCards) {
           removeCardsFromDeck(result.threeCards);
@@ -292,8 +293,9 @@ function shuffleExistingCards() {
   if (config.debugMode) setDebugTPSIters(null);
   isAnimating = true;
   shuffleExCount++;
+  const shuffleRng = gameSeededRng || Math.random;
   for (let i = board.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(shuffleRng() * (i + 1));
     [board[i], board[j]] = [board[j], board[i]];
   }
   selected = [];
@@ -318,9 +320,9 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     const { animInMs } = getShuffleDurations();
     const currentCards = board.filter(c => c !== null);
     deck.push(...currentCards);
-    deck.sort(() => Math.random() - 0.5);
+    deck.sort(() => (gameSeededRng || Math.random)() - 0.5);
     board = deck.splice(0, 12);
-    if (config.targetSetX) {
+    if (config.targetPossibleSets) {
       const iters = runPendulumBalancing();
       if (config.debugMode && iters > 0) setDebugTPSIters(iters);
     }
@@ -339,9 +341,9 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
   if (isAuto && !fromSet) {
     const currentCards = board.filter(c => c !== null);
     deck.push(...currentCards);
-    deck.sort(() => Math.random() - 0.5);
+    deck.sort(() => (gameSeededRng || Math.random)() - 0.5);
     board = deck.splice(0, 12);
-    if (config.targetSetX) {
+    if (config.targetPossibleSets) {
       const iters = runPendulumBalancing();
       if (config.debugMode && iters > 0) setDebugTPSIters(iters);
     }
@@ -363,9 +365,9 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     setTimeout(() => {
       const currentCards = board.filter(c => c !== null);
       deck.push(...currentCards);
-      deck.sort(() => Math.random() - 0.5);
+      deck.sort(() => (gameSeededRng || Math.random)() - 0.5);
       board = deck.splice(0, 12);
-      if (config.targetSetX) {
+      if (config.targetPossibleSets) {
         const iters = runPendulumBalancing();
         if (config.debugMode && iters > 0) setDebugTPSIters(iters);
       }
@@ -391,9 +393,9 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
   setTimeout(() => {
     const currentCards = board.filter(c => c !== null);
     deck.push(...currentCards);
-    deck.sort(() => Math.random() - 0.5);
+    deck.sort(() => (gameSeededRng || Math.random)() - 0.5);
     board = deck.splice(0, 12);
-    if (config.targetSetX) {
+    if (config.targetPossibleSets) {
       const iters = runPendulumBalancing();
       if (config.debugMode && iters > 0) setDebugTPSIters(iters);
     }
@@ -415,7 +417,7 @@ function saveRecord(extra) {
     time: extra.elapsedMs,
     badShuffles: badShuffles,
     date: extra.dateStr,
-    isSeed: config.useFixedSeed,
+    isSeed: config.synchronizedSeed,
     timestamps: setTimestamps,
     modifiers: { ...gameModifiers },
     extra: extra
@@ -426,9 +428,14 @@ function saveRecord(extra) {
 
 function initNewDeckAndBoard() {
   if (config.debugMode) setDebugTPSIters(null);
-  deck = createDeck();
+  if (config.synchronizedSeed) {
+    gameSeededRng = mulberry32(getSeedForFixed());
+  } else {
+    gameSeededRng = null;
+  }
+  deck = createDeck(gameSeededRng);
   board = deck.splice(0, 12);
-  if (config.targetSetX) {
+  if (config.targetPossibleSets) {
     const iters = runPendulumBalancing();
     if (config.debugMode && iters > 0) setDebugTPSIters(iters);
   }
@@ -442,9 +449,9 @@ function syncGameModifiers() {
     AS: config.autoShuffle,
     PBS: config.preventBadShuffle,
     A3RD: config.autoSelectThird,
-    SS: config.useFixedSeed,
+    SS: config.synchronizedSeed,
     DM: config.debugMode,
-    TPS: !!(config.targetSetX && config.targetSetX > 0)
+    TPS: !!(config.targetPossibleSets && config.targetPossibleSets > 0)
   };
   startGameModifiers = { ...currentMods };
   usedGameModifiers = { ...currentMods };
