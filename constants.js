@@ -18,7 +18,8 @@ const STORAGE_KEYS = {
   ONLINE_BEST_PER_PLAYER: 'set_online_best_per_player',
   APP_WIDTH: 'set_app_width',
   BOARD_ROTATED: 'set_board_rotated',
-  GAME_COLORS: 'set_game_colors'
+  GAME_COLORS: 'set_game_colors',
+  SHAPE_SIZE_RATIO: 'set_shape_size_ratio'
 };
 
 const GAME_CONFIG = {
