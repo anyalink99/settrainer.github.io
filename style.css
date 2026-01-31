@@ -71,7 +71,7 @@ body {
     z-index: 80; 
 }
 
-.card-slot { aspect-ratio: 2/3; width: 100%; position: relative; }
+.card-slot { aspect-ratio: 2/3; width: 100%; position: relative; overflow: visible; }
 
 #board.rotated .card-slot { aspect-ratio: 3/2; }
 
@@ -88,7 +88,10 @@ body {
     z-index: 1;
     overflow: hidden;
     pointer-events: auto;
+    container-type: size;
+    container-name: card;
 }
+.card.classic { overflow: visible; }
 
 #board.rotated .card {
     flex-direction: row;
@@ -147,39 +150,49 @@ body {
 .btn-action:active { transform: translateY(2px); box-shadow: 0 2px 0 #7a3a5a; }
 .btn-action.locked { background-color: #4a3f50; box-shadow: 0 4px 0 #2d2631; color: #a34e78; }
 
-.shape-svg-classic { width: 95%; height: 50px; flex-shrink: 0; }
-.shape-svg-classic.oval { margin-top: -13.2px; }
-.shape-svg-classic.diamond { margin-top: -14.9px; }
-.shape-svg-classic.wave { height: 50px; margin-top: -19px; transform: translateY(2.5px); }
-.shape-svg-classic:first-child { margin-top: 0 !important; }
+#board .card svg {
+    width: calc(var(--shape-size-ratio, 0.28) * 100cqmin);
+    height: calc(var(--shape-size-ratio, 0.28) * 100cqmin);
+    flex-shrink: 0;
+}
+#board.preset-standard .card svg {
+    width: calc(var(--shape-size-ratio, 0.28) * 0.5 * 100cqmin);
+    height: calc(var(--shape-size-ratio, 0.28) * 0.5 * 100cqmin);
+}
 
 #board.rotated .shape-svg-classic { 
-    width: 50px; 
+    width: calc(var(--shape-size-ratio, 0.28) * 44cqmax); 
     height: 95%; 
     margin-left: 0;
     margin-right: 0;
     margin-top: 0;
-}
-#board.rotated .shape-svg-classic.oval { 
-    margin-left: -13.2px;
-}
-#board.rotated .shape-svg-classic.diamond { 
-    margin-left: -14.9px;
-}
-#board.rotated .shape-svg-classic.wave { 
-    width: 50px; 
-    margin-left: -19px;
-    transform: translateX(-2.5px);
-}
-#board.rotated .shape-svg-classic:first-child { 
-    margin-left: 0 !important;
-}
-
-#board.rotated .card svg:not(.shape-svg-classic) {
-    width: 30px;
-    height: 30px;
     flex-shrink: 0;
 }
+#board.rotated .shape-svg-classic.oval { margin-left: calc(var(--shape-size-ratio, 0.28) * -10.8cqmax); }
+#board.rotated .shape-svg-classic.diamond { margin-left: calc(var(--shape-size-ratio, 0.28) * -11.8cqmax); }
+#board.rotated .shape-svg-classic.wave { 
+    width: calc(var(--shape-size-ratio, 0.28) * 45cqmax); 
+    margin-left: calc(var(--shape-size-ratio, 0.28) * -13.6cqmax);
+    transform: translateX(calc(var(--shape-size-ratio, 0.28) * -2.33cqmax));
+}
+#board.rotated .shape-svg-classic:first-child { margin-left: 0 !important; }
+
+#board:not(.rotated) .shape-svg-classic { 
+    width: 95%; 
+    height: calc(var(--shape-size-ratio, 0.28) * 42cqmax); 
+    margin-top: 0;
+    margin-left: 0;
+    margin-right: 0;
+    flex-shrink: 0; 
+}
+#board:not(.rotated) .shape-svg-classic.oval { margin-top: calc(var(--shape-size-ratio, 0.28) * -10.8cqmax); }
+#board:not(.rotated) .shape-svg-classic.diamond { margin-top: calc(var(--shape-size-ratio, 0.28) * -11.8cqmax); }
+#board:not(.rotated) .shape-svg-classic.wave { 
+    height: calc(var(--shape-size-ratio, 0.28) * 45cqmax); 
+    margin-top: calc(var(--shape-size-ratio, 0.28) * -13.6cqmax); 
+    transform: translateY(calc(var(--shape-size-ratio, 0.28) * 2.33cqmax)); 
+}
+#board:not(.rotated) .shape-svg-classic:first-child { margin-top: 0 !important; }
 
 .overlay { 
     display: none; position: absolute; inset: 0; 
@@ -248,7 +261,6 @@ body {
 .btn-del { color: #ff4d4d; padding: 10px; opacity: 0.6; cursor: pointer; z-index: 10; }
 .btn-del:active { opacity: 1; transform: scale(1.1); }
 
-/* Модалка рекордов: скролл только заголовок+список, кнопка Back всегда внизу */
 .records-modal-inner {
   width: 100%;
   max-width: 350px;
@@ -645,27 +657,6 @@ body {
 
 @media (pointer: coarse) {
     .desktop-only { display: none !important; }
-    
-    #board.rotated .shape-svg-classic { 
-        width: 44px; 
-        height: 90%; 
-    }
-    #board.rotated .shape-svg-classic.oval { 
-        margin-left: -12px;
-    }
-    #board.rotated .shape-svg-classic.diamond { 
-        margin-left: -13px;
-    }
-    #board.rotated .shape-svg-classic.wave { 
-        width: 44px; 
-        margin-left: -16px;
-        transform: translateX(-2.5px);
-    }
-    
-    #board.rotated .card svg:not(.shape-svg-classic) {
-        width: 27px;
-        height: 27px;
-    }
 }
 
 .resizer {
