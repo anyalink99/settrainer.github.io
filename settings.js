@@ -1,8 +1,8 @@
 function syncSettingsUI() {
   document.getElementById('btn-std').className = `preset-chip ${config.preset === 'standard' ? 'active' : ''}`;
   document.getElementById('btn-cls').className = `preset-chip ${config.preset === 'classic' ? 'active' : ''}`;
-  document.getElementById('btn-vertical').className = `preset-chip ${!config.boardRotated ? 'active' : ''}`;
-  document.getElementById('btn-horizontal').className = `preset-chip ${config.boardRotated ? 'active' : ''}`;
+  document.getElementById('btn-vertical').className = `preset-chip ${config.boardOrientation === 'vertical' ? 'active' : ''}`;
+  document.getElementById('btn-horizontal').className = `preset-chip ${config.boardOrientation === 'horizontal' ? 'active' : ''}`;
   document.getElementById('toggle-possible').classList.toggle('active', config.showPossible);
   document.getElementById('toggle-spm').classList.toggle('active', config.showSPM);
   const toggleDebug = document.getElementById('toggle-debug');
@@ -15,11 +15,11 @@ function syncSettingsUI() {
   document.getElementById('toggle-auto').classList.toggle('active', config.autoShuffle);
   document.getElementById('toggle-auto-select').classList.toggle('active', config.autoSelectThird);
   document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
-  document.getElementById('toggle-seed').classList.toggle('active', config.useFixedSeed);
+  document.getElementById('toggle-seed').classList.toggle('active', config.synchronizedSeed);
   document.getElementById('min-sets-input').value = config.minSetsToRecord;
   const tpsInput = document.getElementById('target-set-x-input');
-  if (tpsInput) tpsInput.value = config.targetSetX ? config.targetSetX : '';
-  document.getElementById('seed-label').style.display = config.useFixedSeed ? 'block' : 'none';
+  if (tpsInput) tpsInput.value = config.targetPossibleSets ? config.targetPossibleSets : '';
+  document.getElementById('seed-label').style.display = config.synchronizedSeed ? 'block' : 'none';
 
   const speedRange = document.getElementById('speed-range');
   if (speedRange) speedRange.value = config.speedMod;
@@ -32,7 +32,7 @@ function syncSettingsUI() {
   
   const boardEl = document.getElementById('board');
   if (boardEl) {
-    if (config.boardRotated) {
+    if (config.boardOrientation === 'horizontal') {
       boardEl.classList.add('rotated');
     } else {
       boardEl.classList.remove('rotated');
@@ -79,7 +79,7 @@ function toggleOption(key) {
     'autoShuffle': 'AS',
     'preventBadShuffle': 'PBS',
     'autoSelectThird': 'A3RD',
-    'useFixedSeed': 'SS',
+    'synchronizedSeed': 'SS',
     'debugMode': 'DM'
   };
 
@@ -92,7 +92,7 @@ function toggleOption(key) {
 
   syncSettingsUI();
 
-  if (key === 'useFixedSeed') {
+  if (key === 'synchronizedSeed') {
     initNewDeckAndBoard();
     resetStats();
     updateUI();
@@ -102,16 +102,19 @@ function toggleOption(key) {
 }
 
 function updateMinSets(val) {
-  const num = parseInt(val) || 0;
+  let num = parseInt(val) || 0;
+  if (num > MIN_SETS_MAX) num = MIN_SETS_MAX;
   config.minSetsToRecord = num;
   Storage.set(STORAGE_KEYS.MIN_SETS, num);
+  syncSettingsUI();
 }
 
-function updateTargetSetX(val) {
+function updateTargetPossibleSets(val) {
   const num = parseInt(val, 10);
-  const x = (num === undefined || isNaN(num) || num < 0) ? 0 : num;
-  config.targetSetX = x;
-  Storage.set(STORAGE_KEYS.TARGET_SET_X, x);
+  let x = (num === undefined || isNaN(num) || num < 0) ? 0 : num;
+  if (x > TPS_MAX_SETS) x = TPS_MAX_SETS;
+  config.targetPossibleSets = x;
+  Storage.set(STORAGE_KEYS.TARGET_POSSIBLE_SETS, x);
   if (!isGameOver && x > 0 && typeof usedGameModifiers !== 'undefined') {
     usedGameModifiers.TPS = true;
   }
@@ -132,22 +135,21 @@ function updateShapeSizeRatio(val) {
 }
 
 function updateBoardOrientation(orientation) {
-  const wasRotated = config.boardRotated;
+  if (orientation !== 'vertical' && orientation !== 'horizontal') return;
+  const wasHorizontal = config.boardOrientation === 'horizontal';
+  config.boardOrientation = orientation;
+  if (wasHorizontal === (orientation === 'horizontal')) return;
+
+  Storage.set(STORAGE_KEYS.BOARD_ORIENTATION, config.boardOrientation);
+
+  const prevKey = wasHorizontal ? STORAGE_KEYS.KEYBINDS_HORIZONTAL : STORAGE_KEYS.KEYBINDS;
+  Storage.setJSON(prevKey, binds);
+  binds = loadBindsForOrientation(config.boardOrientation);
+
+  document.getElementById('btn-vertical').className = `preset-chip ${config.boardOrientation === 'vertical' ? 'active' : ''}`;
+  document.getElementById('btn-horizontal').className = `preset-chip ${config.boardOrientation === 'horizontal' ? 'active' : ''}`;
   
-  if (orientation === 'vertical') {
-    config.boardRotated = false;
-  } else if (orientation === 'horizontal') {
-    config.boardRotated = true;
-  }
-  
-  if (wasRotated === config.boardRotated) return;
-  
-  Storage.set(STORAGE_KEYS.BOARD_ROTATED, String(config.boardRotated));
-  
-  document.getElementById('btn-vertical').className = `preset-chip ${!config.boardRotated ? 'active' : ''}`;
-  document.getElementById('btn-horizontal').className = `preset-chip ${config.boardRotated ? 'active' : ''}`;
-  
-  const activeBtn = config.boardRotated ? document.getElementById('btn-horizontal') : document.getElementById('btn-vertical');
+  const activeBtn = config.boardOrientation === 'horizontal' ? document.getElementById('btn-horizontal') : document.getElementById('btn-vertical');
   if (activeBtn) {
     activeBtn.classList.add('chip-animate');
     activeBtn.addEventListener('animationend', () => { activeBtn.classList.remove('chip-animate'); }, { once: true });
@@ -155,7 +157,7 @@ function updateBoardOrientation(orientation) {
   
   const boardEl = document.getElementById('board');
   if (boardEl) {
-    if (config.boardRotated) {
+    if (config.boardOrientation === 'horizontal') {
       boardEl.classList.add('rotated');
     } else {
       boardEl.classList.remove('rotated');
@@ -171,7 +173,7 @@ function updateBoardOrientation(orientation) {
 function transposeBoardLayout() {
   
   const newBoard = [];
-  if (config.boardRotated) {
+  if (config.boardOrientation === 'horizontal') {
     const mapping = [0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11];
     for (let i = 0; i < 12; i++) {
       newBoard[i] = board[mapping[i]];
