@@ -30,7 +30,7 @@ function getShapeSVG(card) {
     );
     return `<svg class="shape-svg-standard" viewBox="${SHAPE_VIEWBOX}">${shapes[card.s]}</svg>`;
   } else {
-    const rotateTransform = config.boardRotated ? 'rotate(90 16 16) ' : '';
+    const rotateTransform = config.boardOrientation === 'horizontal' ? 'rotate(90 16 16) ' : '';
     const vars = { color, strokeW, fill, rotateTransform, waveD: CLASSIC_WAVE_PATH };
     const keys = ['diamond', 'oval', 'wave'];
     const extraClass = keys[card.s];
@@ -52,14 +52,13 @@ function updateSlot(i, animateIn = false) {
     el.className = 'card' + (config.preset === 'classic' ? ' classic' : '') + (animateIn ? ' anim-in' : '');
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (config.preset === 'standard') {
-      if (config.boardRotated) {
+      if (config.boardOrientation === 'horizontal') {
         el.style.gap = isMobile ? ['0px', '3px', '1px'][card.n] : ['0px', '4px', '1px'][card.n];
       } else {
         el.style.gap = ['0px', '9px', '3px'][card.n];
       }
     } else {
-      /* classic: same gap as horizontal for vertical (row gap = column gap of horizontal) */
-      el.style.gap = config.boardRotated
+      el.style.gap = config.boardOrientation === 'horizontal'
         ? (isMobile ? ['0px', '2px', '0px'][card.n] : ['0px', '3px', '1px'][card.n])
         : (isMobile ? '0px 0px 2px 0px' : '0px 0px 3px 0px');
     }
