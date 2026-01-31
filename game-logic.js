@@ -20,6 +20,45 @@ function createDeck() {
   return d;
 }
 
+let lastDebugFrameTime = null;
+let lastDebugOutputTime = 0;
+let currentPeakDelayMs = 0;
+
+function setDebugTPSIters(iters, label) {
+  const el = document.getElementById('debug-tps-iters');
+  if (!el) return;
+  if (iters == null || iters === undefined) {
+    el.textContent = 'disabled';
+    return;
+  }
+  el.textContent = label ? iters + ' iter (' + label + ')' : iters + ' iter';
+}
+
+function runDebugFPSLoop() {
+  const container = document.getElementById('debug-edge-container');
+  const el = document.getElementById('debug-delay');
+  if (!config.debugMode) {
+    if (container) container.style.display = 'none';
+    lastDebugFrameTime = null;
+    currentPeakDelayMs = 0;
+    requestAnimationFrame(runDebugFPSLoop);
+    return;
+  }
+  if (container) container.style.display = 'flex';
+  const now = performance.now();
+  if (lastDebugFrameTime != null) {
+    const delayMs = now - lastDebugFrameTime; // delay (ms) = 1000 / fps
+    currentPeakDelayMs = Math.max(currentPeakDelayMs, delayMs);
+    if (now - lastDebugOutputTime >= 100) {
+      el.textContent = currentPeakDelayMs.toFixed(1);
+      lastDebugOutputTime = now;
+      currentPeakDelayMs = delayMs;
+    }
+  }
+  lastDebugFrameTime = now;
+  requestAnimationFrame(runDebugFPSLoop);
+}
+
 function applyDebugHighlight() {
   if (!config.debugMode) return;
   const boardEl = document.getElementById('board');
@@ -181,15 +220,17 @@ async function handleCardSelect(idx, el) {
           });
           if (config.debugMode) {
             const label = result.perfect ? 'perfect' : 'closest';
-            showToast('TPS replenish: ' + result.iterations + ' iter (' + label + ')');
+            setDebugTPSIters(result.iterations, 'replenish ' + label);
           }
         } else {
+          if (config.debugMode) setDebugTPSIters(null);
           sIdx.forEach(i => {
             board[i] = deck.length > 0 ? deck.pop() : null;
             updateSlot(i, true);
           });
         }
       } else {
+        if (config.debugMode) setDebugTPSIters(null);
         sIdx.forEach(i => {
           board[i] = deck.length > 0 ? deck.pop() : null;
           updateSlot(i, true);
@@ -248,6 +289,7 @@ function handleShuffleClick() {
 
 function shuffleExistingCards() {
   if (isAnimating || isGameOver) return;
+  if (config.debugMode) setDebugTPSIters(null);
   isAnimating = true;
   shuffleExCount++;
   for (let i = board.length - 1; i > 0; i--) {
@@ -269,6 +311,7 @@ function shuffleExistingCards() {
 
 function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false) {
   if (isAnimating) return;
+  if (config.debugMode) setDebugTPSIters(null);
 
   if (isAuto && skipAnimOut) {
     isAnimating = true;
@@ -279,7 +322,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     board = deck.splice(0, 12);
     if (config.targetSetX) {
       const iters = runPendulumBalancing();
-      if (config.debugMode && iters > 0) showToast('TPS iterations: ' + iters);
+      if (config.debugMode && iters > 0) setDebugTPSIters(iters);
     }
     selected = [];
 
@@ -300,7 +343,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     board = deck.splice(0, 12);
     if (config.targetSetX) {
       const iters = runPendulumBalancing();
-      if (config.debugMode && iters > 0) showToast('TPS iterations: ' + iters);
+      if (config.debugMode && iters > 0) setDebugTPSIters(iters);
     }
     selected = [];
 
@@ -324,7 +367,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
       board = deck.splice(0, 12);
       if (config.targetSetX) {
         const iters = runPendulumBalancing();
-        if (config.debugMode && iters > 0) showToast('TPS iterations: ' + iters);
+        if (config.debugMode && iters > 0) setDebugTPSIters(iters);
       }
       selected = [];
 
@@ -352,7 +395,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     board = deck.splice(0, 12);
     if (config.targetSetX) {
       const iters = runPendulumBalancing();
-      if (config.debugMode && iters > 0) showToast('TPS iterations: ' + iters);
+      if (config.debugMode && iters > 0) setDebugTPSIters(iters);
     }
     selected = [];
 
@@ -382,11 +425,12 @@ function saveRecord(extra) {
 }
 
 function initNewDeckAndBoard() {
+  if (config.debugMode) setDebugTPSIters(null);
   deck = createDeck();
   board = deck.splice(0, 12);
   if (config.targetSetX) {
     const iters = runPendulumBalancing();
-    if (config.debugMode && iters > 0) showToast('TPS iterations: ' + iters);
+    if (config.debugMode && iters > 0) setDebugTPSIters(iters);
   }
   selected = [];
   for (let i = 0; i < 12; i++) updateSlot(i, false);
@@ -492,3 +536,5 @@ function handleGameFinish(isAuto = false) {
     }, GAME_CONFIG.CARD_FADE_DURATION);
   }, GAME_CONFIG.MODAL_TRANSITION);
 }
+
+requestAnimationFrame(runDebugFPSLoop);
