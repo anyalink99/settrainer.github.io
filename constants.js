@@ -8,19 +8,24 @@ const STORAGE_KEYS = {
   AUTO_SHUFFLE: 'set_auto_shuffle',
   AUTO_SELECT_THIRD: 'set_auto_select_third',
   PREVENT_BAD_SHUFFLE: 'set_prevent_bad_shuffle',
-  USE_FIXED_SEED: 'set_use_fixed_seed',
+  SYNCHRONIZED_SEED: 'set_synchronized_seed',
   MIN_SETS: 'set_min_sets',
-  TARGET_SET_X: 'set_target_set_x',
+  TARGET_POSSIBLE_SETS: 'set_target_possible_sets',
   KEYBINDS: 'set_keybinds',
+  KEYBINDS_HORIZONTAL: 'set_keybinds_horizontal',
   RECORDS: 'set_pro_records',
   ONLINE_NICKNAME: 'set_online_nickname',
   ONLINE_SHOW_ONLY_NICKS: 'set_online_show_only_nicks',
   ONLINE_BEST_PER_PLAYER: 'set_online_best_per_player',
   APP_WIDTH: 'set_app_width',
-  BOARD_ROTATED: 'set_board_rotated',
+  BOARD_ORIENTATION: 'set_board_orientation',
   GAME_COLORS: 'set_game_colors',
   SHAPE_SIZE_RATIO: 'set_shape_size_ratio'
 };
+
+const TPS_MAX_SETS = 14;
+
+const MIN_SETS_MAX = 27;
 
 const GAME_CONFIG = {
   SETS_TO_WIN: 23,
@@ -51,6 +56,13 @@ const KEY_MAP = {
 
 const DEFAULT_BINDS = {
   board: ['e', 'r', 'i', 'o', 'd', 'f', 'k', 'l', 'x', 'c', 'm', ','],
+  shuffle: 'backspace',
+  shuffleEx: ' ',
+  finish: 'enter'
+};
+
+const DEFAULT_BINDS_HORIZONTAL = {
+  board: ['3', '4', '9', 'e', 'r', 'o', 'd', 'f', 'l', 'c', 'v', ','],
   shuffle: 'backspace',
   shuffleEx: ' ',
   finish: 'enter'
