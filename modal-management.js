@@ -76,10 +76,12 @@ function handleBoardAppearanceReset() {
   if (typeof closeBoardColorPicker === 'function') closeBoardColorPicker();
   config.preset = 'standard';
   config.boardRotated = false;
+  config.shapeSizeRatio = 0.9;
   config.gameColors = ['#fd0000', '#01a43b', '#0000fe'];
   config.speedMod = '1.0';
   Storage.set(STORAGE_KEYS.PRESET, config.preset);
   Storage.set(STORAGE_KEYS.BOARD_ROTATED, String(config.boardRotated));
+  Storage.set(STORAGE_KEYS.SHAPE_SIZE_RATIO, '0.9');
   Storage.setJSON(STORAGE_KEYS.GAME_COLORS, config.gameColors);
   Storage.set(STORAGE_KEYS.SPEED_MOD, config.speedMod);
   updateColors();
@@ -88,6 +90,7 @@ function handleBoardAppearanceReset() {
   const boardEl = document.getElementById('board');
   if (boardEl) {
     boardEl.classList.toggle('rotated', config.boardRotated);
+    boardEl.style.setProperty('--shape-size-ratio', String(config.shapeSizeRatio));
   }
   transposeBoardLayout();
   for (let i = 0; i < 12; i++) updateSlot(i, false);
