@@ -18,6 +18,7 @@ function handleMouseMove(e) {
   const centerX = window.innerWidth / 2;
   const offset = Math.abs(e.clientX - centerX);
   let newWidth = offset * 2;
+  if (newWidth < 300) newWidth = 300;
   if (newWidth > window.innerWidth - 30) newWidth = window.innerWidth;
   appContainer.style.width = newWidth + 'px';
   Storage.set(STORAGE_KEYS.APP_WIDTH, Math.floor(newWidth));
