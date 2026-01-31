@@ -32,11 +32,21 @@ async function closeAdvancedModal() {
 function openOnlineSettingsModal() {
   const nickEl = document.getElementById('online-settings-nickname');
   const filterEl = document.getElementById('online-settings-filter');
+  const bestPerPlayerEl = document.getElementById('toggle-online-best-per-player');
   let nick = (Storage.get(STORAGE_KEYS.ONLINE_NICKNAME) || '').trim();
   if (!nick && typeof ensureOnlineNickname === 'function') nick = ensureOnlineNickname();
   if (nickEl) nickEl.value = nick;
   if (filterEl) filterEl.value = Storage.get(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, '');
+  if (bestPerPlayerEl && typeof getOnlineBestPerPlayer === 'function') bestPerPlayerEl.classList.toggle('active', getOnlineBestPerPlayer());
   openModal('online-settings-modal');
+}
+
+function toggleOnlineBestPerPlayer() {
+  const el = document.getElementById('toggle-online-best-per-player');
+  if (!el) return;
+  const next = !el.classList.contains('active');
+  el.classList.toggle('active', next);
+  Storage.set(STORAGE_KEYS.ONLINE_BEST_PER_PLAYER, String(next));
 }
 
 async function closeOnlineSettingsModal() {
