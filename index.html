@@ -188,7 +188,7 @@
             </div>
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Synchronized Seed</span>
-                <div id="toggle-seed" class="toggle-switch" onpointerdown="toggleOption('useFixedSeed')"></div>
+                <div id="toggle-seed" class="toggle-switch" onpointerdown="toggleOption('synchronizedSeed')"></div>
             </div>
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
@@ -196,11 +196,11 @@
             </div>
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Record min sets</span>
-                <input type="number" id="min-sets-input" class="input-mini" onchange="updateMinSets(this.value)">
+                <input type="number" id="min-sets-input" class="input-mini" min="0" max="27" onchange="updateMinSets(this.value)">
             </div>
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase text-[12px]">Target Possible Sets</span>
-                <input type="number" id="target-set-x-input" class="input-mini" min="0" placeholder=" " onchange="updateTargetSetX(this.value)">
+                <input type="number" id="target-set-x-input" class="input-mini" min="0" max="14" placeholder=" " onchange="updateTargetPossibleSets(this.value)">
             </div>
             <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Debug mode</span>
