@@ -96,8 +96,8 @@
       var sw = sv.offsetWidth || 1, sh = sv.offsetHeight || 1;
       var hw = hue.offsetWidth || 1;
       var x = state.s * sw, y = (1 - state.v) * sh;
-      svHandle.style.left = (x - 8) + 'px';
-      svHandle.style.top = (y - 8) + 'px';
+      svHandle.style.left = x + 'px';
+      svHandle.style.top = y + 'px';
       hueHandle.style.left = ((state.h / 360) * Math.max(0, hw - 14)) + 'px';
       wrap.style.setProperty('--picker-hue', state.h);
     }
