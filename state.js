@@ -10,18 +10,26 @@ let config = {
   // Settings
   showPossible: Storage.get(STORAGE_KEYS.SHOW_POSSIBLE, true),
   showSPM: Storage.get(STORAGE_KEYS.SHOW_SPM, false),
-  debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false),
   showTimer: Storage.get(STORAGE_KEYS.SHOW_TIMER, true),
   // Advanced
   autoShuffle: Storage.get(STORAGE_KEYS.AUTO_SHUFFLE, true),
   preventBadShuffle: Storage.get(STORAGE_KEYS.PREVENT_BAD_SHUFFLE, false),
   useFixedSeed: Storage.get(STORAGE_KEYS.USE_FIXED_SEED, false),
   autoSelectThird: Storage.get(STORAGE_KEYS.AUTO_SELECT_THIRD, false),
-  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23)
+  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23),
+  targetSetX: Storage.getInt(STORAGE_KEYS.TARGET_SET_X, 0),
+  debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false),
+  // Online
+  onlineNickname: Storage.get(STORAGE_KEYS.ONLINE_NICKNAME, ''),
+  onlineShowOnlyNicks: Storage.get(STORAGE_KEYS.ONLINE_SHOW_ONLY_NICKS, ''),
+  onlineBestPerPlayer: (() => {
+    const v = Storage.get(STORAGE_KEYS.ONLINE_BEST_PER_PLAYER, true);
+    return v === true || v === 'true';
+  })()
 };
 
 let gameModifiers = {
-  SP: false, AS: false, PBS: false, A3RD: false, SS: false, DM: false
+  SP: false, AS: false, PBS: false, A3RD: false, SS: false, DM: false, TPS: false
 };
 
 let binds = Storage.getJSON(STORAGE_KEYS.KEYBINDS) || JSON.parse(JSON.stringify(DEFAULT_BINDS));
