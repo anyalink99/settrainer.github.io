@@ -1,7 +1,10 @@
 let config = {
   // Board (Board Appearance)
   preset: Storage.get(STORAGE_KEYS.PRESET, 'standard'),
-  boardRotated: Storage.get(STORAGE_KEYS.BOARD_ROTATED, false),
+  boardOrientation: (() => {
+    const v = Storage.get(STORAGE_KEYS.BOARD_ORIENTATION, 'vertical');
+    return (v === 'vertical' || v === 'horizontal') ? v : 'vertical';
+  })(),
   shapeSizeRatio: (() => {
     const v = parseFloat(Storage.get(STORAGE_KEYS.SHAPE_SIZE_RATIO, '0.9'));
     return (v >= 0.7 && v <= 1) ? v : 0.9;
@@ -18,10 +21,23 @@ let config = {
   // Advanced
   autoShuffle: Storage.get(STORAGE_KEYS.AUTO_SHUFFLE, true),
   preventBadShuffle: Storage.get(STORAGE_KEYS.PREVENT_BAD_SHUFFLE, false),
-  useFixedSeed: Storage.get(STORAGE_KEYS.USE_FIXED_SEED, false),
+  synchronizedSeed: (() => {
+    const v = Storage.get(STORAGE_KEYS.SYNCHRONIZED_SEED, false);
+    return v === true || v === 'true';
+  })(),
   autoSelectThird: Storage.get(STORAGE_KEYS.AUTO_SELECT_THIRD, false),
-  minSetsToRecord: Storage.getInt(STORAGE_KEYS.MIN_SETS, 23),
-  targetSetX: Storage.getInt(STORAGE_KEYS.TARGET_SET_X, 0),
+  minSetsToRecord: (() => {
+    const raw = Storage.getInt(STORAGE_KEYS.MIN_SETS, 23);
+    const capped = Math.min(raw, MIN_SETS_MAX);
+    if (raw !== capped) Storage.set(STORAGE_KEYS.MIN_SETS, capped);
+    return capped;
+  })(),
+  targetPossibleSets: (() => {
+    const raw = Storage.getInt(STORAGE_KEYS.TARGET_POSSIBLE_SETS, 0);
+    const capped = Math.min(raw, TPS_MAX_SETS);
+    if (raw !== capped) Storage.set(STORAGE_KEYS.TARGET_POSSIBLE_SETS, capped);
+    return capped;
+  })(),
   debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false),
   // Online
   onlineNickname: Storage.get(STORAGE_KEYS.ONLINE_NICKNAME, ''),
@@ -36,7 +52,13 @@ let gameModifiers = {
   SP: false, AS: false, PBS: false, A3RD: false, SS: false, DM: false, TPS: false
 };
 
-let binds = Storage.getJSON(STORAGE_KEYS.KEYBINDS) || JSON.parse(JSON.stringify(DEFAULT_BINDS));
+function loadBindsForOrientation(orientation) {
+  const isHorizontal = orientation === 'horizontal';
+  const key = isHorizontal ? STORAGE_KEYS.KEYBINDS_HORIZONTAL : STORAGE_KEYS.KEYBINDS;
+  const def = isHorizontal ? DEFAULT_BINDS_HORIZONTAL : DEFAULT_BINDS;
+  return Storage.getJSON(key) || JSON.parse(JSON.stringify(def));
+}
+let binds = loadBindsForOrientation(config.boardOrientation);
 let isCapturingKey = null;
 
 let deck = [], board = [], selected = [], collectedSets = 0, badShuffles = 0;
@@ -56,3 +78,4 @@ let usedGameModifiers = {};
 let debugHighlightSet = null;
 let lastFinishResult = null;
 let resultOpenedFrom = null;
+let gameSeededRng = null;
