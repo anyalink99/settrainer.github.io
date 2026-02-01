@@ -30,16 +30,16 @@
  *   between fixed layouts aren't possible.
  *
  * -----------------------------------------------------------------------------
- * 4. BOARD LIFECYCLE ("LIVES")
+ * 4. BOARD LIFECYCLE (FAST SOLVES)
  * -----------------------------------------------------------------------------
- * - Each saved board has 3 lives. Solving it in Training Mode consumes 1 life.
- * - When lives reach 0, the board is removed permanently from storage.
+ * - Each saved board is removed after it is solved fast (<5s) twice.
+ * - Slow solves do not advance the removal counter.
  *
  * -----------------------------------------------------------------------------
  * 5. DEBUG INFO
  * -----------------------------------------------------------------------------
  * - Generated boards display TPS iteration count.
- * - Saved boards display their saved date and remaining lives.
+ * - Saved boards display their saved date and fast-solve counter.
  *
  * Dependencies
  * -----------------------------------------------------------------------------
@@ -52,7 +52,8 @@
 
 const TRAINING_SESSION_SIZE = 24;
 const TRAINING_TARGET_POSSIBLE_SETS = 1;
-const TRAINING_BOARD_LIVES = 3;
+const TRAINING_FAST_SOLVE_MS = 5000;
+const TRAINING_FAST_SOLVE_LIMIT = 2;
 
 let trainingSessionBoards = [];
 let trainingSessionIndex = 0;
@@ -90,7 +91,7 @@ function createTrainingBoardRecord(boardSnapshot) {
   return {
     id: Date.now() + Math.floor(Math.random() * 1000000),
     savedAt: Date.now(),
-    lives: TRAINING_BOARD_LIVES,
+    fastSolves: 0,
     board: boardSnapshot
   };
 }
@@ -100,8 +101,8 @@ function formatTrainingSavedLabel(meta) {
   const dateStr = savedAt
     ? savedAt.toLocaleDateString('ru-RU') + ' ' + savedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
     : 'unknown date';
-  const lives = typeof meta?.lives === 'number' ? meta.lives : '?';
-  return `saved ${dateStr} | lives ${lives}`;
+  const fastSolves = typeof meta?.fastSolves === 'number' ? meta.fastSolves : 0;
+  return `saved ${dateStr} | fast <5s ${fastSolves}/${TRAINING_FAST_SOLVE_LIMIT}`;
 }
 
 function generateBoardWithTargetPossibleSets(target) {
@@ -171,7 +172,7 @@ function getTrainingEntryPayload(entry) {
   if (entry.type === 'saved') {
     return {
       board: cloneBoardSnapshot(entry.record.board),
-      meta: { type: 'saved', id: entry.record.id, savedAt: entry.record.savedAt, lives: entry.record.lives }
+      meta: { type: 'saved', id: entry.record.id, savedAt: entry.record.savedAt, fastSolves: entry.record.fastSolves }
     };
   }
   return {
@@ -253,15 +254,19 @@ function trainingShuffleToBoard(payload) {
   }, fadeOutMs);
 }
 
-function trainingHandleSolvedBoard() {
+function trainingHandleSolvedBoard(findTimeMs) {
   if (!trainingCurrentEntry) return;
   if (trainingCurrentEntry.type === 'saved') {
     const records = getStoredTrainingBoards();
     const idx = records.findIndex(r => r.id === trainingCurrentEntry.record.id);
     if (idx !== -1) {
-      records[idx].lives = Math.max((records[idx].lives || 0) - 1, 0);
-      if (records[idx].lives <= 0) records.splice(idx, 1);
-      saveStoredTrainingBoardsAsync(records);
+      const isFastSolve = typeof findTimeMs === 'number' && findTimeMs < TRAINING_FAST_SOLVE_MS;
+      if (isFastSolve) {
+        const currentFast = typeof records[idx].fastSolves === 'number' ? records[idx].fastSolves : 0;
+        records[idx].fastSolves = currentFast + 1;
+        if (records[idx].fastSolves >= TRAINING_FAST_SOLVE_LIMIT) records.splice(idx, 1);
+        saveStoredTrainingBoardsAsync(records);
+      }
     }
   }
 }
@@ -297,8 +302,8 @@ function trainingResetSessionRecords() {
   trainingSessionFindRecords = [];
 }
 
-function trainingHandleCorrectSet() {
-  trainingHandleSolvedBoard();
+function trainingHandleCorrectSet(findTimeMs) {
+  trainingHandleSolvedBoard(findTimeMs);
   const nextPayload = trainingAdvanceBoard();
   if (!nextPayload) {
     handleGameFinish(true);
