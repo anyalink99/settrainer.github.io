@@ -49,6 +49,7 @@
  * - set-math.js (getComplementaryCard, findCardInDeck, getPossibleSetsIndicesForBoard)
  * - game-logic.js (getShuffleDurations, setDebugTPSIters, handleGameFinish)
  */
+
 const TRAINING_SESSION_SIZE = 24;
 const TRAINING_TARGET_POSSIBLE_SETS = 1;
 const TRAINING_BOARD_LIVES = 3;
