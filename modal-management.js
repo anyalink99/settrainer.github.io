@@ -220,6 +220,7 @@ function openKeybindsModal() {
   const grid = document.getElementById('kb-board-grid');
   grid.innerHTML = '';
   grid.style.gridTemplateColumns = config.boardOrientation === 'horizontal' ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)';
+  grid.classList.toggle('rotated', config.boardOrientation === 'horizontal');
   
   binds.board.forEach((key, i) => {
     const cell = document.createElement('div');
