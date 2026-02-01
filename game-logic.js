@@ -224,7 +224,7 @@ async function handleCardSelect(idx, el) {
       if (isTrainingModeActive()) {
         selected = [];
         isAnimating = false;
-        trainingHandleCorrectSet();
+        trainingHandleCorrectSet(findTime);
         return;
       }
       if (config.targetPossibleSets && deck.length >= 3) {
