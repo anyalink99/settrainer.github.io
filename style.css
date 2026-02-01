@@ -15,6 +15,11 @@ body {
     margin: 0; 
 }
 
+body.cursor-hidden,
+body.cursor-hidden * {
+    cursor: none !important;
+}
+
 .app-container {
     width: 500px; 
     height: 100%;
