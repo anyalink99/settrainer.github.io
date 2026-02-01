@@ -1,5 +1,24 @@
 let touchStartY = 0;
 const swipeZone = document.getElementById('swipe-zone');
+const cursorHideClass = 'cursor-hidden';
+let isCursorHidden = false;
+
+const hideCursorOnKeyboard = () => {
+  if (!document.body) return;
+  if (!window.matchMedia || !window.matchMedia('(pointer: fine)').matches) return;
+  if (isCursorHidden) return;
+  document.body.classList.add(cursorHideClass);
+  isCursorHidden = true;
+};
+
+const showCursorFromMouse = () => {
+  if (!document.body || !isCursorHidden) return;
+  document.body.classList.remove(cursorHideClass);
+  isCursorHidden = false;
+};
+
+window.addEventListener('mousemove', showCursorFromMouse, { passive: true });
+window.addEventListener('mousedown', showCursorFromMouse, { passive: true });
 
 window.addEventListener('touchstart', (e) => {
   if (!swipeZone) return;
@@ -52,6 +71,7 @@ window.addEventListener('keydown', (e) => {
   if (isGameOver) {
     if (key === binds.finish && key !== '') {
       e.preventDefault();
+      hideCursorOnKeyboard();
       handleGameReset();
     }
     return;
@@ -59,16 +79,20 @@ window.addEventListener('keydown', (e) => {
 
   if (key !== '' && key === binds.shuffle) {
     e.preventDefault();
+    hideCursorOnKeyboard();
     handleShuffleClick();
   } else if (key !== '' && key === binds.shuffleEx) {
     e.preventDefault();
+    hideCursorOnKeyboard();
     shuffleExistingCards();
   } else if (key !== '' && key === binds.finish) {
     e.preventDefault();
+    hideCursorOnKeyboard();
     handleGameFinish();
   } else if (key !== '') {
     const boardIdx = binds.board.indexOf(key);
     if (boardIdx !== -1) {
+      hideCursorOnKeyboard();
       const slot = document.getElementById('board')?.children[boardIdx];
       const cardEl = slot?.querySelector('.card');
       if (cardEl) handleCardSelect(boardIdx, cardEl);
