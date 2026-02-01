@@ -52,7 +52,7 @@
     <div class="settings-edge-container">
         <div class="settings-btn" onpointerdown="toggleSettingsModal(true)" data-svg-icon="SETTINGS"></div>
         <div class="text-gray-300 text-sm font-medium">Sets: <span id="current-score" class="text-pink-400 font-bold">0</span></div>
-        <div class="text-gray-400 text-xs">Cards: <span id="deck-count">0</span></div>
+        <div class="text-gray-400 text-xs"><span id="deck-label">Cards</span>: <span id="deck-count">0</span></div>
     </div>
 
     <div class="fixed-core">
@@ -203,6 +203,10 @@
                 <input type="number" id="target-set-x-input" class="input-mini" min="0" max="14" placeholder=" " onchange="updateTargetPossibleSets(this.value)">
             </div>
             <div class="settings-row">
+                <span class="text-sm font-bold uppercase">Training Mode</span>
+                <div id="toggle-training-mode" class="toggle-switch" onpointerdown="toggleOption('trainingMode')"></div>
+            </div>
+            <div class="settings-row">
                 <span class="text-sm font-bold uppercase">Debug mode</span>
                 <div id="toggle-debug" class="toggle-switch" onpointerdown="toggleOption('debugMode')"></div>
             </div>
@@ -350,6 +354,7 @@
 <script src="set-math.js"></script>
 <script src="tps-logic.js"></script>
 <script src="game-logic.js"></script>
+<script src="training-mode.js"></script>
 <script src="results-stats.js"></script>
 <script src="keybinds.js"></script>
 <script src="event-listeners.js"></script>
