@@ -648,10 +648,13 @@ body {
 }
 .kb-cell {
     background: #2d2631; border: 1px solid #5a4d61; border-radius: 8px;
-    min-height: 45px; display: flex; align-items: center; justify-content: center;
+    aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center;
     font-weight: bold; font-size: 0.875rem; color: #ec4899; text-transform: uppercase; cursor: pointer;
     transition: background 0.2s, color 0.2s, border-color 0.2s;
     padding: 4px 8px; text-align: center;
+}
+.kb-grid.rotated .kb-cell {
+    aspect-ratio: 2/1;
 }
 .kb-cell:active { background: #a34e78; color: white; }
 .kb-cell.waiting { animation: pulse 0.6s infinite; background: #ec4899; color: white; border-color: white; }
