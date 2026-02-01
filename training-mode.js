@@ -224,6 +224,10 @@ function trainingRecordSetIfNeeded(findTimeMs) {
 
 function trainingFinalizeSessionIfNeeded() {
   const isTraining = isTrainingModeActive();
+  if (typeof collectedSets === 'number' && collectedSets < 8) {
+    trainingSessionFindRecords = [];
+    return;
+  }
   if (!trainingSessionFindRecords.length) return;
   const filtered = isTraining
     ? trainingSessionFindRecords.filter(r => r.sourceType === 'generated')
