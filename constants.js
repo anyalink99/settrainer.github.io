@@ -11,6 +11,8 @@ const STORAGE_KEYS = {
   SYNCHRONIZED_SEED: 'set_synchronized_seed',
   MIN_SETS: 'set_min_sets',
   TARGET_POSSIBLE_SETS: 'set_target_possible_sets',
+  TRAINING_MODE: 'set_training_mode',
+  TRAINING_BOARDS: 'set_training_boards',
   KEYBINDS: 'set_keybinds',
   KEYBINDS_HORIZONTAL: 'set_keybinds_horizontal',
   RECORDS: 'set_pro_records',
