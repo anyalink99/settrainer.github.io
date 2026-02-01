@@ -1,3 +1,54 @@
+/**
+ * =============================================================================
+ * TRAINING MODE (Saved Boards + Replay Loop)
+ * =============================================================================
+ *
+ * Training Mode isolates a curated cycle of boards (24 per session) so players
+ * can practice difficult situations. It runs alongside normal gameplay without
+ * altering the core deck/set logic when Training Mode is OFF.
+ *
+ * -----------------------------------------------------------------------------
+ * 1. DATA COLLECTION (Normal Mode)
+ * -----------------------------------------------------------------------------
+ * - Each time a correct set is found, the current 12-card board is snapshotted
+ *   along with the find time.
+ * - At game finish, if at least 8 sets were collected, the two slowest boards
+ *   are saved into local storage. This is async to avoid blocking gameplay.
+ *
+ * -----------------------------------------------------------------------------
+ * 2. TRAINING SESSION GENERATION
+ * -----------------------------------------------------------------------------
+ * - Each session is exactly 24 boards in random order.
+ * - Saved boards are pulled from storage; missing slots are filled with
+ *   generated boards using Target Possible Sets = 1.
+ *
+ * -----------------------------------------------------------------------------
+ * 3. SESSION FLOW + SHUFFLE TRANSITIONS
+ * -----------------------------------------------------------------------------
+ * - After each solved board, the next board is shown using a "shuffle" style
+ *   animation (fade out → new board → fade in), since smooth transitions
+ *   between fixed layouts aren't possible.
+ *
+ * -----------------------------------------------------------------------------
+ * 4. BOARD LIFECYCLE ("LIVES")
+ * -----------------------------------------------------------------------------
+ * - Each saved board has 3 lives. Solving it in Training Mode consumes 1 life.
+ * - When lives reach 0, the board is removed permanently from storage.
+ *
+ * -----------------------------------------------------------------------------
+ * 5. DEBUG INFO
+ * -----------------------------------------------------------------------------
+ * - Generated boards display TPS iteration count.
+ * - Saved boards display their saved date and remaining lives.
+ *
+ * Dependencies
+ * -----------------------------------------------------------------------------
+ * - Globals: config, board, deck, selected, collectedSets, isAnimating
+ * - storage-module.js (Storage), constants.js (STORAGE_KEYS)
+ * - graphics-rendering.js (updateSlot)
+ * - set-math.js (getComplementaryCard, findCardInDeck, getPossibleSetsIndicesForBoard)
+ * - game-logic.js (getShuffleDurations, setDebugTPSIters, handleGameFinish)
+ */
 const TRAINING_SESSION_SIZE = 24;
 const TRAINING_TARGET_POSSIBLE_SETS = 1;
 const TRAINING_BOARD_LIVES = 3;
