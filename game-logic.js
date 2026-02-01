@@ -29,7 +29,7 @@ function setDebugTPSIters(iters, label) {
   const el = document.getElementById('debug-tps-iters');
   if (!el) return;
   if (iters == null || iters === undefined) {
-    el.textContent = 'disabled';
+    el.textContent = label ? label : 'disabled';
     return;
   }
   el.textContent = label ? iters + ' iter (' + label + ')' : iters + ' iter';
@@ -107,8 +107,16 @@ function updateUI() {
   gameModifiers.SS = config.synchronizedSeed;
   gameModifiers.DM = config.debugMode;
   gameModifiers.TPS = !!(config.targetPossibleSets && config.targetPossibleSets > 0);
+  gameModifiers.TM = !!config.trainingMode;
 
-  document.getElementById('deck-count').innerText = deck.length;
+  const deckLabel = document.getElementById('deck-label');
+  if (isTrainingModeActive()) {
+    if (deckLabel) deckLabel.innerText = 'Boards';
+    document.getElementById('deck-count').innerText = trainingGetRemainingBoardsCount();
+  } else {
+    if (deckLabel) deckLabel.innerText = 'Cards';
+    document.getElementById('deck-count').innerText = deck.length;
+  }
   document.getElementById('current-score').innerText = collectedSets;
   document.getElementById('possible-count').innerText = stats.total;
   document.getElementById('possible-label').style.opacity = config.showPossible ? '1' : '0';
@@ -127,6 +135,7 @@ function updateUI() {
   }
 
   if (
+    !isTrainingModeActive() &&
     stats.total === 0 &&
     config.autoShuffle &&
     deck.length > 0 &&
@@ -207,10 +216,17 @@ async function handleCardSelect(idx, el) {
       const now = Date.now();
       const findTime = now - lastSetFoundTime;
       setTimestamps.push({ time: now, findTime: findTime, possibleAtStart: currentPossible });
+      trainingRecordSetIfNeeded(findTime);
       lastSetFoundTime = now;
 
       sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
       await new Promise(r => setTimeout(r, GAME_CONFIG.ANIMATION_DURATION));
+      if (isTrainingModeActive()) {
+        selected = [];
+        isAnimating = false;
+        trainingHandleCorrectSet();
+        return;
+      }
       if (config.targetPossibleSets && deck.length >= 3) {
         const result = pickTargetedReplenishmentThree(sIdx);
         if (result && result.threeCards) {
@@ -269,6 +285,7 @@ function handleShuffleClick() {
   const now = Date.now();
   if (now < shuffleBtnCooldownUntil) return;
   if (isAnimating || isGameOver || isBtnLocked) return;
+  if (isTrainingModeActive()) return;
   const possibleCount = analyzePossibleSets().total;
   if (possibleCount > 0) {
     badShuffles++;
@@ -290,6 +307,7 @@ function handleShuffleClick() {
 
 function shuffleExistingCards() {
   if (isAnimating || isGameOver) return;
+  if (isTrainingModeActive()) return;
   if (config.debugMode) setDebugTPSIters(null);
   isAnimating = true;
   shuffleExCount++;
@@ -313,6 +331,7 @@ function shuffleExistingCards() {
 
 function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false) {
   if (isAnimating) return;
+  if (isTrainingModeActive()) return;
   if (config.debugMode) setDebugTPSIters(null);
 
   if (isAuto && skipAnimOut) {
@@ -428,6 +447,10 @@ function saveRecord(extra) {
 
 function initNewDeckAndBoard() {
   if (config.debugMode) setDebugTPSIters(null);
+  if (isTrainingModeActive()) {
+    trainingInitNewBoard();
+    return;
+  }
   if (config.synchronizedSeed) {
     gameSeededRng = mulberry32(getSeedForFixed());
   } else {
@@ -451,7 +474,8 @@ function syncGameModifiers() {
     A3RD: config.autoSelectThird,
     SS: config.synchronizedSeed,
     DM: config.debugMode,
-    TPS: !!(config.targetPossibleSets && config.targetPossibleSets > 0)
+    TPS: !!(config.targetPossibleSets && config.targetPossibleSets > 0),
+    TM: !!config.trainingMode
   };
   startGameModifiers = { ...currentMods };
   usedGameModifiers = { ...currentMods };
@@ -463,6 +487,7 @@ function resetStats() {
   lastSetFoundTime = startTime;
   setTimestamps = [];
   possibleHistory = [];
+  trainingResetSessionRecords();
 
   syncGameModifiers();
 
@@ -527,6 +552,7 @@ function handleGameFinish(isAuto = false) {
     badShuffles: badShuffles,
     modifiers: finalModifiers
   };
+  trainingFinalizeSessionIfNeeded();
   saveRecord(currentExtraStats);
   displayResults(collectedSets, badShuffles, currentExtraStats);
 
