@@ -21,6 +21,7 @@
  * - Each session is exactly 24 boards in random order.
  * - Saved boards are pulled from storage; missing slots are filled with
  *   generated boards using Target Possible Sets = 1.
+ * - We always enforce at least 8 generated (TPS) boards in a session.
  *
  * -----------------------------------------------------------------------------
  * 3. SESSION FLOW + SHUFFLE TRANSITIONS
@@ -52,6 +53,7 @@
 
 const TRAINING_SESSION_SIZE = 24;
 const TRAINING_TARGET_POSSIBLE_SETS = 1;
+const TRAINING_MIN_GENERATED_BOARDS = 8;
 const TRAINING_FAST_SOLVE_MS = 5000;
 const TRAINING_FAST_SOLVE_LIMIT = 2;
 
@@ -157,7 +159,8 @@ function generateBoardWithTargetPossibleSets(target) {
 
 function buildTrainingSessionBoards() {
   const stored = getStoredTrainingBoards();
-  const pickedSaved = shuffleArray(stored).slice(0, TRAINING_SESSION_SIZE);
+  const maxSaved = Math.max(0, TRAINING_SESSION_SIZE - TRAINING_MIN_GENERATED_BOARDS);
+  const pickedSaved = shuffleArray(stored).slice(0, maxSaved);
   const sessionBoards = pickedSaved.map(rec => ({ type: 'saved', record: rec }));
   const needed = TRAINING_SESSION_SIZE - sessionBoards.length;
   for (let i = 0; i < needed; i++) {
