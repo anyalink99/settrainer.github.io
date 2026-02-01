@@ -192,7 +192,7 @@ async function fetchOnlineLeaderboard() {
 
 function modifiersToStr(mods) {
   if (!mods || typeof mods !== 'object') return '';
-  var keys = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM', 'TPS'];
+  var keys = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM', 'TPS', 'TM'];
   return keys.filter(function (k) { return mods[k]; }).join(',');
 }
 
