@@ -7,6 +7,8 @@ function syncSettingsUI() {
   document.getElementById('toggle-spm').classList.toggle('active', config.showSPM);
   const toggleDebug = document.getElementById('toggle-debug');
   if (toggleDebug) toggleDebug.classList.toggle('active', config.debugMode);
+  const toggleTraining = document.getElementById('toggle-training-mode');
+  if (toggleTraining) toggleTraining.classList.toggle('active', config.trainingMode);
   document.getElementById('live-spm').style.display = config.showSPM ? 'block' : 'none';
   if (config.showSPM) updateLiveSPM();
   document.getElementById('toggle-timer').classList.toggle('active', config.showTimer);
@@ -80,7 +82,8 @@ function toggleOption(key) {
     'preventBadShuffle': 'PBS',
     'autoSelectThird': 'A3RD',
     'synchronizedSeed': 'SS',
-    'debugMode': 'DM'
+    'debugMode': 'DM',
+    'trainingMode': 'TM'
   };
 
   const modShortName = keyMap[key];
@@ -93,6 +96,10 @@ function toggleOption(key) {
   syncSettingsUI();
 
   if (key === 'synchronizedSeed') {
+    initNewDeckAndBoard();
+    resetStats();
+    updateUI();
+  } else if (key === 'trainingMode') {
     initNewDeckAndBoard();
     resetStats();
     updateUI();
