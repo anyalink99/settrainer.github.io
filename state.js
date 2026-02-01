@@ -38,6 +38,10 @@ let config = {
     if (raw !== capped) Storage.set(STORAGE_KEYS.TARGET_POSSIBLE_SETS, capped);
     return capped;
   })(),
+  trainingMode: (() => {
+    const v = Storage.get(STORAGE_KEYS.TRAINING_MODE, false);
+    return v === true || v === 'true';
+  })(),
   debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false),
   // Online
   onlineNickname: Storage.get(STORAGE_KEYS.ONLINE_NICKNAME, ''),
@@ -49,7 +53,7 @@ let config = {
 };
 
 let gameModifiers = {
-  SP: false, AS: false, PBS: false, A3RD: false, SS: false, DM: false, TPS: false
+  SP: false, AS: false, PBS: false, A3RD: false, SS: false, DM: false, TPS: false, TM: false
 };
 
 function loadBindsForOrientation(orientation) {
