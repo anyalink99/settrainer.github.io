@@ -19,6 +19,14 @@ function formatTime(ms, showMs = false) {
   return res;
 }
 
+function formatTimeTenths(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  const remainder = Math.floor((ms % 1000) / 100);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(remainder)}`;
+}
+
 function getSPMColor(spm) {
   const min = 3;
   const max = 30;
