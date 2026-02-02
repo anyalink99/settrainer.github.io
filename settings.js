@@ -99,6 +99,15 @@ function toggleOption(key) {
     initNewDeckAndBoard();
     resetStats();
     updateUI();
+  } else if (key === 'debugMode') {
+    if (!config.debugMode) {
+      clearDebugTPSUI();
+    } else if (isTrainingModeActive()) {
+      trainingRefreshDebugInfo();
+    } else {
+      restoreDebugTPSInfo();
+    }
+    updateUI();
   } else if (key === 'trainingMode') {
     initNewDeckAndBoard();
     resetStats();
