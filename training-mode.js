@@ -186,7 +186,6 @@ function getTrainingEntryPayload(entry) {
 
 function syncTrainingDebug(meta) {
   trainingLastDebugMeta = meta || null;
-  if (!config.debugMode) return;
   if (!meta) {
     setDebugTPSIters(null);
     return;
@@ -196,6 +195,10 @@ function syncTrainingDebug(meta) {
   } else {
     setDebugTPSIters(null, formatTrainingSavedLabel(meta));
   }
+}
+
+function trainingRefreshDebugInfo() {
+  syncTrainingDebug(trainingLastDebugMeta);
 }
 
 function trainingInitSession() {
@@ -243,7 +246,7 @@ function trainingAdvanceBoard() {
 function trainingShuffleToBoard(payload) {
   if (!payload) return;
   if (isAnimating) return;
-  if (config.debugMode) setDebugTPSIters(null);
+  setDebugTPSIters(null);
   isAnimating = true;
   const { fadeOutMs, animInMs } = getShuffleDurations();
   document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
