@@ -29,18 +29,17 @@
 
 ### Results & records
 
-- **Result screen**: Total time, avg find, fastest/slowest find, modifiers used, and a speed chart (sets/min over time).
-- **Bad shuffles**: Counts “Shuffle while a set existed”.
+- **Result screen**: Total time, avg find, fastest/slowest find, modifiers used, and a speed chart (sets/min over time), bad shuffles (counts “Shuffle while a set existed”) etc.
 - **Local records**: Stored in LocalStorage with date, modifiers, and full details per record (including a details view).
 
-### Online leaderboard (optional)
+### Online leaderboard
 
 - **Submit from the result screen** (globe button).
 - **Nickname + filters**: Set a nickname, filter by players, optionally keep best result per player.
 
 ### Customization
 
-- **Shape presets**: Standard or Classic (ovals/diamonds/waves).
+- **Shape presets**: Standard geometric or Classic (ovals/diamonds/waves).
 - **Board orientation**: Vertical or horizontal.
 - **Shape size**: Slider (affects rendered symbol size).
 - **Custom colors**: Per-color picker with hex input.
@@ -56,7 +55,7 @@
 - **AS**: Auto Shuffle (auto-reshuffle when the board has 0 sets).
 - **PBS**: Prevent Bad Shuffle (blocks manual Shuffle if a set exists).
 - **A3RD**: Auto Select 3rd (auto-completes a set after selecting 2 cards, if possible).
-- **SS**: Synchronized Seed (uses a time-based deterministic seed for shuffles; changes every minute).
+- **SS**: Synchronized Seed (uses a time-based deterministic seed for shuffles; changes every minute). Use to simulate online play
 - **DM**: Debug Mode (extra HUD + highlights; shows TPS iteration info).
 - **TPS**: Target Possible Sets (steers board generation/replenishment toward X possible sets).
 
