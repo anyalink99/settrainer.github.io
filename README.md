@@ -4,7 +4,7 @@
 
 ---
 
-**Set Pro Training** is a high-performance, browser-first trainer for the classic card game **Set**. It focuses on speed practice, repeatable drills, and clean analytics—while keeping everything lightweight (vanilla JS) and easy to run locally.
+**Set Pro Training** is a high-performance, browser-first trainer for the classic card game **Set**. It focuses on speed practice, repeatable drills, and clean analytics - while keeping everything lightweight (vanilla JS) and easy to run locally.
 
 ---
 
