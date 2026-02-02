@@ -18,6 +18,8 @@ let config = {
   showPossible: Storage.get(STORAGE_KEYS.SHOW_POSSIBLE, true),
   showSPM: Storage.get(STORAGE_KEYS.SHOW_SPM, false),
   showTimer: Storage.get(STORAGE_KEYS.SHOW_TIMER, true),
+  showTimerMs: Storage.get(STORAGE_KEYS.SHOW_TIMER_MS, false),
+  showSetsCards: Storage.get(STORAGE_KEYS.SHOW_SETS_CARDS, true),
   // Advanced
   autoShuffle: Storage.get(STORAGE_KEYS.AUTO_SHUFFLE, true),
   preventBadShuffle: Storage.get(STORAGE_KEYS.PREVENT_BAD_SHUFFLE, false),
@@ -38,9 +40,11 @@ let config = {
     if (raw !== capped) Storage.set(STORAGE_KEYS.TARGET_POSSIBLE_SETS, capped);
     return capped;
   })(),
-  trainingMode: (() => {
-    const v = Storage.get(STORAGE_KEYS.TRAINING_MODE, false);
-    return v === true || v === 'true';
+  gameMode: (() => {
+    const raw = Storage.get(STORAGE_KEYS.GAME_MODE, '');
+    if (GAME_MODE_IDS.includes(raw)) return raw;
+    Storage.set(STORAGE_KEYS.GAME_MODE, DEFAULT_GAME_MODE);
+    return DEFAULT_GAME_MODE;
   })(),
   debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false),
   // Online
@@ -53,8 +57,16 @@ let config = {
 };
 
 let gameModifiers = {
-  SP: false, AS: false, PBS: false, A3RD: false, SS: false, DM: false, TPS: false, TM: false
+  SP: false, AS: false, PBS: false, A3RD: false, SS: false, DM: false, TPS: false, TM: false, JN: false
 };
+
+function isTrainingModeActive() {
+  return !!(config && config.gameMode === GAME_MODES.TRAINING);
+}
+
+function isJuniorModeActive() {
+  return !!(config && config.gameMode === GAME_MODES.JUNIOR);
+}
 
 function loadBindsForOrientation(orientation) {
   const isHorizontal = orientation === 'horizontal';
