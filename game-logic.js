@@ -12,7 +12,16 @@ function getSeedForFixed() {
 
 function createDeck(rng) {
   const d = [];
-  for (let c = 0; c < 3; c++) for (let s = 0; s < 3; s++) for (let f = 0; f < 3; f++) for (let n = 0; n < 3; n++) d.push({ c, s, f, n });
+  const fillValues = isJuniorModeActive() ? [2] : [0, 1, 2];
+  for (let c = 0; c < 3; c++) {
+    for (let s = 0; s < 3; s++) {
+      for (let f = 0; f < fillValues.length; f++) {
+        for (let n = 0; n < 3; n++) {
+          d.push({ c, s, f: fillValues[f], n });
+        }
+      }
+    }
+  }
   const randomFunc = rng != null ? rng : Math.random;
   for (let i = d.length - 1; i > 0; i--) {
     const j = Math.floor(randomFunc() * (i + 1));
@@ -119,7 +128,8 @@ function updateUI() {
   gameModifiers.SS = config.synchronizedSeed;
   gameModifiers.DM = config.debugMode;
   gameModifiers.TPS = !!(config.targetPossibleSets && config.targetPossibleSets > 0);
-  gameModifiers.TM = !!config.trainingMode;
+  gameModifiers.TM = config.gameMode === GAME_MODES.TRAINING;
+  gameModifiers.JN = config.gameMode === GAME_MODES.JUNIOR;
 
   const deckLabel = document.getElementById('deck-label');
   if (isTrainingModeActive()) {
@@ -148,6 +158,7 @@ function updateUI() {
 
   if (
     !isTrainingModeActive() &&
+    !isJuniorModeActive() &&
     stats.total === 0 &&
     config.autoShuffle &&
     deck.length > 0 &&
@@ -163,6 +174,16 @@ function updateUI() {
     } else {
       handleShuffleDeck(true, fromSet, false);
     }
+    return;
+  }
+
+  if (
+    isJuniorModeActive() &&
+    stats.total === 0 &&
+    !isAnimating &&
+    !isGameOver
+  ) {
+    setTimeout(() => handleGameFinish(true), 0);
     return;
   }
   nextAutoShuffleSkipsAnimOut = false;
@@ -487,7 +508,8 @@ function syncGameModifiers() {
     SS: config.synchronizedSeed,
     DM: config.debugMode,
     TPS: !!(config.targetPossibleSets && config.targetPossibleSets > 0),
-    TM: !!config.trainingMode
+    TM: config.gameMode === GAME_MODES.TRAINING,
+    JN: config.gameMode === GAME_MODES.JUNIOR
   };
   startGameModifiers = { ...currentMods };
   usedGameModifiers = { ...currentMods };
@@ -503,7 +525,7 @@ function resetStats() {
 
   syncGameModifiers();
 
-  document.getElementById('timer').innerText = "00:00";
+  document.getElementById('timer').innerText = config.showTimerMs ? formatTimeTenths(0) : formatTime(0);
   currentExtraStats = null;
 }
 
@@ -550,7 +572,8 @@ function handleGameFinish(isAuto = false) {
 
   currentExtraStats = {
     elapsedMs, dateStr, platform, isAutoFinish: isAuto,
-    mistakes, shuffleExCount,
+    mistakes, shuffleExCount, badShuffles,
+    gameMode: config.gameMode,
     possibleHistory: [...possibleHistory],
     timestamps: [...setTimestamps],
     modifiers: finalModifiers
