@@ -64,7 +64,7 @@ let trainingLastDebugMeta = null;
 let trainingSessionFindRecords = [];
 
 function isTrainingModeActive() {
-  return !!(config && config.trainingMode);
+  return !!(config && config.gameMode === GAME_MODES.TRAINING);
 }
 
 function cloneBoardSnapshot(boardArr) {
@@ -278,6 +278,7 @@ function trainingHandleSolvedBoard(findTimeMs) {
 }
 
 function trainingRecordSetIfNeeded(findTimeMs) {
+  if (isJuniorModeActive()) return;
   const snapshot = cloneBoardSnapshot(board);
   const sourceType = isTrainingModeActive()
     ? (trainingCurrentEntry?.type || 'unknown')
@@ -287,6 +288,10 @@ function trainingRecordSetIfNeeded(findTimeMs) {
 
 function trainingFinalizeSessionIfNeeded() {
   const isTraining = isTrainingModeActive();
+  if (isJuniorModeActive()) {
+    trainingSessionFindRecords = [];
+    return;
+  }
   if (typeof collectedSets === 'number' && collectedSets < 8) {
     trainingSessionFindRecords = [];
     return;
