@@ -21,11 +21,7 @@ function createDeck(rng) {
   return d;
 }
 
-let lastDebugFrameTime = null;
-let lastDebugOutputTime = 0;
-let currentPeakDelayMs = 0;
-
-function setDebugTPSIters(iters, label) {
+function renderDebugTPSInfo(iters, label) {
   const el = document.getElementById('debug-tps-iters');
   if (!el) return;
   if (iters == null || iters === undefined) {
@@ -33,6 +29,22 @@ function setDebugTPSIters(iters, label) {
     return;
   }
   el.textContent = label ? iters + ' iter (' + label + ')' : iters + ' iter';
+}
+
+function setDebugTPSIters(iters, label) {
+  lastDebugTPSIters = (iters == null || iters === undefined) ? null : iters;
+  lastDebugTPSLabel = label ? label : null;
+  if (!config.debugMode) return;
+  renderDebugTPSInfo(iters, label);
+}
+
+function restoreDebugTPSInfo() {
+  if (!config.debugMode) return;
+  renderDebugTPSInfo(lastDebugTPSIters, lastDebugTPSLabel);
+}
+
+function clearDebugTPSUI() {
+  renderDebugTPSInfo(null, null);
 }
 
 function runDebugFPSLoop() {
@@ -61,14 +73,14 @@ function runDebugFPSLoop() {
 }
 
 function applyDebugHighlight() {
-  if (!config.debugMode) return;
   const boardEl = document.getElementById('board');
   if (!boardEl) return;
+  const shouldHighlight = config.debugMode && Array.isArray(debugHighlightSet) && debugHighlightSet.length > 0;
   for (let i = 0; i < 12; i++) {
     const slot = boardEl.children[i];
     const card = slot?.querySelector('.card');
     if (card) {
-      const inSet = debugHighlightSet && debugHighlightSet.includes(i);
+      const inSet = shouldHighlight && debugHighlightSet.includes(i);
       card.classList.toggle('debug-set-highlight', !!inSet);
     }
   }
@@ -240,14 +252,14 @@ async function handleCardSelect(idx, el) {
             setDebugTPSIters(result.iterations, 'replenish ' + label);
           }
         } else {
-          if (config.debugMode) setDebugTPSIters(null);
+          setDebugTPSIters(null);
           sIdx.forEach(i => {
             board[i] = deck.length > 0 ? deck.pop() : null;
             updateSlot(i, true);
           });
         }
       } else {
-        if (config.debugMode) setDebugTPSIters(null);
+        setDebugTPSIters(null);
         sIdx.forEach(i => {
           board[i] = deck.length > 0 ? deck.pop() : null;
           updateSlot(i, true);
@@ -308,7 +320,7 @@ function handleShuffleClick() {
 function shuffleExistingCards() {
   if (isAnimating || isGameOver) return;
   if (isTrainingModeActive()) return;
-  if (config.debugMode) setDebugTPSIters(null);
+  setDebugTPSIters(null);
   isAnimating = true;
   shuffleExCount++;
   const shuffleRng = gameSeededRng || Math.random;
@@ -332,7 +344,7 @@ function shuffleExistingCards() {
 function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false) {
   if (isAnimating) return;
   if (isTrainingModeActive()) return;
-  if (config.debugMode) setDebugTPSIters(null);
+  setDebugTPSIters(null);
 
   if (isAuto && skipAnimOut) {
     isAnimating = true;
@@ -343,7 +355,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     board = deck.splice(0, 12);
     if (config.targetPossibleSets) {
       const iters = runPendulumBalancing();
-      if (config.debugMode && iters > 0) setDebugTPSIters(iters);
+      if (iters > 0) setDebugTPSIters(iters);
     }
     selected = [];
 
@@ -364,7 +376,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     board = deck.splice(0, 12);
     if (config.targetPossibleSets) {
       const iters = runPendulumBalancing();
-      if (config.debugMode && iters > 0) setDebugTPSIters(iters);
+      if (iters > 0) setDebugTPSIters(iters);
     }
     selected = [];
 
@@ -388,7 +400,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
       board = deck.splice(0, 12);
       if (config.targetPossibleSets) {
         const iters = runPendulumBalancing();
-        if (config.debugMode && iters > 0) setDebugTPSIters(iters);
+        if (iters > 0) setDebugTPSIters(iters);
       }
       selected = [];
 
@@ -416,7 +428,7 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     board = deck.splice(0, 12);
     if (config.targetPossibleSets) {
       const iters = runPendulumBalancing();
-      if (config.debugMode && iters > 0) setDebugTPSIters(iters);
+      if (iters > 0) setDebugTPSIters(iters);
     }
     selected = [];
 
@@ -446,7 +458,7 @@ function saveRecord(extra) {
 }
 
 function initNewDeckAndBoard() {
-  if (config.debugMode) setDebugTPSIters(null);
+  setDebugTPSIters(null);
   if (isTrainingModeActive()) {
     trainingInitNewBoard();
     return;
@@ -460,7 +472,7 @@ function initNewDeckAndBoard() {
   board = deck.splice(0, 12);
   if (config.targetPossibleSets) {
     const iters = runPendulumBalancing();
-    if (config.debugMode && iters > 0) setDebugTPSIters(iters);
+    if (iters > 0) setDebugTPSIters(iters);
   }
   selected = [];
   for (let i = 0; i < 12; i++) updateSlot(i, false);
