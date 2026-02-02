@@ -192,7 +192,7 @@ async function fetchOnlineLeaderboard() {
 
 function modifiersToStr(mods) {
   if (!mods || typeof mods !== 'object') return '';
-  var keys = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM', 'TPS', 'TM'];
+  var keys = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM', 'TPS'];
   return keys.filter(function (k) { return mods[k]; }).join(',');
 }
 
@@ -518,6 +518,7 @@ async function renderOnlineRecords(container) {
         dateStr: dateStr || '',
         platform: 'Online',
         isAutoFinish: !!isFin,
+        badShuffles: Number(bsVal) || 0,
         mistakes: 0,
         shuffleExCount: 0,
         possibleHistory: [],
