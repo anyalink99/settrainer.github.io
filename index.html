@@ -50,9 +50,11 @@
     </div>
 
     <div class="settings-edge-container">
-        <div class="settings-btn" onpointerdown="toggleSettingsModal(true)" data-svg-icon="SETTINGS"></div>
-        <div class="text-gray-300 text-sm font-medium">Sets: <span id="current-score" class="text-pink-400 font-bold">0</span></div>
-        <div class="text-gray-400 text-xs"><span id="deck-label">Cards</span>: <span id="deck-count">0</span></div>
+        <div class="settings-btn" onpointerdown="toggleSettingsPanel(true)" data-svg-icon="SETTINGS"></div>
+        <div id="sets-cards-display">
+            <div class="text-gray-300 text-sm font-medium">Sets: <span id="current-score" class="text-pink-400 font-bold">0</span></div>
+            <div class="text-gray-400 text-xs"><span id="deck-label">Cards</span>: <span id="deck-count">0</span></div>
+        </div>
     </div>
 
     <div class="fixed-core">
@@ -68,177 +70,244 @@
         </div>
     </div>
 
-    <div id="settings-modal" class="overlay">
-        <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Settings</h2>
-        <div class="w-full flex flex-col items-center">
-          <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Appearance</span>
-              <button onpointerdown="openBoardAppearanceModal()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Edit Board</button>
-          </div>
-          <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Show Possible</span>
-              <div id="toggle-possible" class="toggle-switch" onpointerdown="toggleOption('showPossible')"></div>
-          </div>
-          <div class="settings-row">
-              <span class="text-sm font-bold uppercase text-[12px]">Show Sets Per Minute</span>
-              <div id="toggle-spm" class="toggle-switch" onpointerdown="toggleOption('showSPM')"></div>
-          </div>
-          <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Show Timer</span>
-              <div id="toggle-timer" class="toggle-switch" onpointerdown="toggleOption('showTimer')"></div>
-          </div>
-          <div class="settings-row desktop-only mt-4">
-              <span class="text-sm font-bold uppercase">Controls</span>
-              <button onpointerdown="openKeybindsModal()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Edit Keybinds</button>
-          </div>
-
-          <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Online</span>
-              <button onpointerdown="openOnlineSettingsModal()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Settings</button>
-          </div>
-
-          <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Extra</span>
-              <button onpointerdown="openAdvancedModal()" class="btn-action !w-32 !py-1 !text-[15px] !shadow-none !rounded-lg">Advanced</button>
-          </div>
-      </div>
-      <button onpointerdown="toggleSettingsModal(false)" class="btn-action !w-64 text-xl py-4 uppercase mt-8">Close</button>
-    </div>
-
-    <div id="board-appearance-modal" class="overlay">
-        <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Board</h2>
-        <div id="board-appearance-content" class="board-appearance-content w-full flex flex-col items-center max-w-[320px]">
-          <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Shapes</span>
-              <div class="flex gap-2">
-                  <div id="btn-std" class="preset-chip" onpointerdown="updatePreset('standard')">Standard</div>
-                  <div id="btn-cls" class="preset-chip" onpointerdown="updatePreset('classic')">Classic</div>
-              </div>
-          </div>
-          <div class="settings-row">
-              <span class="text-sm font-bold uppercase">Orientation</span>
-              <div class="flex gap-2">
-                  <div id="btn-vertical" class="preset-chip" onpointerdown="updateBoardOrientation('vertical')">Vertical</div>
-                  <div id="btn-horizontal" class="preset-chip" onpointerdown="updateBoardOrientation('horizontal')">Horizontal</div>
-              </div>
-          </div>
-          <div class="settings-row !flex-col !items-start gap-3 !h-auto py-4">
-              <div class="flex justify-between w-full">
-                  <span class="text-sm font-bold uppercase">Shape size</span>
-                  <span id="shape-size-val" class="text-sm font-bold font-sans text-pink-400">90%</span>
-              </div>
-              <input type="range" id="shape-size-range" min="0.7" max="1" step="0.01"
-                     oninput="updateShapeSizeRatio(this.value)">
-          </div>
-          <div class="settings-row !flex-col !items-start gap-3 !h-auto py-4">
-              <div class="flex justify-between w-full">
-                  <span class="text-sm font-bold uppercase">Animation Speed</span>
-                  <span id="speed-val" class="text-sm font-bold font-sans text-pink-400">1.0x</span>
-              </div>
-              <input type="range" id="speed-range" min="0.1" max="2.0" step="0.1"
-                     oninput="updateSpeedModifier(this.value)">
-          </div>
-          <div class="board-preview-row" id="board-preview-wrap">
-              <div class="board-preview-slot">
-                  <div id="board-preview-card-0" class="board-preview-card"></div>
-                  <div class="board-preview-color-wrap">
-                      <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 1</span>
-                      <button type="button" id="board-preview-swatch-0" class="board-preview-swatch" data-color-index="0" aria-label="Choose color 1"></button>
-                  </div>
-              </div>
-              <div class="board-preview-slot">
-                  <div id="board-preview-card-1" class="board-preview-card"></div>
-                  <div class="board-preview-color-wrap">
-                      <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 2</span>
-                      <button type="button" id="board-preview-swatch-1" class="board-preview-swatch" data-color-index="1" aria-label="Choose color 2"></button>
-                  </div>
-              </div>
-              <div class="board-preview-slot">
-                  <div id="board-preview-card-2" class="board-preview-card"></div>
-                  <div class="board-preview-color-wrap">
-                      <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 3</span>
-                      <button type="button" id="board-preview-swatch-2" class="board-preview-swatch" data-color-index="2" aria-label="Choose color 3"></button>
-                  </div>
-              </div>
-          </div>
-          <div id="board-picker-backdrop" class="board-picker-backdrop" hidden aria-hidden="true"></div>
-          <div id="board-color-picker-popover" class="board-color-picker-popover" hidden>
-              <div id="hex-picker-mount" class="hex-picker-mount"></div>
-              <input type="text" id="hex-input" class="hex-input" placeholder="#ffffff" maxlength="9" autocomplete="off" />
-              <button type="button" class="btn-action !w-full !py-2 text-sm mt-2" id="board-picker-done">Done</button>
-          </div>
-        </div>
-        <div class="flex gap-2 mt-4">
-            <button onpointerdown="handleBoardAppearanceReset()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
-            <button onpointerdown="closeBoardAppearanceModal()" class="btn-action !w-32 text-sm">Done</button>
-        </div>
-    </div>
-
-    <div id="advanced-modal" class="overlay">
-        <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Advanced</h2>
-        <div class="w-full flex flex-col items-center">
-
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Auto Shuffle</span>
-                <div id="toggle-auto" class="toggle-switch" onpointerdown="toggleOption('autoShuffle')"></div>
+    <div id="settings-panel" class="settings-panel" aria-hidden="true">
+        <div class="settings-top">
+            <div class="settings-header">
+                <div class="settings-title">Settings</div>
             </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase text-[12px]">Prevent Bad Shuffle</span>
-                <div id="toggle-prevent" class="toggle-switch" onpointerdown="toggleOption('preventBadShuffle')"></div>
-            </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Synchronized Seed</span>
-                <div id="toggle-seed" class="toggle-switch" onpointerdown="toggleOption('synchronizedSeed')"></div>
-            </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
-                <div id="toggle-auto-select" class="toggle-switch" onpointerdown="toggleOption('autoSelectThird')"></div>
-            </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Record min sets</span>
-                <input type="number" id="min-sets-input" class="input-mini" min="0" max="27" onchange="updateMinSets(this.value)">
-            </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase text-[12px]">Target Possible Sets</span>
-                <input type="number" id="target-set-x-input" class="input-mini" min="0" max="14" placeholder=" " onchange="updateTargetPossibleSets(this.value)">
-            </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Training Mode</span>
-                <div id="toggle-training-mode" class="toggle-switch" onpointerdown="toggleOption('trainingMode')"></div>
-            </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Debug mode</span>
-                <div id="toggle-debug" class="toggle-switch" onpointerdown="toggleOption('debugMode')"></div>
+            <div class="settings-tabs" role="tablist" aria-label="Settings categories">
+                <button class="settings-tab" data-tab="gamemodes" onpointerdown="openSettingsTab('gamemodes')" aria-label="Gamemodes" title="Gamemodes">
+                    <span class="settings-tab-icon" data-svg-icon="GAMEMODES"></span>
+                </button>
+                <button class="settings-tab" data-tab="board" onpointerdown="openSettingsTab('board')" aria-label="Board" title="Board">
+                    <span class="settings-tab-icon" data-svg-icon="BOARD"></span>
+                </button>
+                <button class="settings-tab" data-tab="metrics" onpointerdown="openSettingsTab('metrics')" aria-label="Metrics" title="Metrics">
+                    <span class="settings-tab-icon" data-svg-icon="METRICS"></span>
+                </button>
+                <button class="settings-tab desktop-only" data-tab="keybinds" onpointerdown="openSettingsTab('keybinds')" aria-label="Keybinds" title="Keybinds">
+                    <span class="settings-tab-icon" data-svg-icon="KEYBINDS"></span>
+                </button>
+                <button class="settings-tab" data-tab="online" onpointerdown="openSettingsTab('online')" aria-label="Online" title="Online">
+                    <span class="settings-tab-icon" data-svg-icon="GLOBE"></span>
+                </button>
+                <button class="settings-tab" data-tab="advanced" onpointerdown="openSettingsTab('advanced')" aria-label="Advanced" title="Advanced">
+                    <span class="settings-tab-icon" data-svg-icon="ADVANCED"></span>
+                </button>
             </div>
         </div>
-        <button onpointerdown="closeAdvancedModal()" class="btn-action !w-64 text-xl py-4 uppercase mt-8">Done</button>
-    </div>
-
-    <div id="keybinds-modal" class="overlay">
-        <h2 class="text-2xl font-black mb-4 text-pink-400 uppercase tracking-widest">Keybinds</h2>
-        <p class="text-[10px] text-gray-400 mb-4 uppercase text-center">Click a cell then press any key to rebind</p>
-
-        <div class="w-full max-w-[320px]">
-            <div class="kb-grid mb-4" id="kb-board-grid"></div>
-            <div class="flex flex-col gap-1">
-                <div class="settings-row !mb-1 !py-2 !rounded-xl">
-                    <span class="text-sm font-bold uppercase">Shuffle Deck</span>
-                    <div id="kb-shuffle" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onpointerdown="startKeyCapture('shuffle')"></div>
+        <div class="settings-scroll">
+            <section class="settings-section" data-settings-panel="gamemodes">
+                <h3 class="settings-section-title">Gamemodes</h3>
+                <div class="w-full flex flex-col items-center">
+                    <div class="gamemode-grid">
+                        <div id="gamemode-normal" class="gamemode-card" onpointerdown="setGameMode('normal')">
+                            <div class="gamemode-title">Normal</div>
+                            <div class="gamemode-desc">Full deck and standard rules.</div>
+                        </div>
+                        <div id="gamemode-training" class="gamemode-card" onpointerdown="setGameMode('training')">
+                            <div class="gamemode-title">Training</div>
+                            <div class="gamemode-desc">Replay curated boards to drill tough situations.</div>
+                        </div>
+                        <div id="gamemode-junior" class="gamemode-card" onpointerdown="setGameMode('junior')">
+                            <div class="gamemode-title">Junior</div>
+                            <div class="gamemode-desc">27 cards, Solid fill only, simplified sets.</div>
+                        </div>
+                        <div class="gamemode-card is-disabled" aria-disabled="true">
+                            <div class="gamemode-title">Coming Soon</div>
+                            <div class="gamemode-desc">New mode is on the way.</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="settings-row !mb-1 !py-2 !rounded-xl">
-                    <span class="text-sm font-bold uppercase">Shuffle Board</span>
-                    <div id="kb-shuffle-ex" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onpointerdown="startKeyCapture('shuffleEx')"></div>
+                <div class="settings-actions settings-reset-btn">
+                    <button onpointerdown="toggleSettingsPanel(false)" class="btn-action settings-close-btn !w-48 text-sm uppercase">Close Settings</button>
                 </div>
-                <div class="settings-row !mb-1 !py-2 !rounded-xl">
-                    <span class="text-sm font-bold uppercase">Finish Game</span>
-                    <div id="kb-finish" class="kb-cell !min-w-[80px] !h-9 !bg-[#2d2631]" onpointerdown="startKeyCapture('finish')"></div>
-                </div>
-            </div>
-        </div>
+            </section>
 
-        <div class="flex gap-2 mt-4">
-            <button onpointerdown="handleKeybindsReset()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
-            <button onpointerdown="closeKeybindsModal()" class="btn-action !w-32 text-sm">Done</button>
+            <section class="settings-section" data-settings-panel="board">
+                <h3 class="settings-section-title">Board</h3>
+                <div id="board-appearance-content" class="board-appearance-content w-full flex flex-col items-center max-w-[320px]">
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase">Shapes</span>
+                        <div class="flex gap-2">
+                            <div id="btn-std" class="preset-chip" onpointerdown="updatePreset('standard')">Standard</div>
+                            <div id="btn-cls" class="preset-chip" onpointerdown="updatePreset('classic')">Classic</div>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase">Orientation</span>
+                        <div class="flex gap-2">
+                            <div id="btn-vertical" class="preset-chip" onpointerdown="updateBoardOrientation('vertical')">Vertical</div>
+                            <div id="btn-horizontal" class="preset-chip" onpointerdown="updateBoardOrientation('horizontal')">Horizontal</div>
+                        </div>
+                    </div>
+                    <div class="settings-row !flex-col !items-start gap-3 !h-auto py-4">
+                        <div class="flex justify-between w-full">
+                            <span class="text-sm font-bold uppercase">Shape size</span>
+                            <span id="shape-size-val" class="text-sm font-bold font-sans text-pink-400">90%</span>
+                        </div>
+                        <input type="range" id="shape-size-range" min="0.7" max="1" step="0.01"
+                               oninput="updateShapeSizeRatio(this.value)">
+                    </div>
+                    <div class="settings-row !flex-col !items-start gap-3 !h-auto py-4">
+                        <div class="flex justify-between w-full">
+                            <span class="text-sm font-bold uppercase">Animation Speed</span>
+                            <span id="speed-val" class="text-sm font-bold font-sans text-pink-400">1.0x</span>
+                        </div>
+                        <input type="range" id="speed-range" min="0.1" max="2.0" step="0.1"
+                               oninput="updateSpeedModifier(this.value)">
+                    </div>
+                    <div class="board-preview-row" id="board-preview-wrap">
+                        <div class="board-preview-slot">
+                            <div id="board-preview-card-0" class="board-preview-card"></div>
+                            <div class="board-preview-color-wrap">
+                                <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 1</span>
+                                <button type="button" id="board-preview-swatch-0" class="board-preview-swatch" data-color-index="0" aria-label="Choose color 1"></button>
+                            </div>
+                        </div>
+                        <div class="board-preview-slot">
+                            <div id="board-preview-card-1" class="board-preview-card"></div>
+                            <div class="board-preview-color-wrap">
+                                <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 2</span>
+                                <button type="button" id="board-preview-swatch-1" class="board-preview-swatch" data-color-index="1" aria-label="Choose color 2"></button>
+                            </div>
+                        </div>
+                        <div class="board-preview-slot">
+                            <div id="board-preview-card-2" class="board-preview-card"></div>
+                            <div class="board-preview-color-wrap">
+                                <span class="text-[10px] uppercase text-gray-400 mb-1 block">Color 3</span>
+                                <button type="button" id="board-preview-swatch-2" class="board-preview-swatch" data-color-index="2" aria-label="Choose color 3"></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="board-picker-backdrop" class="board-picker-backdrop" hidden aria-hidden="true"></div>
+                    <div id="board-color-picker-popover" class="board-color-picker-popover" hidden>
+                        <div id="hex-picker-mount" class="hex-picker-mount"></div>
+                        <input type="text" id="hex-input" class="hex-input" placeholder="#ffffff" maxlength="9" autocomplete="off" />
+                        <button type="button" class="btn-action !w-full !py-2 text-sm mt-2" id="board-picker-done">Done</button>
+                    </div>
+                </div>
+                <div class="settings-actions settings-reset-btn">
+                    <button onpointerdown="handleBoardAppearanceReset()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
+                    <button onpointerdown="toggleSettingsPanel(false)" class="btn-action settings-close-btn !w-32 text-sm uppercase">Close</button>
+                </div>
+            </section>
+
+            <section class="settings-section" data-settings-panel="metrics">
+                <h3 class="settings-section-title">Metrics</h3>
+                <div class="w-full flex flex-col items-center">
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase">Show Possible</span>
+                        <div id="toggle-possible" class="toggle-switch" onpointerdown="toggleOption('showPossible')"></div>
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase text-[12px]">Show Sets Per Minute</span>
+                        <div id="toggle-spm" class="toggle-switch" onpointerdown="toggleOption('showSPM')"></div>
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase">Show Timer</span>
+                        <div id="toggle-timer" class="toggle-switch" onpointerdown="toggleOption('showTimer')"></div>
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase text-[12px]">Show Tenths</span>
+                        <div id="toggle-timer-ms" class="toggle-switch" onpointerdown="toggleTimerMs()"></div>
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase text-[12px]">Show Sets & Cards</span>
+                        <div id="toggle-sets-cards" class="toggle-switch" onpointerdown="toggleOption('showSetsCards')"></div>
+                    </div>
+                </div>
+                <div class="settings-actions settings-reset-btn">
+                    <button onpointerdown="handleMetricsReset()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
+                    <button onpointerdown="toggleSettingsPanel(false)" class="btn-action settings-close-btn !w-32 text-sm uppercase">Close</button>
+                </div>
+            </section>
+
+            <section class="settings-section settings-section-compact desktop-only" data-settings-panel="keybinds">
+                <h3 class="settings-section-title">Keybinds</h3>
+                <p class="text-[10px] text-gray-400 mb-0 uppercase text-center">Click a cell then press any key to rebind</p>
+                <div class="w-full max-w-[320px]">
+                    <div class="kb-grid mb-2" id="kb-board-grid"></div>
+                    <div class="flex flex-col gap-1">
+                        <div class="settings-row !mb-1 !py-2 !rounded-xl">
+                            <span class="text-sm font-bold uppercase">Shuffle Deck</span>
+                            <div id="kb-shuffle" class="kb-cell !min-w-[92px] !h-9 !bg-[#2d2631]" onpointerdown="startKeyCapture('shuffle')"></div>
+                        </div>
+                        <div class="settings-row !mb-1 !py-2 !rounded-xl">
+                            <span class="text-sm font-bold uppercase">Shuffle Board</span>
+                            <div id="kb-shuffle-ex" class="kb-cell !min-w-[92px] !h-9 !bg-[#2d2631]" onpointerdown="startKeyCapture('shuffleEx')"></div>
+                        </div>
+                        <div class="settings-row !mb-1 !py-2 !rounded-xl">
+                            <span class="text-sm font-bold uppercase">Finish Game</span>
+                            <div id="kb-finish" class="kb-cell !min-w-[92px] !h-9 !bg-[#2d2631]" onpointerdown="startKeyCapture('finish')"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-actions settings-reset-btn settings-reset-btn--compact">
+                    <button onpointerdown="handleKeybindsReset()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
+                    <button onpointerdown="toggleSettingsPanel(false)" class="btn-action settings-close-btn !w-32 text-sm uppercase">Close</button>
+                </div>
+            </section>
+
+            <section class="settings-section" data-settings-panel="online">
+                <h3 class="settings-section-title">Online</h3>
+                <div class="w-full flex flex-col items-center max-w-[320px]">
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase">Nickname</span>
+                        <input type="text" id="online-settings-nickname" class="input-online" style="width: 167px;" placeholder="Your nickname" maxlength="16" />
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase text-[12px]">Best result per player</span>
+                        <div id="toggle-online-best-per-player" class="toggle-switch" onpointerdown="toggleOnlineBestPerPlayer()"></div>
+                    </div>
+                    <div class="settings-row !flex-col !items-stretch !h-auto gap-2">
+                        <span class="text-sm font-bold uppercase">Show records only from</span>
+                        <input type="text" id="online-settings-filter" class="input-online !w-full" placeholder="nick1, nick2, … Leave empty for all." />
+                    </div>
+                </div>
+                <div class="settings-actions settings-reset-btn">
+                    <button onpointerdown="handleOnlineReset()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
+                    <button onpointerdown="toggleSettingsPanel(false)" class="btn-action settings-close-btn !w-32 text-sm uppercase">Close</button>
+                </div>
+            </section>
+
+            <section class="settings-section" data-settings-panel="advanced">
+                <h3 class="settings-section-title">Advanced</h3>
+                <div class="w-full flex flex-col items-center">
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase">Auto Shuffle</span>
+                        <div id="toggle-auto" class="toggle-switch" onpointerdown="toggleOption('autoShuffle')"></div>
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase text-[12px]">Prevent Bad Shuffle</span>
+                        <div id="toggle-prevent" class="toggle-switch" onpointerdown="toggleOption('preventBadShuffle')"></div>
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase">Synchronized Seed</span>
+                        <div id="toggle-seed" class="toggle-switch" onpointerdown="toggleOption('synchronizedSeed')"></div>
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase">Auto Select 3rd</span>
+                        <div id="toggle-auto-select" class="toggle-switch" onpointerdown="toggleOption('autoSelectThird')"></div>
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase">Record min sets</span>
+                        <input type="number" id="min-sets-input" class="input-mini" min="0" max="27" onchange="updateMinSets(this.value)">
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase text-[12px]">Target Possible Sets</span>
+                        <input type="number" id="target-set-x-input" class="input-mini" min="0" max="14" placeholder=" " onchange="updateTargetPossibleSets(this.value)">
+                    </div>
+                    <div class="settings-row">
+                        <span class="text-sm font-bold uppercase">Debug mode</span>
+                        <div id="toggle-debug" class="toggle-switch" onpointerdown="toggleOption('debugMode')"></div>
+                    </div>
+                </div>
+                <div class="settings-actions settings-reset-btn">
+                    <button onpointerdown="handleAdvancedReset()" class="btn-action !w-32 !bg-gray-600 !shadow-[#444] text-sm">Reset All</button>
+                    <button onpointerdown="toggleSettingsPanel(false)" class="btn-action settings-close-btn !w-32 text-sm uppercase">Close</button>
+                </div>
+            </section>
         </div>
     </div>
 
@@ -248,16 +317,16 @@
             <div id="export-header" class="text-[10px] text-pink-400/50 font-black uppercase tracking-[0.2em] mb-1 export-only">Set Pro Trainer</div>
             <h2 id="result-title" class="text-4xl font-black mb-6 text-pink-400 uppercase tracking-widest">Result</h2>
             <div class="stat-grid mb-4">
-                <div class="stat-card">
-                    <div class="flex justify-between items-center w-full mb-1">
-                        <span class="stat-label">Sets</span>
-                        <span class="stat-label">BS</span>
+                    <div class="stat-card">
+                        <div class="flex justify-between items-center w-full mb-1">
+                            <span class="stat-label">Sets</span>
+                            <span class="stat-label">GM</span>
+                        </div>
+                        <div class="flex justify-between items-baseline w-full mt-auto">
+                            <span id="final-score" class="stat-value large"></span>
+                            <span id="final-game-mode" class="stat-value medium">NO</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between items-baseline w-full mt-auto">
-                        <span id="final-score" class="stat-value large"></span>
-                        <span id="final-bad-shuffles" class="stat-value medium text-red-500">0</span>
-                    </div>
-                </div>
                 <div class="stat-card">
                     <span class="stat-label">Total Time</span>
                     <span id="final-time" class="stat-value medium mt-auto"></span>
@@ -311,24 +380,6 @@
         </div>
     </div>
 
-    <div id="online-settings-modal" class="overlay">
-        <h2 class="text-2xl font-black mb-6 text-pink-400 uppercase tracking-widest">Online</h2>
-        <div class="w-full flex flex-col items-center max-w-[320px]">
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase">Nickname</span>
-                <input type="text" id="online-settings-nickname" class="input-online" style="width: 167px;" placeholder="Your nickname" maxlength="16" />
-            </div>
-            <div class="settings-row">
-                <span class="text-sm font-bold uppercase text-[12px]">Best result per player</span>
-                <div id="toggle-online-best-per-player" class="toggle-switch" onpointerdown="toggleOnlineBestPerPlayer()"></div>
-            </div>
-            <div class="settings-row !flex-col !items-stretch !h-auto gap-2">
-                <span class="text-sm font-bold uppercase">Show records only from</span>
-                <input type="text" id="online-settings-filter" class="input-online !w-full" placeholder="nick1, nick2, … Leave empty for all." />
-            </div>
-        </div>
-        <button onpointerdown="closeOnlineSettingsModal()" class="btn-action !w-64 text-xl py-4 uppercase mt-8">Done</button>
-    </div>
 
     <div id="online-records-modal" class="overlay">
         <div class="records-modal-inner">
