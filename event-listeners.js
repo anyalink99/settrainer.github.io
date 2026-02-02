@@ -1,7 +1,11 @@
-let touchStartY = 0;
 const swipeZone = document.getElementById('swipe-zone');
 const cursorHideClass = 'cursor-hidden';
+let touchStartY = 0;
 let isCursorHidden = false;
+let holdPossibleActive = false;
+let holdDebugActive = false;
+let holdPossiblePrev = null;
+let holdDebugPrev = null;
 
 const hideCursorOnKeyboard = () => {
   if (!document.body) return;
@@ -15,6 +19,64 @@ const showCursorFromMouse = () => {
   if (!document.body || !isCursorHidden) return;
   document.body.classList.remove(cursorHideClass);
   isCursorHidden = false;
+};
+
+const enableShowPossibleHold = () => {
+  if (holdPossibleActive) return;
+  holdPossibleActive = true;
+  holdPossiblePrev = config.showPossible;
+  if (!config.showPossible) {
+    config.showPossible = true;
+    if (!isGameOver) markModUsed('SP');
+  }
+  syncSettingsUI();
+  updateUI();
+};
+
+const disableShowPossibleHold = () => {
+  if (!holdPossibleActive) return;
+  holdPossibleActive = false;
+  if (holdPossiblePrev !== null && config.showPossible !== holdPossiblePrev) {
+    config.showPossible = holdPossiblePrev;
+  }
+  holdPossiblePrev = null;
+  syncSettingsUI();
+  updateUI();
+};
+
+const enableDebugHold = () => {
+  if (holdDebugActive) return;
+  holdDebugActive = true;
+  holdDebugPrev = config.debugMode;
+  if (!config.debugMode) {
+    config.debugMode = true;
+    if (!isGameOver) markModUsed('DM');
+  }
+  if (config.debugMode && isTrainingModeActive()) {
+    trainingRefreshDebugInfo();
+  } else if (config.debugMode) {
+    restoreDebugTPSInfo();
+  }
+  syncSettingsUI();
+  updateUI();
+};
+
+const disableDebugHold = () => {
+  if (!holdDebugActive) return;
+  holdDebugActive = false;
+  if (holdDebugPrev !== null && config.debugMode !== holdDebugPrev) {
+    config.debugMode = holdDebugPrev;
+  }
+  holdDebugPrev = null;
+  if (!config.debugMode) {
+    clearDebugTPSUI();
+  } else if (isTrainingModeActive()) {
+    trainingRefreshDebugInfo();
+  } else {
+    restoreDebugTPSInfo();
+  }
+  syncSettingsUI();
+  updateUI();
 };
 
 window.addEventListener('mousemove', showCursorFromMouse, { passive: true });
@@ -68,6 +130,14 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  if (e.code === 'Backquote') {
+    e.preventDefault();
+    enableShowPossibleHold();
+  } else if (e.code === 'ControlRight') {
+    e.preventDefault();
+    enableDebugHold();
+  }
+
   if (isGameOver) {
     if (key === binds.finish && key !== '') {
       e.preventDefault();
@@ -97,5 +167,14 @@ window.addEventListener('keydown', (e) => {
       const cardEl = slot?.querySelector('.card');
       if (cardEl) handleCardSelect(boardIdx, cardEl);
     }
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Backquote') {
+    disableShowPossibleHold();
+  } else if (e.code === 'ControlRight') {
+    disableDebugHold();
   }
 });
