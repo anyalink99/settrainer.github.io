@@ -1,7 +1,7 @@
 setInterval(() => {
   if (!isGameOver && !document.querySelector('.overlay.show')) {
     const elapsedMs = (Date.now() - startTime);
-    document.getElementById('timer').innerText = formatTime(elapsedMs, false);
+    document.getElementById('timer').innerText = config.showTimerMs ? formatTimeTenths(elapsedMs) : formatTime(elapsedMs);
     updateLiveSPM();
   }
-}, 1000);
+}, 100);
