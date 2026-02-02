@@ -7,11 +7,18 @@ function syncSettingsUI() {
   document.getElementById('toggle-spm').classList.toggle('active', config.showSPM);
   const toggleDebug = document.getElementById('toggle-debug');
   if (toggleDebug) toggleDebug.classList.toggle('active', config.debugMode);
-  const toggleTraining = document.getElementById('toggle-training-mode');
-  if (toggleTraining) toggleTraining.classList.toggle('active', config.trainingMode);
   document.getElementById('live-spm').style.display = config.showSPM ? 'block' : 'none';
   if (config.showSPM) updateLiveSPM();
   document.getElementById('toggle-timer').classList.toggle('active', config.showTimer);
+  const toggleTimerMs = document.getElementById('toggle-timer-ms');
+  if (toggleTimerMs) {
+    toggleTimerMs.classList.toggle('active', config.showTimerMs);
+    toggleTimerMs.classList.toggle('disabled', !config.showTimer);
+  }
+  const toggleSetsCards = document.getElementById('toggle-sets-cards');
+  if (toggleSetsCards) toggleSetsCards.classList.toggle('active', config.showSetsCards);
+  const setsCardsDisplay = document.getElementById('sets-cards-display');
+  if (setsCardsDisplay) setsCardsDisplay.style.display = config.showSetsCards ? '' : 'none';
   document.getElementById('timer').style.display = config.showTimer ? '' : 'none';
 
   document.getElementById('toggle-auto').classList.toggle('active', config.autoShuffle);
@@ -48,6 +55,13 @@ function syncSettingsUI() {
   const shapeSizeVal = document.getElementById('shape-size-val');
   if (shapeSizeRange) shapeSizeRange.value = config.shapeSizeRatio;
   if (shapeSizeVal) shapeSizeVal.textContent = Math.round(config.shapeSizeRatio * 100) + '%';
+
+  const modeNormal = document.getElementById('gamemode-normal');
+  const modeTraining = document.getElementById('gamemode-training');
+  const modeJunior = document.getElementById('gamemode-junior');
+  if (modeNormal) modeNormal.classList.toggle('active', config.gameMode === GAME_MODES.NORMAL);
+  if (modeTraining) modeTraining.classList.toggle('active', config.gameMode === GAME_MODES.TRAINING);
+  if (modeJunior) modeJunior.classList.toggle('active', config.gameMode === GAME_MODES.JUNIOR);
 }
 
 function updatePreset(p) {
@@ -82,8 +96,7 @@ function toggleOption(key) {
     'preventBadShuffle': 'PBS',
     'autoSelectThird': 'A3RD',
     'synchronizedSeed': 'SS',
-    'debugMode': 'DM',
-    'trainingMode': 'TM'
+    'debugMode': 'DM'
   };
 
   const modShortName = keyMap[key];
@@ -108,13 +121,36 @@ function toggleOption(key) {
       restoreDebugTPSInfo();
     }
     updateUI();
-  } else if (key === 'trainingMode') {
-    initNewDeckAndBoard();
-    resetStats();
-    updateUI();
   } else {
     updateUI();
   }
+}
+
+function setGameMode(mode) {
+  if (!GAME_MODE_IDS.includes(mode)) return;
+  if (config.gameMode === mode) return;
+  config.gameMode = mode;
+  Storage.set(STORAGE_KEYS.GAME_MODE, mode);
+  if (!isGameOver && typeof usedGameModifiers !== 'undefined') {
+    if (mode === GAME_MODES.TRAINING) usedGameModifiers.TM = true;
+    if (mode === GAME_MODES.JUNIOR) usedGameModifiers.JN = true;
+  }
+  initNewDeckAndBoard();
+  resetStats();
+  updateUI();
+  syncSettingsUI();
+}
+
+function toggleTimerMs() {
+  if (!config.showTimer) return;
+  config.showTimerMs = !config.showTimerMs;
+  Storage.set(STORAGE_KEYS.SHOW_TIMER_MS, String(config.showTimerMs));
+  const timerEl = document.getElementById('timer');
+  if (timerEl && typeof formatTime === 'function') {
+    const elapsedMs = Date.now() - startTime;
+    timerEl.innerText = config.showTimerMs ? formatTimeTenths(elapsedMs) : formatTime(elapsedMs);
+  }
+  syncSettingsUI();
 }
 
 function updateMinSets(val) {
