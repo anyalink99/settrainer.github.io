@@ -5,13 +5,15 @@ const STORAGE_KEYS = {
   SHOW_SPM: 'set_show_s_p_m',
   DEBUG_MODE: 'set_debug_mode',
   SHOW_TIMER: 'set_show_timer',
+  SHOW_TIMER_MS: 'set_show_timer_ms',
+  SHOW_SETS_CARDS: 'set_show_sets_cards',
   AUTO_SHUFFLE: 'set_auto_shuffle',
   AUTO_SELECT_THIRD: 'set_auto_select_third',
   PREVENT_BAD_SHUFFLE: 'set_prevent_bad_shuffle',
   SYNCHRONIZED_SEED: 'set_synchronized_seed',
   MIN_SETS: 'set_min_sets',
   TARGET_POSSIBLE_SETS: 'set_target_possible_sets',
-  TRAINING_MODE: 'set_training_mode',
+  GAME_MODE: 'set_game_mode',
   TRAINING_BOARDS: 'set_training_boards',
   KEYBINDS: 'set_keybinds',
   KEYBINDS_HORIZONTAL: 'set_keybinds_horizontal',
@@ -24,6 +26,16 @@ const STORAGE_KEYS = {
   GAME_COLORS: 'set_game_colors',
   SHAPE_SIZE_RATIO: 'set_shape_size_ratio'
 };
+
+const GAME_MODES = {
+  NORMAL: 'normal',
+  TRAINING: 'training',
+  JUNIOR: 'junior'
+};
+
+const GAME_MODE_IDS = [GAME_MODES.NORMAL, GAME_MODES.TRAINING, GAME_MODES.JUNIOR];
+
+const DEFAULT_GAME_MODE = GAME_MODES.NORMAL;
 
 const TPS_MAX_SETS = 14;
 
@@ -78,7 +90,13 @@ const SVG_ICONS = {
   GLOBE: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
   UPLOAD: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
   DELETE: '<svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
-  CHECK: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>'
+  CHECK: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>',
+  GAMEMODES: '<svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>',
+  BOARD: '<svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M29.5,12 C30.8,14.5 30.8,17.2 30.2,19.9 C29.7,22.2 28,23 26,22 C25.4,21.7 24.8,21.4 24.3,21.1 C21.7,19.5 19,19.3 16.1,20.4 C13.4,21.5 10.6,21.6 7.8,20.8 C3.3,19.4 0.4,14.6 1.4,10.2 C2,7.7 3.7,7 5.9,8.2 C6.2,8.4 6.5,8.6 6.8,8.8 C9.7,10.6 12.7,11.2 16,9.9 C17.3,9.3 18.7,8.9 20,8.6 C24,7.6 27.5,8.9 29.5,12 Z"/></svg>',
+  METRICS: '<svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M4 20h16v-2H4v2zm2-4h3V8H6v8zm5 0h3V4h-3v12zm5 0h3v-6h-3v6z"/></svg>',
+  KEYBINDS: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M6 10h2M10 10h2M14 10h2M18 10h0M6 13h12"/></svg>',
+  ADVANCED: '<svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M4 7h8v2H4V7zm0 8h12v2H4v-2zm14-10h2v6h-2V5zm-4 6h2v8h-2v-8z"/></svg>',
+  CLOSE: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6l-12 12"/></svg>'
 };
 
 const SHAPE_VIEWBOX = '0 0 32 32';
