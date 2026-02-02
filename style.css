@@ -180,7 +180,7 @@ body.cursor-hidden * {
     padding: 5px 10px;
     border-radius: 10px;
     font-size: 0.75rem;
-    text-transform: uppercase;
+    text-transform: none;
     font-weight: 700;
     cursor: pointer;
 }
@@ -314,6 +314,20 @@ body.cursor-hidden * {
     flex-shrink: 0;
     z-index: 60;
     pointer-events: auto;
+}
+.btn-action--compact {
+    width: 128px;
+    font-size: 0.875rem;
+    text-transform: none;
+}
+.btn-action--wide {
+    width: 192px;
+    font-size: 0.875rem;
+    text-transform: none;
+}
+.btn-action--secondary {
+    background-color: #4b5563;
+    box-shadow: 0 4px 0 #444;
 }
 .btn-action:active { transform: translateY(2px); box-shadow: 0 2px 0 #7a3a5a; }
 .btn-action.locked { background-color: #4a3f50; box-shadow: 0 4px 0 #2d2631; color: #a34e78; }
