@@ -1,3 +1,15 @@
+function getGameModeCode(s) {
+  if (s && typeof s.gameMode === 'string') {
+    if (s.gameMode === GAME_MODES.TRAINING) return 'TM';
+    if (s.gameMode === GAME_MODES.JUNIOR) return 'JN';
+    return 'NO';
+  }
+  const mods = s && s.modifiers;
+  if (mods && mods.TM) return 'TM';
+  if (mods && mods.JN) return 'JN';
+  return 'NO';
+}
+
 function displayResults(sets, bs, s) {
   document.getElementById('final-date-display').innerText = s.dateStr;
   let findIntervals = s.timestamps.map(t => t.findTime);
@@ -7,7 +19,12 @@ function displayResults(sets, bs, s) {
 
   document.getElementById('final-time').innerText = formatTime(s.elapsedMs, true);
   document.getElementById('final-score').innerText = sets;
-  document.getElementById('final-bad-shuffles').innerText = bs;
+  if (s && s.badShuffles == null) {
+    s.badShuffles = (typeof bs === 'number' && Number.isFinite(bs)) ? bs : (Number(bs) || 0);
+  }
+  const gmValue = getGameModeCode(s);
+  const gmEl = document.getElementById('final-game-mode');
+  if (gmEl) gmEl.innerText = gmValue;
   document.getElementById('final-avg-find').innerText = avgFind ? formatTime(avgFind, true) : '--:--';
   document.getElementById('final-ext-find').innerHTML = `F: ${minFind ? formatTime(minFind, true) : '--'}<br>S: ${maxFind ? formatTime(maxFind, true) : '--'}`;
 
@@ -101,7 +118,7 @@ function buildModifiersUI(mods) {
   if (!container) return;
   container.innerHTML = '';
   const target = mods || gameModifiers;
-  const order = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM', 'TPS', 'TM'];
+  const order = ['SP', 'AS', 'PBS', 'A3RD', 'SS', 'DM', 'TPS'];
   let count = 0;
   order.forEach(key => {
     if (key === 'DP') return;
