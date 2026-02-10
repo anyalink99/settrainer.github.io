@@ -18,7 +18,12 @@ const MULTIPLAYER_STATE = {
   preferRemote: false,
   prevGameMode: null,
   lastStateVersion: 0,
-  isApplyingState: false
+  isApplyingState: false,
+  isReady: false,
+  remoteReady: false,
+  offerSent: false,
+  answerSent: false,
+  connectionAttempts: 0
 };
 
 
@@ -160,6 +165,7 @@ async function multiplayerHostLobby() {
     multiplayerResetConnectionState();
     MULTIPLAYER_STATE.role = 'host';
     MULTIPLAYER_STATE.lobbyId = data.lobbyId;
+    MULTIPLAYER_STATE.isReady = true;
     multiplayerSetStatus('Lobby created. Waiting for player…');
     multiplayerSyncModal();
     multiplayerStartPolling();
@@ -185,9 +191,14 @@ async function multiplayerJoinLobby() {
     multiplayerResetConnectionState();
     MULTIPLAYER_STATE.role = 'client';
     MULTIPLAYER_STATE.lobbyId = lobbyId;
-    multiplayerSetStatus('Joined. Waiting for host…');
+    multiplayerSetStatus('Joined. Preparing connection…');
     multiplayerSyncModal();
     multiplayerStartPolling();
+    setTimeout(() => {
+      MULTIPLAYER_STATE.isReady = true;
+      multiplayerSendSignal('ready', 'true').catch(() => {});
+      multiplayerSetStatus('Ready. Waiting for host…');
+    }, 300);
   } catch (err) {
     multiplayerSetStatus('Failed to join lobby');
     if (typeof showToast === 'function') showToast(err.message || 'Failed to join lobby');
@@ -204,6 +215,11 @@ function multiplayerResetConnectionState() {
   MULTIPLAYER_STATE.processedSignals = new Set();
   MULTIPLAYER_STATE.pendingClaim = false;
   MULTIPLAYER_STATE.lastStateVersion = 0;
+  MULTIPLAYER_STATE.isReady = false;
+  MULTIPLAYER_STATE.remoteReady = false;
+  MULTIPLAYER_STATE.offerSent = false;
+  MULTIPLAYER_STATE.answerSent = false;
+  MULTIPLAYER_STATE.connectionAttempts = 0;
 }
 
 function multiplayerStopPolling() {
@@ -213,7 +229,7 @@ function multiplayerStopPolling() {
 
 function multiplayerStartPolling() {
   multiplayerStopPolling();
-  MULTIPLAYER_STATE.pollTimer = setInterval(multiplayerPollLobby, 700);
+  MULTIPLAYER_STATE.pollTimer = setInterval(multiplayerPollLobby, 350);
   multiplayerPollLobby();
 }
 
@@ -228,12 +244,20 @@ async function multiplayerPollLobby() {
       const other = lobby.players.find(p => (p.nick || p.nickname) && (String(p.nick || p.nickname).toLowerCase() !== MULTIPLAYER_STATE.localNick.toLowerCase()));
       MULTIPLAYER_STATE.remoteNick = other ? (other.nick || other.nickname) : MULTIPLAYER_STATE.remoteNick;
     }
-    if (MULTIPLAYER_STATE.role === 'host' && !MULTIPLAYER_STATE.pc && MULTIPLAYER_STATE.remoteNick) {
-      multiplayerStartOffer();
-    }
+    
     if (Array.isArray(lobby.signals)) {
       multiplayerProcessSignals(lobby.signals);
     }
+    
+    if (MULTIPLAYER_STATE.role === 'host' && 
+        !MULTIPLAYER_STATE.pc && 
+        MULTIPLAYER_STATE.isReady && 
+        MULTIPLAYER_STATE.remoteReady && 
+        MULTIPLAYER_STATE.remoteNick &&
+        !MULTIPLAYER_STATE.offerSent) {
+      setTimeout(() => multiplayerStartOffer(), 200);
+    }
+    
   } catch (_) {
     // ignore transient errors
   } finally {
@@ -243,12 +267,16 @@ async function multiplayerPollLobby() {
 
 async function multiplayerSendSignal(type, payload) {
   if (!MULTIPLAYER_STATE.lobbyId) return;
-  await multiplayerRequest('lobby_signal', {
-    lobbyId: MULTIPLAYER_STATE.lobbyId,
-    nickname: MULTIPLAYER_STATE.localNick,
-    signalType: type,
-    payload: payload || ''
-  });
+  try {
+    await multiplayerRequest('lobby_signal', {
+      lobbyId: MULTIPLAYER_STATE.lobbyId,
+      nickname: MULTIPLAYER_STATE.localNick,
+      signalType: type,
+      payload: payload || ''
+    });
+  } catch (err) {
+    console.warn('Failed to send signal:', type, err);
+  }
 }
 
 function multiplayerCreatePeerConnection(isHost) {
@@ -258,102 +286,197 @@ function multiplayerCreatePeerConnection(isHost) {
       { urls: 'stun:stun1.l.google.com:19302' }
     ]
   });
+  
   pc.onicecandidate = (e) => {
     if (e.candidate) {
       multiplayerSendSignal('ice', JSON.stringify(e.candidate)).catch(() => {});
     }
   };
+  
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+    const state = pc.connectionState;
+    console.log('Connection state:', state);
+    
+    if (state === 'connected') {
+      MULTIPLAYER_STATE.connectionAttempts = 0;
+    } else if (state === 'disconnected' || state === 'failed') {
       multiplayerSetStatus('Connection lost');
+      if (MULTIPLAYER_STATE.connectionAttempts < 3) {
+        MULTIPLAYER_STATE.connectionAttempts++;
+        setTimeout(() => {
+          if (!MULTIPLAYER_STATE.isConnected) {
+            multiplayerResetConnectionState();
+            MULTIPLAYER_STATE.isReady = true;
+            if (MULTIPLAYER_STATE.role === 'client') {
+              multiplayerSendSignal('ready', 'true').catch(() => {});
+            }
+          }
+        }, 1000);
+      }
     }
   };
+  
   if (isHost) {
     const channel = pc.createDataChannel('set-mp');
     multiplayerSetupChannel(channel);
   } else {
     pc.ondatachannel = (e) => multiplayerSetupChannel(e.channel);
   }
+  
   return pc;
 }
 
 async function multiplayerStartOffer() {
-  if (MULTIPLAYER_STATE.pc) return;
+  if (MULTIPLAYER_STATE.pc || MULTIPLAYER_STATE.offerSent) return;
+  
+  MULTIPLAYER_STATE.offerSent = true;
   MULTIPLAYER_STATE.pc = multiplayerCreatePeerConnection(true);
-  const offer = await MULTIPLAYER_STATE.pc.createOffer();
-  await MULTIPLAYER_STATE.pc.setLocalDescription(offer);
-  await multiplayerSendSignal('offer', JSON.stringify(offer));
-  multiplayerSetStatus('Offer sent…');
+  
+  try {
+    const offer = await MULTIPLAYER_STATE.pc.createOffer();
+    await MULTIPLAYER_STATE.pc.setLocalDescription(offer);
+    await multiplayerSendSignal('offer', JSON.stringify(offer));
+    multiplayerSetStatus('Connecting…');
+  } catch (err) {
+    console.error('Failed to create offer:', err);
+    MULTIPLAYER_STATE.offerSent = false;
+    multiplayerSetStatus('Connection failed');
+  }
 }
 
 async function multiplayerHandleOffer(offer) {
   if (!offer) return;
-  if (!MULTIPLAYER_STATE.pc) MULTIPLAYER_STATE.pc = multiplayerCreatePeerConnection(false);
-  await MULTIPLAYER_STATE.pc.setRemoteDescription(offer);
-  const answer = await MULTIPLAYER_STATE.pc.createAnswer();
-  await MULTIPLAYER_STATE.pc.setLocalDescription(answer);
-  await multiplayerSendSignal('answer', JSON.stringify(answer));
-  multiplayerSetStatus('Answer sent…');
+  
+  if (MULTIPLAYER_STATE.pc && MULTIPLAYER_STATE.answerSent) {
+    console.log('Already processed offer, ignoring');
+    return;
+  }
+  
+  if (!MULTIPLAYER_STATE.pc) {
+    MULTIPLAYER_STATE.pc = multiplayerCreatePeerConnection(false);
+  }
+  
+  try {
+    await MULTIPLAYER_STATE.pc.setRemoteDescription(offer);
+    const answer = await MULTIPLAYER_STATE.pc.createAnswer();
+    await MULTIPLAYER_STATE.pc.setLocalDescription(answer);
+    await multiplayerSendSignal('answer', JSON.stringify(answer));
+    MULTIPLAYER_STATE.answerSent = true;
+    multiplayerSetStatus('Connecting…');
+  } catch (err) {
+    console.error('Failed to handle offer:', err);
+    multiplayerSetStatus('Connection failed');
+  }
 }
 
 async function multiplayerHandleAnswer(answer) {
   if (!MULTIPLAYER_STATE.pc || !answer) return;
-  await MULTIPLAYER_STATE.pc.setRemoteDescription(answer);
-  multiplayerSetStatus('Answer received…');
+  
+  try {
+    if (MULTIPLAYER_STATE.pc.signalingState === 'stable') {
+      console.log('Already stable, ignoring answer');
+      return;
+    }
+    
+    await MULTIPLAYER_STATE.pc.setRemoteDescription(answer);
+    multiplayerSetStatus('Finalizing connection…');
+  } catch (err) {
+    console.error('Failed to handle answer:', err);
+  }
 }
 
 async function multiplayerHandleIceCandidate(candidate) {
   if (!MULTIPLAYER_STATE.pc || !candidate) return;
+  
   try {
+    if (!MULTIPLAYER_STATE.pc.remoteDescription) {
+      console.log('Remote description not set, queueing ICE candidate');
+      setTimeout(() => multiplayerHandleIceCandidate(candidate), 100);
+      return;
+    }
+    
     await MULTIPLAYER_STATE.pc.addIceCandidate(candidate);
-  } catch (_) {}
+  } catch (err) {
+    console.warn('Failed to add ICE candidate:', err);
+  }
 }
 
 function multiplayerProcessSignals(signals) {
+  if (!Array.isArray(signals)) return;
+  
   signals.forEach(sig => {
     const key = [sig.from, sig.type, sig.at, sig.payload].join('|');
     if (MULTIPLAYER_STATE.processedSignals.has(key)) return;
     MULTIPLAYER_STATE.processedSignals.add(key);
+    
     if (sig.from && sig.from.toLowerCase() === MULTIPLAYER_STATE.localNick.toLowerCase()) return;
-    if (sig.type === 'offer') {
-      try { multiplayerHandleOffer(JSON.parse(sig.payload)); } catch (_) {}
-    } else if (sig.type === 'answer') {
-      try { multiplayerHandleAnswer(JSON.parse(sig.payload)); } catch (_) {}
-    } else if (sig.type === 'ice') {
-      try { multiplayerHandleIceCandidate(JSON.parse(sig.payload)); } catch (_) {}
+    
+    try {
+      if (sig.type === 'ready') {
+        MULTIPLAYER_STATE.remoteReady = true;
+        console.log('Remote peer is ready');
+        return;
+      }
+      
+      if (sig.type === 'offer') {
+        multiplayerHandleOffer(JSON.parse(sig.payload));
+      } else if (sig.type === 'answer') {
+        multiplayerHandleAnswer(JSON.parse(sig.payload));
+      } else if (sig.type === 'ice') {
+        multiplayerHandleIceCandidate(JSON.parse(sig.payload));
+      }
+    } catch (err) {
+      console.error('Failed to process signal:', sig.type, err);
     }
   });
 }
 
 function multiplayerSetupChannel(channel) {
   MULTIPLAYER_STATE.channel = channel;
+  
   channel.onopen = () => {
     MULTIPLAYER_STATE.isConnected = true;
+    MULTIPLAYER_STATE.connectionAttempts = 0;
     multiplayerSetStatus('Connected');
     multiplayerStopPolling();
     multiplayerSend({ type: 'hello', nick: MULTIPLAYER_STATE.localNick });
     multiplayerRenderHud();
     closeMultiplayerModal();
+    
     if (MULTIPLAYER_STATE.role === 'host') {
-      multiplayerStartMatch();
+      setTimeout(() => multiplayerStartMatch(), 300);
     }
   };
+  
   channel.onmessage = (e) => {
     let msg = null;
-    try { msg = JSON.parse(e.data); } catch (_) { return; }
+    try { 
+      msg = JSON.parse(e.data); 
+    } catch (_) { 
+      return; 
+    }
     if (!msg || !msg.type) return;
     multiplayerHandleMessage(msg);
   };
+  
   channel.onclose = () => {
     MULTIPLAYER_STATE.isConnected = false;
     multiplayerSetStatus('Disconnected');
     multiplayerRenderHud();
   };
+  
+  channel.onerror = (err) => {
+    console.error('Data channel error:', err);
+  };
 }
 
 function multiplayerSend(payload) {
   if (!MULTIPLAYER_STATE.channel || MULTIPLAYER_STATE.channel.readyState !== 'open') return;
-  MULTIPLAYER_STATE.channel.send(JSON.stringify(payload));
+  try {
+    MULTIPLAYER_STATE.channel.send(JSON.stringify(payload));
+  } catch (err) {
+    console.error('Failed to send message:', err);
+  }
 }
 
 function multiplayerHandleMessage(msg) {
@@ -363,7 +486,7 @@ function multiplayerHandleMessage(msg) {
     return;
   }
   if (msg.type === 'state') {
-    multiplayerApplyState(msg.state);
+    multiplayerApplyState(msg.state, msg.reason);
     return;
   }
   if (msg.type === 'claim' && multiplayerIsHost()) {
@@ -416,14 +539,88 @@ function multiplayerBroadcastState(reason) {
   multiplayerSend({ type: 'state', reason: reason || '', state: multiplayerBuildState() });
 }
 
-function multiplayerApplyState(state) {
+async function multiplayerApplyState(state, reason) {
   if (!state || MULTIPLAYER_STATE.isApplyingState) return;
   if (state.version && state.version < MULTIPLAYER_STATE.lastStateVersion) return;
   MULTIPLAYER_STATE.lastStateVersion = state.version || MULTIPLAYER_STATE.lastStateVersion;
   MULTIPLAYER_STATE.isApplyingState = true;
-  deck = Array.isArray(state.deck) ? state.deck.map(codeToCard) : [];
-  board = Array.isArray(state.board) ? state.board.map(codeToCard) : [];
-  for (let i = 0; i < 12; i++) updateSlot(i, true);
+  
+  if (reason === 'start') {
+    closeModal('multiplayer-result-modal');
+    isGameOver = false;
+    MULTIPLAYER_STATE.preferRemote = true; // клиент всегда принимает состояние от хоста
+    if (multiplayerIsClient()) {
+      multiplayerSetStatus('Match started');
+    }
+  }
+  
+  const newDeck = Array.isArray(state.deck) ? state.deck.map(codeToCard) : [];
+  const newBoard = Array.isArray(state.board) ? state.board.map(codeToCard) : [];
+  
+  const changedSlots = [];
+  for (let i = 0; i < 12; i++) {
+    const oldCard = board[i];
+    const newCard = newBoard[i];
+    
+    const oldCode = oldCard ? cardToCode(oldCard) : null;
+    const newCode = newCard ? cardToCode(newCard) : null;
+    
+    if (oldCode !== newCode) {
+      changedSlots.push(i);
+    }
+  }
+  
+  const animDuration = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.ANIMATION_DURATION) ? 
+                       GAME_CONFIG.ANIMATION_DURATION : 300;
+  
+  const isShuffle = reason === 'shuffle_manual' || reason === 'shuffle_auto';
+  const isFullBoardChange = changedSlots.length >= 10; // почти вся доска
+  const isSetReplacement = changedSlots.length > 0 && changedSlots.length <= 4; // сет = 3 карты (иногда 4 с подстановкой)
+  
+  if (isShuffle || isFullBoardChange) {
+    isAnimating = true;
+    
+    const boardEl = document.getElementById('board');
+    if (boardEl) {
+      document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
+    }
+    
+    await new Promise(r => setTimeout(r, animDuration));
+    
+    deck = newDeck;
+    board = newBoard;
+    for (let i = 0; i < 12; i++) updateSlot(i, true);
+    
+  } else if (isSetReplacement) {
+    isAnimating = true;
+    
+    const boardEl = document.getElementById('board');
+    if (boardEl) {
+      changedSlots.forEach(i => {
+        const card = boardEl.children[i]?.querySelector('.card');
+        if (card) card.classList.add('anim-out');
+      });
+    }
+    
+    await new Promise(r => setTimeout(r, animDuration));
+    
+    deck = newDeck;
+    board = newBoard;
+    
+    changedSlots.forEach(i => updateSlot(i, true));
+    
+    for (let i = 0; i < 12; i++) {
+      if (!changedSlots.includes(i)) {
+        updateSlot(i, false);
+      }
+    }
+    
+  } else {
+    deck = newDeck;
+    board = newBoard;
+    for (let i = 0; i < 12; i++) updateSlot(i, reason === 'start');
+  }
+  
   MULTIPLAYER_STATE.scores = state.scores || {};
   collectedSets = MULTIPLAYER_STATE.scores[MULTIPLAYER_STATE.localNick] || 0;
   const tsByNick = state.timestampsByNick || {};
@@ -622,7 +819,7 @@ function multiplayerRequestRematch() {
     closeModal('multiplayer-result-modal');
   } else {
     multiplayerSend({ type: 'rematch' });
-    if (typeof showToast === 'function') showToast('Waiting for host…');
+    if (typeof showToast === 'function') showToast('Rematch request sent to host');
   }
 }
 
