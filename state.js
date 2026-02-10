@@ -57,7 +57,7 @@ let config = {
 };
 
 let gameModifiers = {
-  SP: false, AS: false, PBS: false, A3RD: false, SS: false, DM: false, TPS: false, TM: false, JN: false
+  SP: false, AS: false, PBS: false, A3RD: false, SS: false, DM: false, TPS: false, TM: false, JN: false, MP: false
 };
 
 function isTrainingModeActive() {
@@ -66,6 +66,10 @@ function isTrainingModeActive() {
 
 function isJuniorModeActive() {
   return !!(config && config.gameMode === GAME_MODES.JUNIOR);
+}
+
+function isMultiplayerModeActive() {
+  return !!(config && config.gameMode === GAME_MODES.MULTIPLAYER);
 }
 
 function loadBindsForOrientation(orientation) {
