@@ -130,6 +130,7 @@ function updateUI() {
   gameModifiers.TPS = !!(config.targetPossibleSets && config.targetPossibleSets > 0);
   gameModifiers.TM = config.gameMode === GAME_MODES.TRAINING;
   gameModifiers.JN = config.gameMode === GAME_MODES.JUNIOR;
+  gameModifiers.MP = config.gameMode === GAME_MODES.MULTIPLAYER;
 
   const deckLabel = document.getElementById('deck-label');
   if (isTrainingModeActive()) {
@@ -163,7 +164,8 @@ function updateUI() {
     config.autoShuffle &&
     deck.length > 0 &&
     !isAnimating &&
-    !isGameOver
+    !isGameOver &&
+    !(isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost())
   ) {
     if (config.debugMode) showToast('Auto-shuffle');
     const fromSet = autoShuffleFromSet;
@@ -200,8 +202,52 @@ function showToast(text) {
   setTimeout(() => toast.remove(), GAME_CONFIG.TOAST_DURATION);
 }
 
+async function applySetToBoard(sIdx) {
+  sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
+  await new Promise(r => setTimeout(r, GAME_CONFIG.ANIMATION_DURATION));
+  if (config.targetPossibleSets && deck.length >= 3) {
+    const result = pickTargetedReplenishmentThree(sIdx);
+    if (result && result.threeCards) {
+      removeCardsFromDeck(result.threeCards);
+      sIdx.forEach((slot, i) => {
+        board[slot] = result.threeCards[i];
+        updateSlot(slot, true);
+      });
+      if (config.debugMode) {
+        const label = result.perfect ? 'perfect' : 'closest';
+        setDebugTPSIters(result.iterations, 'replenish ' + label);
+      }
+    } else {
+      setDebugTPSIters(null);
+      sIdx.forEach(i => {
+        board[i] = deck.length > 0 ? deck.pop() : null;
+        updateSlot(i, true);
+      });
+    }
+  } else {
+    setDebugTPSIters(null);
+    sIdx.forEach(i => {
+      board[i] = deck.length > 0 ? deck.pop() : null;
+      updateSlot(i, true);
+    });
+  }
+
+  selected = [];
+  isAnimating = false;
+
+  autoShuffleFromSet = true;
+
+  updateUI();
+}
+
 async function handleCardSelect(idx, el) {
   if (isAnimating || isGameOver) return;
+  if (isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost()) {
+    if (typeof multiplayerHandleClientSelection === 'function') {
+      await multiplayerHandleClientSelection(idx, el);
+    }
+    return;
+  }
 
   if (selected.includes(idx)) {
     selected = selected.filter(i => i !== idx);
@@ -245,6 +291,10 @@ async function handleCardSelect(idx, el) {
     const cards = sIdx.map(i => board[i]);
     const isCorrect = validateSet(cards);
     if (isCorrect) {
+      if (isMultiplayerModeActive() && typeof multiplayerHandleHostSetFound === 'function') {
+        await multiplayerHandleHostSetFound(sIdx, currentPossible);
+        return;
+      }
       collectedSets++;
       const now = Date.now();
       const findTime = now - lastSetFoundTime;
@@ -252,47 +302,13 @@ async function handleCardSelect(idx, el) {
       trainingRecordSetIfNeeded(findTime);
       lastSetFoundTime = now;
 
-      sIdx.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.add('anim-out'));
-      await new Promise(r => setTimeout(r, GAME_CONFIG.ANIMATION_DURATION));
       if (isTrainingModeActive()) {
         selected = [];
         isAnimating = false;
         trainingHandleCorrectSet(findTime);
         return;
       }
-      if (config.targetPossibleSets && deck.length >= 3) {
-        const result = pickTargetedReplenishmentThree(sIdx);
-        if (result && result.threeCards) {
-          removeCardsFromDeck(result.threeCards);
-          sIdx.forEach((slot, i) => {
-            board[slot] = result.threeCards[i];
-            updateSlot(slot, true);
-          });
-          if (config.debugMode) {
-            const label = result.perfect ? 'perfect' : 'closest';
-            setDebugTPSIters(result.iterations, 'replenish ' + label);
-          }
-        } else {
-          setDebugTPSIters(null);
-          sIdx.forEach(i => {
-            board[i] = deck.length > 0 ? deck.pop() : null;
-            updateSlot(i, true);
-          });
-        }
-      } else {
-        setDebugTPSIters(null);
-        sIdx.forEach(i => {
-          board[i] = deck.length > 0 ? deck.pop() : null;
-          updateSlot(i, true);
-        });
-      }
-
-      selected = [];
-      isAnimating = false;
-
-      autoShuffleFromSet = true;
-
-      updateUI();
+      await applySetToBoard(sIdx);
       if (collectedSets >= GAME_CONFIG.SETS_TO_WIN && analyzePossibleSets().total === 0 && !isGameOver) {
         setTimeout(() => handleGameFinish(true), 300);
       }
@@ -319,6 +335,10 @@ function handleShuffleClick() {
   if (now < shuffleBtnCooldownUntil) return;
   if (isAnimating || isGameOver || isBtnLocked) return;
   if (isTrainingModeActive()) return;
+  if (isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost()) {
+    showToast('Only host can shuffle');
+    return;
+  }
   const possibleCount = analyzePossibleSets().total;
   if (possibleCount > 0) {
     badShuffles++;
@@ -341,6 +361,10 @@ function handleShuffleClick() {
 function shuffleExistingCards() {
   if (isAnimating || isGameOver) return;
   if (isTrainingModeActive()) return;
+  if (isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost()) {
+    showToast('Only host can shuffle');
+    return;
+  }
   setDebugTPSIters(null);
   isAnimating = true;
   shuffleExCount++;
@@ -359,12 +383,22 @@ function shuffleExistingCards() {
       cardEl.addEventListener('animationend', () => { cardEl.classList.remove('jumping'); }, { once: true });
     }
   }
-  setTimeout(() => { isAnimating = false; updateUI(); }, GAME_CONFIG.SHUFFLE_DELAY);
+  setTimeout(() => {
+    isAnimating = false;
+    updateUI();
+    if (isMultiplayerModeActive() && typeof multiplayerBroadcastState === 'function' && multiplayerIsHost()) {
+      multiplayerBroadcastState('shuffle_existing');
+    }
+  }, GAME_CONFIG.SHUFFLE_DELAY);
 }
 
 function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false) {
   if (isAnimating) return;
   if (isTrainingModeActive()) return;
+  if (!isAuto && isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost()) {
+    showToast('Only host can shuffle');
+    return;
+  }
   setDebugTPSIters(null);
 
   if (isAuto && skipAnimOut) {
@@ -386,6 +420,9 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
       isAnimating = false;
       nextAutoShuffleSkipsAnimOut = true;
       updateUI();
+      if (isMultiplayerModeActive() && typeof multiplayerBroadcastState === 'function' && multiplayerIsHost()) {
+        multiplayerBroadcastState('shuffle_auto');
+      }
     }, animInMs);
     return;
   }
@@ -404,6 +441,9 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
     for (let i = 0; i < 12; i++) updateSlot(i, true);
 
     updateUI();
+    if (isMultiplayerModeActive() && typeof multiplayerBroadcastState === 'function' && multiplayerIsHost()) {
+      multiplayerBroadcastState('shuffle_auto');
+    }
     return;
   }
 
@@ -430,6 +470,9 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
       nextAutoShuffleSkipsAnimOut = true;
       isAnimating = false;
       updateUI();
+      if (isMultiplayerModeActive() && typeof multiplayerBroadcastState === 'function' && multiplayerIsHost()) {
+        multiplayerBroadcastState('shuffle_auto');
+      }
     }, fadeOutMs);
 
     return;
@@ -457,6 +500,9 @@ function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false)
 
     isAnimating = false;
     updateUI();
+    if (isMultiplayerModeActive() && typeof multiplayerBroadcastState === 'function' && multiplayerIsHost()) {
+      multiplayerBroadcastState('shuffle_manual');
+    }
   }, fadeOutMs);
 }
 
@@ -480,6 +526,9 @@ function saveRecord(extra) {
 
 function initNewDeckAndBoard() {
   setDebugTPSIters(null);
+  if (isMultiplayerModeActive() && typeof multiplayerShouldUseRemoteState === 'function' && multiplayerShouldUseRemoteState()) {
+    return;
+  }
   if (isTrainingModeActive()) {
     trainingInitNewBoard();
     return;
@@ -509,7 +558,8 @@ function syncGameModifiers() {
     DM: config.debugMode,
     TPS: !!(config.targetPossibleSets && config.targetPossibleSets > 0),
     TM: config.gameMode === GAME_MODES.TRAINING,
-    JN: config.gameMode === GAME_MODES.JUNIOR
+    JN: config.gameMode === GAME_MODES.JUNIOR,
+    MP: config.gameMode === GAME_MODES.MULTIPLAYER
   };
   startGameModifiers = { ...currentMods };
   usedGameModifiers = { ...currentMods };
@@ -530,6 +580,10 @@ function resetStats() {
 }
 
 async function handleGameReset() {
+  if (isMultiplayerModeActive() && typeof multiplayerHandleReset === 'function') {
+    multiplayerHandleReset();
+    return;
+  }
   if (isResetting) return;
 
   const cooldownMs = GAME_CONFIG.MODAL_TRANSITION + GAME_CONFIG.CARD_FADE_DURATION + 10;
@@ -556,6 +610,10 @@ async function handleGameReset() {
 }
 
 function handleGameFinish(isAuto = false) {
+  if (isMultiplayerModeActive() && typeof multiplayerHandleFinish === 'function') {
+    multiplayerHandleFinish(isAuto);
+    return;
+  }
   if (isGameOver) return;
   isGameOver = true;
   lastFinishTime = Date.now();
