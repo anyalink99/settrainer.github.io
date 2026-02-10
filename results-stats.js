@@ -2,6 +2,7 @@ function getGameModeCode(s) {
   if (s && typeof s.gameMode === 'string') {
     if (s.gameMode === GAME_MODES.TRAINING) return 'TM';
     if (s.gameMode === GAME_MODES.JUNIOR) return 'JN';
+    if (s.gameMode === GAME_MODES.MULTIPLAYER) return 'MP';
     return 'NO';
   }
   const mods = s && s.modifiers;
