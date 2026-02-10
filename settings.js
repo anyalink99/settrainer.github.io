@@ -59,9 +59,11 @@ function syncSettingsUI() {
   const modeNormal = document.getElementById('gamemode-normal');
   const modeTraining = document.getElementById('gamemode-training');
   const modeJunior = document.getElementById('gamemode-junior');
+  const modeMultiplayer = document.getElementById('gamemode-multiplayer');
   if (modeNormal) modeNormal.classList.toggle('active', config.gameMode === GAME_MODES.NORMAL);
   if (modeTraining) modeTraining.classList.toggle('active', config.gameMode === GAME_MODES.TRAINING);
   if (modeJunior) modeJunior.classList.toggle('active', config.gameMode === GAME_MODES.JUNIOR);
+  if (modeMultiplayer) modeMultiplayer.classList.toggle('active', config.gameMode === GAME_MODES.MULTIPLAYER);
 }
 
 function updatePreset(p) {
@@ -134,6 +136,7 @@ function setGameMode(mode) {
   if (!isGameOver && typeof usedGameModifiers !== 'undefined') {
     if (mode === GAME_MODES.TRAINING) usedGameModifiers.TM = true;
     if (mode === GAME_MODES.JUNIOR) usedGameModifiers.JN = true;
+    if (mode === GAME_MODES.MULTIPLAYER) usedGameModifiers.MP = true;
   }
   initNewDeckAndBoard();
   resetStats();
