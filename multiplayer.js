@@ -170,8 +170,8 @@ async function multiplayerHostLobby() {
     multiplayerResetConnectionState();
     MULTIPLAYER_STATE.role = 'host';
     MULTIPLAYER_STATE.lobbyId = data.lobbyId;
-    MULTIPLAYER_STATE.isReady = true;
-    MULTIPLAYER_STATE.connectionState = 'waiting_ready';
+    MULTIPLAYER_STATE.isReady = true; // NEW: хост готов сразу
+    MULTIPLAYER_STATE.connectionState = 'waiting_ready'; // NEW: ждем клиента
     console.log('Lobby created:', data.lobbyId);
     multiplayerSetStatus('Lobby created. Waiting for player…');
     multiplayerSyncModal();
@@ -232,7 +232,6 @@ function multiplayerResetConnectionState() {
   MULTIPLAYER_STATE.processedSignals = new Set();
   MULTIPLAYER_STATE.pendingClaim = false;
   MULTIPLAYER_STATE.lastStateVersion = 0;
-  // NEW: сброс флагов синхронизации
   MULTIPLAYER_STATE.isReady = false;
   MULTIPLAYER_STATE.remoteReady = false;
   MULTIPLAYER_STATE.offerSent = false;
@@ -586,6 +585,7 @@ async function multiplayerHandleIceCandidate(candidate) {
   }
   
   try {
+    // NEW: проверка что remote description установлен
     if (!MULTIPLAYER_STATE.pc.remoteDescription) {
       console.log('Remote description not set, queueing ICE candidate');
       MULTIPLAYER_STATE.pendingIceCandidates.push(candidate);
@@ -607,7 +607,6 @@ function multiplayerProcessSignals(signals) {
     if (MULTIPLAYER_STATE.processedSignals.has(key)) return;
     MULTIPLAYER_STATE.processedSignals.add(key);
     
-    // Игнорируем собственные сигналы
     if (sig.from && sig.from.toLowerCase() === MULTIPLAYER_STATE.localNick.toLowerCase()) return;
     
     console.log('Processing signal:', sig.type, 'from:', sig.from);
@@ -795,8 +794,8 @@ async function multiplayerApplyState(state, reason) {
                        GAME_CONFIG.ANIMATION_DURATION : 300;
   
   const isShuffle = reason === 'shuffle_manual' || reason === 'shuffle_auto';
-  const isFullBoardChange = changedSlots.length >= 10;
-  const isSetReplacement = changedSlots.length > 0 && changedSlots.length <= 4;
+  const isFullBoardChange = changedSlots.length >= 10; // почти вся доска
+  const isSetReplacement = changedSlots.length > 0 && changedSlots.length <= 4; // сет = 3 карты (иногда 4 с подстановкой)
   
   if (isShuffle || isFullBoardChange) {
     isAnimating = true;
@@ -836,7 +835,7 @@ async function multiplayerApplyState(state, reason) {
       }
     }
     
-  } else {)
+  } else {
     deck = newDeck;
     board = newBoard;
     for (let i = 0; i < 12; i++) updateSlot(i, reason === 'start');
@@ -1043,7 +1042,7 @@ function multiplayerRequestRematch() {
     if (typeof showToast === 'function') showToast('Rematch request sent to host');
   }
 }
-
+чё
 function multiplayerStartMatch() {
   if (!multiplayerIsHost()) return;
   MULTIPLAYER_STATE.preferRemote = false;
