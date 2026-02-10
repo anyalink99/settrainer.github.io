@@ -40,6 +40,10 @@
                     <div id="timer" class="font-mono bg-black/20 px-3 py-1 rounded text-lg font-bold">00:00</div>
                 </div>
                 <div id="seed-label" class="seed-indicator" style="display:none">Synchronized Seed ON</div>
+                <div id="multiplayer-hud" class="multiplayer-hud" style="display:none">
+                    <div id="multiplayer-hud-status" class="multiplayer-hud-status"></div>
+                    <div id="multiplayer-scoreboard" class="multiplayer-scoreboard"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -113,9 +117,9 @@
                             <div class="gamemode-title">Junior</div>
                             <div class="gamemode-desc">27 cards, Solid fill only, simplified sets.</div>
                         </div>
-                        <div class="gamemode-card is-disabled" aria-disabled="true">
-                            <div class="gamemode-title">Coming Soon</div>
-                            <div class="gamemode-desc">New mode is on the way.</div>
+                        <div id="gamemode-multiplayer" class="gamemode-card" onpointerdown="openMultiplayerModal()">
+                            <div class="gamemode-title">Multiplayer</div>
+                            <div class="gamemode-desc">Real-time P2P duel. Ultra-beta-super-bugged.</div>
                         </div>
                     </div>
                 </div>
@@ -311,6 +315,54 @@
         </div>
     </div>
 
+    <div id="multiplayer-modal" class="overlay">
+        <div class="records-modal-inner">
+            <div class="records-modal-scroll">
+                <h2 class="text-2xl font-black mb-3 text-pink-400 uppercase tracking-widest">Multiplayer</h2>
+                <div class="settings-row">
+                    <span class="text-sm font-bold uppercase">Nickname</span>
+                    <div id="multiplayer-nick" class="text-sm font-bold text-pink-400">Player</div>
+                </div>
+                <div class="settings-row !flex-col !items-stretch !h-auto gap-2">
+                    <span class="text-sm font-bold uppercase">Host a lobby</span>
+                    <div class="flex gap-2 items-center">
+                        <button id="multiplayer-host-btn" onpointerdown="multiplayerHostLobby()" class="btn-action btn-action--compact">Host</button>
+                        <div class="text-xs text-gray-400" id="multiplayer-lobby-id"></div>
+                    </div>
+                </div>
+                <div class="settings-row !flex-col !items-stretch !h-auto gap-2">
+                    <span class="text-sm font-bold uppercase">Join a lobby</span>
+                    <div class="flex gap-2 items-center">
+                        <input type="text" id="multiplayer-join-id" class="input-online !w-full" placeholder="Lobby ID (e.g. 1a2b3c4d)" maxlength="16" />
+                        <button id="multiplayer-join-btn" onpointerdown="multiplayerJoinLobby()" class="btn-action btn-action--compact">Join</button>
+                    </div>
+                </div>
+                <div class="settings-row !flex-col !items-stretch !h-auto gap-2">
+                    <span class="text-sm font-bold uppercase">Status</span>
+                    <div id="multiplayer-status-text" class="text-xs text-gray-400">Not connected</div>
+                </div>
+            </div>
+            <div class="flex gap-2 w-full justify-center">
+                <button onpointerdown="closeMultiplayerModal()" class="btn-action btn-action--compact">Close</button>
+                <button onpointerdown="multiplayerLeave()" class="btn-action btn-action--compact btn-action--secondary">Leave</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="multiplayer-result-modal" class="overlay">
+        <div class="records-modal-inner">
+            <div class="records-modal-scroll">
+                <h2 class="text-2xl font-black mb-3 text-pink-400 uppercase tracking-widest">Match Result</h2>
+                <div id="multiplayer-result-winner" class="mp-result-winner">Winner: —</div>
+                <div id="multiplayer-result-scores" class="mp-result-scores"></div>
+            </div>
+            <div class="flex gap-2 w-full justify-center">
+                <button onpointerdown="multiplayerRequestRematch()" class="btn-action btn-action--compact">Rematch</button>
+                <button onpointerdown="multiplayerLeave()" class="btn-action btn-action--compact btn-action--secondary">Leave</button>
+            </div>
+        </div>
+    </div>
+
     <div id="result-modal" class="overlay">
         <div id="share-content" class="flex flex-col items-center w-full">
             <div class="more-details-btn no-export" onpointerdown="openExtraStatsModal()" data-svg-icon="MORE_DETAILS"></div>
@@ -404,6 +456,7 @@
 <script src="color-picker.js"></script>
 <script src="set-math.js"></script>
 <script src="tps-logic.js"></script>
+<script src="multiplayer.js"></script>
 <script src="game-logic.js"></script>
 <script src="training-mode.js"></script>
 <script src="results-stats.js"></script>
