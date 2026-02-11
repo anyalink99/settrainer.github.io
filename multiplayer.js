@@ -31,6 +31,8 @@ const MULTIPLAYER_STATE = {
   connectionTimeout: null,
   // NEW: очередь ICE candidates
   pendingIceCandidates: [],
+  outboundIceCandidates: [],
+  iceFlushTimer: null,
   // NEW: faster polling during connection
   isConnecting: false
 };
@@ -246,11 +248,16 @@ function multiplayerResetConnectionState() {
   MULTIPLAYER_STATE.connectionState = 'idle';
   MULTIPLAYER_STATE.connectionStartTime = 0;
   MULTIPLAYER_STATE.pendingIceCandidates = [];
+  MULTIPLAYER_STATE.outboundIceCandidates = [];
   MULTIPLAYER_STATE.isConnecting = false;
   
   if (MULTIPLAYER_STATE.connectionTimeout) {
     clearTimeout(MULTIPLAYER_STATE.connectionTimeout);
     MULTIPLAYER_STATE.connectionTimeout = null;
+  }
+  if (MULTIPLAYER_STATE.iceFlushTimer) {
+    clearTimeout(MULTIPLAYER_STATE.iceFlushTimer);
+    MULTIPLAYER_STATE.iceFlushTimer = null;
   }
 }
 
@@ -309,6 +316,7 @@ function multiplayerRetryConnection() {
   MULTIPLAYER_STATE.offerSent = false;
   MULTIPLAYER_STATE.answerSent = false;
   MULTIPLAYER_STATE.pendingIceCandidates = [];
+  MULTIPLAYER_STATE.outboundIceCandidates = [];
   MULTIPLAYER_STATE.connectionState = 'waiting_ready';
   
   multiplayerSetStatus('Retrying connection...');
@@ -398,11 +406,15 @@ function multiplayerCreatePeerConnection(isHost) {
   pc.onicecandidate = (e) => {
     if (e.candidate) {
       console.log('New ICE candidate:', e.candidate.type);
-      multiplayerSendSignal('ice', JSON.stringify(e.candidate)).catch(err => {
-        console.warn('Failed to send ICE candidate:', err);
-      });
+      MULTIPLAYER_STATE.outboundIceCandidates.push(e.candidate);
+      if (!MULTIPLAYER_STATE.iceFlushTimer) {
+        MULTIPLAYER_STATE.iceFlushTimer = setTimeout(() => {
+          multiplayerFlushIceCandidates('timer');
+        }, 350);
+      }
     } else {
       console.log('ICE gathering complete');
+      multiplayerFlushIceCandidates('complete');
     }
   };
   
@@ -455,6 +467,27 @@ function multiplayerCreatePeerConnection(isHost) {
   }
   
   return pc;
+}
+
+async function multiplayerFlushIceCandidates(reason) {
+  if (MULTIPLAYER_STATE.iceFlushTimer) {
+    clearTimeout(MULTIPLAYER_STATE.iceFlushTimer);
+    MULTIPLAYER_STATE.iceFlushTimer = null;
+  }
+  if (!MULTIPLAYER_STATE.outboundIceCandidates.length) return;
+
+  const batch = MULTIPLAYER_STATE.outboundIceCandidates.splice(0, MULTIPLAYER_STATE.outboundIceCandidates.length);
+  const deduped = [];
+  const seen = new Set();
+  for (const candidate of batch) {
+    const key = [candidate.candidate, candidate.sdpMid, candidate.sdpMLineIndex].join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(candidate);
+  }
+
+  console.log('Sending ICE batch:', deduped.length, 'reason:', reason);
+  await multiplayerSendSignal('ice_batch', JSON.stringify(deduped));
 }
 
 async function multiplayerStartOffer() {
@@ -658,6 +691,11 @@ function multiplayerProcessSignals(signals) {
       } else if (sig.type === 'ice') {
         const candidate = JSON.parse(sig.payload);
         multiplayerHandleIceCandidate(candidate);
+      } else if (sig.type === 'ice_batch') {
+        const candidates = JSON.parse(sig.payload);
+        if (Array.isArray(candidates)) {
+          candidates.forEach(multiplayerHandleIceCandidate);
+        }
       }
     } catch (err) {
       console.error('Failed to process signal:', sig.type, err);
