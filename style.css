@@ -588,6 +588,49 @@ body.cursor-hidden * {
   text-transform: uppercase;
 }
 
+
+
+.multiplayer-lobby-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.multiplayer-lobby-item {
+  width: 100%;
+  background: #3d3442;
+  border: 1px solid #5a4d61;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: left;
+  color: #e5e7eb;
+}
+
+.multiplayer-lobby-item:active {
+  transform: scale(0.99);
+}
+
+.multiplayer-lobby-item--empty {
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+
+.multiplayer-lobby-host {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.multiplayer-lobby-id {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #f9a8d4;
+  opacity: 0.9;
+}
 .mp-result-winner {
   font-size: 14px;
   font-weight: 800;
