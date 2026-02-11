@@ -72,8 +72,6 @@ const MULTIPLAYER_STATE = {
   isConnecting: false,
   availableLobbies: [],
   lobbyListTimer: null
-  isConnecting: false,
-  availableLobbies: []
 };
 
 
@@ -204,8 +202,6 @@ function multiplayerStopLobbyListPolling() {
 }
 
 async function multiplayerRefreshLobbyList() {
-
-async function multiplayerRefreshLobbyList() {
   multiplayerSetStatus('Loading lobbies…');
   const listEl = document.getElementById('multiplayer-lobby-list');
   if (listEl) listEl.innerHTML = '<div class="multiplayer-lobby-item multiplayer-lobby-item--empty">Loading…</div>';
@@ -217,9 +213,6 @@ async function multiplayerRefreshLobbyList() {
       .sort((a, b) => Number(b.createdAt || b.at || 0) - Number(a.createdAt || a.at || 0))
       .slice(0, 3);
     multiplayerRenderLobbyList();
-  } catch (err) {
-    console.error('Failed to load lobbies:', err);
-    multiplayerSetStatus(MULTIPLAYER_STATE.statusText === 'Loading lobbies…' ? 'Choose a lobby' : MULTIPLAYER_STATE.statusText);
   } catch (err) {
     console.error('Failed to load lobbies:', err);
     MULTIPLAYER_STATE.availableLobbies = [];
@@ -1313,4 +1306,3 @@ function multiplayerLeave() {
   MULTIPLAYER_STATE.prevGameMode = null;
   if (typeof showToast === 'function') showToast('Left multiplayer. Switched to Normal mode and restarted game');
 }
-
