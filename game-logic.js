@@ -330,6 +330,19 @@ function getShuffleDurations() {
   };
 }
 
+function applyBadShuffleButtonLock() {
+  const btn = document.getElementById('shuffle-btn');
+  if (!btn) return;
+  isBtnLocked = true;
+  btn.classList.add('locked');
+  btn.innerText = 'nuh-uh!';
+  setTimeout(() => {
+    btn.classList.remove('locked');
+    btn.innerText = 'Shuffle';
+    isBtnLocked = false;
+  }, GAME_CONFIG.LOCK_DURATION);
+}
+
 
 function handleShuffleClick() {
   const now = Date.now();
@@ -354,11 +367,7 @@ function handleShuffleClick() {
     if (!config.showPossible && !config.autoShuffle) showToast('bad shuffle!');
     const shouldBlockBadShuffle = config.preventBadShuffle || isMultiplayerModeActive();
     if (shouldBlockBadShuffle) {
-      const btn = document.getElementById('shuffle-btn');
-      isBtnLocked = true;
-      btn.classList.add('locked');
-      btn.innerText = 'nuh-uh!';
-      setTimeout(() => { btn.classList.remove('locked'); btn.innerText = 'Shuffle'; isBtnLocked = false; }, GAME_CONFIG.LOCK_DURATION);
+      applyBadShuffleButtonLock();
       if (isMultiplayerModeActive() && typeof multiplayerBroadcastState === 'function' && multiplayerIsHost()) {
         multiplayerBroadcastState('shuffle_penalty');
       }
