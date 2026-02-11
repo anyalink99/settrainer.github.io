@@ -1005,7 +1005,6 @@ async function multiplayerApplyState(state, reason) {
       MULTIPLAYER_STATE.preferRemote = true;
       if (multiplayerIsClient()) {
         multiplayerSetStatus('Match started');
-        if (typeof showToast === 'function') showToast('Multiplayer match started');
       }
     }
 
@@ -1229,7 +1228,7 @@ function multiplayerHandleShuffleResult(msg) {
   MULTIPLAYER_STATE.pendingShuffle = false;
   if (!msg || msg.ok) return;
   if (msg.reason === 'bad_shuffle') {
-    if (typeof showToast === 'function') showToast('Bad shuffle: -1 point');
+    if (typeof applyBadShuffleButtonLock === 'function') applyBadShuffleButtonLock();
     return;
   }
   if (msg.reason === 'busy') {
@@ -1327,7 +1326,6 @@ function multiplayerShowResult(summary) {
 function multiplayerRequestRematch() {
   if (!MULTIPLAYER_STATE.isConnected) return;
   if (!multiplayerIsHost()) {
-    if (typeof showToast === 'function') showToast('Only host can start rematch');
     return;
   }
   multiplayerStartMatch();
@@ -1351,14 +1349,12 @@ function multiplayerStartMatch() {
   updateUI();
   closeModal('multiplayer-result-modal');
   closeSettingsPanel();
-  if (typeof showToast === 'function') showToast('Multiplayer match started');
   multiplayerBroadcastState('start');
 }
 
 function multiplayerHandleFinish(isAuto) {
   if (!MULTIPLAYER_STATE.isConnected) return;
   if (!multiplayerIsHost()) {
-    if (typeof showToast === 'function') showToast('Only host can finish');
     return;
   }
   multiplayerFinishMatch();
@@ -1374,7 +1370,6 @@ function multiplayerHandleReset() {
     multiplayerStartMatch();
     return;
   }
-  if (typeof showToast === 'function') showToast('Only host can restart in multiplayer');
 }
 
 
@@ -1427,5 +1422,4 @@ function multiplayerLeave() {
   closeSettingsPanel();
   setGameMode(GAME_MODES.NORMAL);
   MULTIPLAYER_STATE.prevGameMode = null;
-  if (typeof showToast === 'function') showToast('Left multiplayer. Switched to Normal mode and restarted game');
 }
