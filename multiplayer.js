@@ -31,6 +31,11 @@ const MULTIPLAYER_STATE = {
   connectionTimeout: null,
   // NEW: очередь ICE candidates
   pendingIceCandidates: [],
+  outboundIceCandidates: [],
+  iceFlushTimer: null,
+  waitingForAnswerSince: 0,
+  extendedAnswerWait: false,
+  lastRemoteOfferSdp: '',
   // NEW: faster polling during connection
   isConnecting: false
 };
@@ -246,11 +251,19 @@ function multiplayerResetConnectionState() {
   MULTIPLAYER_STATE.connectionState = 'idle';
   MULTIPLAYER_STATE.connectionStartTime = 0;
   MULTIPLAYER_STATE.pendingIceCandidates = [];
+  MULTIPLAYER_STATE.outboundIceCandidates = [];
+  MULTIPLAYER_STATE.waitingForAnswerSince = 0;
+  MULTIPLAYER_STATE.extendedAnswerWait = false;
+  MULTIPLAYER_STATE.lastRemoteOfferSdp = '';
   MULTIPLAYER_STATE.isConnecting = false;
   
   if (MULTIPLAYER_STATE.connectionTimeout) {
     clearTimeout(MULTIPLAYER_STATE.connectionTimeout);
     MULTIPLAYER_STATE.connectionTimeout = null;
+  }
+  if (MULTIPLAYER_STATE.iceFlushTimer) {
+    clearTimeout(MULTIPLAYER_STATE.iceFlushTimer);
+    MULTIPLAYER_STATE.iceFlushTimer = null;
   }
 }
 
@@ -270,12 +283,41 @@ function multiplayerStartPolling() {
   MULTIPLAYER_STATE.pollTimer = setInterval(multiplayerPollLobby, 150);
   multiplayerPollLobby();
   
-  // NEW: таймаут подключения 15 секунд
+  // NEW: адаптивный таймаут подключения
   MULTIPLAYER_STATE.connectionTimeout = setTimeout(() => {
-    if (!MULTIPLAYER_STATE.isConnected && MULTIPLAYER_STATE.connectionAttempts < 3) {
-      console.log('Connection timeout, retrying...', MULTIPLAYER_STATE.connectionAttempts + 1);
+    if (MULTIPLAYER_STATE.isConnected) return;
+
+    const pc = MULTIPLAYER_STATE.pc;
+    const signalingState = pc ? pc.signalingState : 'none';
+    const connectionState = pc ? pc.connectionState : 'none';
+    const iceState = pc ? pc.iceConnectionState : 'none';
+
+    if (pc && signalingState === 'have-local-offer') {
+      if (!MULTIPLAYER_STATE.extendedAnswerWait) {
+        MULTIPLAYER_STATE.extendedAnswerWait = true;
+        console.log('Waiting for answer (have-local-offer), extending timeout by 30s');
+        MULTIPLAYER_STATE.connectionTimeout = setTimeout(() => {
+          if (!MULTIPLAYER_STATE.isConnected) {
+            console.log('No answer received after extension, retrying');
+            multiplayerRetryConnection();
+          }
+        }, 30000);
+        return;
+      }
+    }
+
+    if (pc && (connectionState === 'connecting' || iceState === 'checking')) {
+      console.log('Connection is progressing (connecting/checking), extending timeout by 20s');
+      MULTIPLAYER_STATE.connectionTimeout = setTimeout(() => {
+        if (!MULTIPLAYER_STATE.isConnected) multiplayerRetryConnection();
+      }, 20000);
+      return;
+    }
+
+    if (MULTIPLAYER_STATE.connectionAttempts < 4) {
+      console.log('Connection timeout, retrying...', MULTIPLAYER_STATE.connectionAttempts + 1, 'state:', signalingState, connectionState, iceState);
       multiplayerRetryConnection();
-    } else if (!MULTIPLAYER_STATE.isConnected) {
+    } else {
       multiplayerSetStatus('Connection failed');
       multiplayerStopPolling();
       if (typeof showToast === 'function') showToast('Failed to connect. Please try again.');
@@ -309,6 +351,10 @@ function multiplayerRetryConnection() {
   MULTIPLAYER_STATE.offerSent = false;
   MULTIPLAYER_STATE.answerSent = false;
   MULTIPLAYER_STATE.pendingIceCandidates = [];
+  MULTIPLAYER_STATE.outboundIceCandidates = [];
+  MULTIPLAYER_STATE.waitingForAnswerSince = 0;
+  MULTIPLAYER_STATE.extendedAnswerWait = false;
+  MULTIPLAYER_STATE.lastRemoteOfferSdp = '';
   MULTIPLAYER_STATE.connectionState = 'waiting_ready';
   
   multiplayerSetStatus('Retrying connection...');
@@ -398,11 +444,15 @@ function multiplayerCreatePeerConnection(isHost) {
   pc.onicecandidate = (e) => {
     if (e.candidate) {
       console.log('New ICE candidate:', e.candidate.type);
-      multiplayerSendSignal('ice', JSON.stringify(e.candidate)).catch(err => {
-        console.warn('Failed to send ICE candidate:', err);
-      });
+      MULTIPLAYER_STATE.outboundIceCandidates.push(e.candidate);
+      if (!MULTIPLAYER_STATE.iceFlushTimer) {
+        MULTIPLAYER_STATE.iceFlushTimer = setTimeout(() => {
+          multiplayerFlushIceCandidates('timer');
+        }, 350);
+      }
     } else {
       console.log('ICE gathering complete');
+      multiplayerFlushIceCandidates('complete');
     }
   };
   
@@ -457,6 +507,27 @@ function multiplayerCreatePeerConnection(isHost) {
   return pc;
 }
 
+async function multiplayerFlushIceCandidates(reason) {
+  if (MULTIPLAYER_STATE.iceFlushTimer) {
+    clearTimeout(MULTIPLAYER_STATE.iceFlushTimer);
+    MULTIPLAYER_STATE.iceFlushTimer = null;
+  }
+  if (!MULTIPLAYER_STATE.outboundIceCandidates.length) return;
+
+  const batch = MULTIPLAYER_STATE.outboundIceCandidates.splice(0, MULTIPLAYER_STATE.outboundIceCandidates.length);
+  const deduped = [];
+  const seen = new Set();
+  for (const candidate of batch) {
+    const key = [candidate.candidate, candidate.sdpMid, candidate.sdpMLineIndex].join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(candidate);
+  }
+
+  console.log('Sending ICE batch:', deduped.length, 'reason:', reason);
+  await multiplayerSendSignal('ice_batch', JSON.stringify(deduped));
+}
+
 async function multiplayerStartOffer() {
   if (MULTIPLAYER_STATE.pc || MULTIPLAYER_STATE.offerSent) {
     console.log('Offer already in progress, skipping');
@@ -476,6 +547,8 @@ async function multiplayerStartOffer() {
     
     console.log('Offer created, setting local description');
     await MULTIPLAYER_STATE.pc.setLocalDescription(offer);
+    MULTIPLAYER_STATE.waitingForAnswerSince = Date.now();
+    MULTIPLAYER_STATE.extendedAnswerWait = false;
     
     console.log('Sending offer to remote peer');
     await multiplayerSendSignal('offer', JSON.stringify(offer));
@@ -502,6 +575,12 @@ async function multiplayerHandleOffer(offer) {
   }
   
   console.log('Received offer from host');
+
+  if (offer.sdp && offer.sdp === MULTIPLAYER_STATE.lastRemoteOfferSdp) {
+    console.log('Duplicate offer SDP received, skipping');
+    return;
+  }
+  MULTIPLAYER_STATE.lastRemoteOfferSdp = offer.sdp || '';
   
   // NEW: защита от дублирования
   if (MULTIPLAYER_STATE.pc && MULTIPLAYER_STATE.answerSent) {
@@ -572,6 +651,7 @@ async function multiplayerHandleAnswer(answer) {
     
     console.log('Setting remote description (answer)');
     await MULTIPLAYER_STATE.pc.setRemoteDescription(new RTCSessionDescription(answer));
+    MULTIPLAYER_STATE.waitingForAnswerSince = 0;
     
     // NEW: обработка очереди ICE candidates после установки remote description
     console.log('Processing queued ICE candidates:', MULTIPLAYER_STATE.pendingIceCandidates.length);
@@ -658,6 +738,11 @@ function multiplayerProcessSignals(signals) {
       } else if (sig.type === 'ice') {
         const candidate = JSON.parse(sig.payload);
         multiplayerHandleIceCandidate(candidate);
+      } else if (sig.type === 'ice_batch') {
+        const candidates = JSON.parse(sig.payload);
+        if (Array.isArray(candidates)) {
+          candidates.forEach(multiplayerHandleIceCandidate);
+        }
       }
     } catch (err) {
       console.error('Failed to process signal:', sig.type, err);
