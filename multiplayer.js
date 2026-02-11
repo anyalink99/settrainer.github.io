@@ -74,7 +74,8 @@ const MULTIPLAYER_STATE = {
   availableLobbies: [],
   isLobbyListLoading: false,
   lobbyListLastSignature: '',
-  lobbyListTimer: null
+  lobbyListTimer: null,
+  rematchPrepared: false
 };
 
 
@@ -1281,6 +1282,16 @@ function multiplayerFinishMatch() {
   const summary = multiplayerBuildSummary();
   multiplayerSend({ type: 'finish', summary: summary });
   multiplayerShowResult(summary);
+  multiplayerPrepareRematchBoard();
+}
+
+function multiplayerPrepareRematchBoard() {
+  if (!multiplayerIsHost()) return;
+  MULTIPLAYER_STATE.preferRemote = false;
+  initNewDeckAndBoard();
+  updateUI();
+  MULTIPLAYER_STATE.rematchPrepared = true;
+  multiplayerBroadcastState('rematch_prepare');
 }
 
 function multiplayerBuildSummary() {
@@ -1350,10 +1361,13 @@ function multiplayerStartMatch() {
   isGameOver = false;
   multiplayerSetStatus('Match started');
   resetStats();
-  initNewDeckAndBoard();
+  if (!MULTIPLAYER_STATE.rematchPrepared) {
+    initNewDeckAndBoard();
+  }
   updateUI();
   closeModal('multiplayer-result-modal');
   closeSettingsPanel();
+  MULTIPLAYER_STATE.rematchPrepared = false;
   multiplayerBroadcastState('start');
 }
 
@@ -1395,6 +1409,7 @@ function multiplayerHandlePeerDisconnect() {
   MULTIPLAYER_STATE.availableLobbies = [];
   MULTIPLAYER_STATE.isLobbyListLoading = false;
   MULTIPLAYER_STATE.lobbyListLastSignature = '';
+  MULTIPLAYER_STATE.rematchPrepared = false;
   MULTIPLAYER_STATE.prevGameMode = null;
   setGameMode(GAME_MODES.NORMAL);
   multiplayerSetStatus('Not connected');
@@ -1420,6 +1435,7 @@ function multiplayerLeave() {
   MULTIPLAYER_STATE.availableLobbies = [];
   MULTIPLAYER_STATE.isLobbyListLoading = false;
   MULTIPLAYER_STATE.lobbyListLastSignature = '';
+  MULTIPLAYER_STATE.rematchPrepared = false;
   multiplayerSetStatus('Not connected');
   multiplayerRenderHud();
   closeModal('multiplayer-modal');
