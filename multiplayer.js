@@ -37,7 +37,8 @@ const MULTIPLAYER_STATE = {
   extendedAnswerWait: false,
   lastRemoteOfferSdp: '',
   // NEW: faster polling during connection
-  isConnecting: false
+  isConnecting: false,
+  availableLobbies: []
 };
 
 
@@ -142,11 +143,72 @@ function openMultiplayerModal() {
     updateUI();
   }
   multiplayerSyncModal();
+  multiplayerRenderLobbyList();
   openModal('multiplayer-modal');
+  multiplayerRefreshLobbyList();
 }
 
 function closeMultiplayerModal() {
   closeModal('multiplayer-modal');
+}
+
+
+async function multiplayerRefreshLobbyList() {
+  multiplayerSetStatus('Loading lobbies…');
+  const listEl = document.getElementById('multiplayer-lobby-list');
+  if (listEl) listEl.innerHTML = '<div class="multiplayer-lobby-item multiplayer-lobby-item--empty">Loading…</div>';
+  try {
+    const data = await multiplayerRequest('lobby_list', {});
+    const rawLobbies = Array.isArray(data && data.lobbies) ? data.lobbies : [];
+    MULTIPLAYER_STATE.availableLobbies = rawLobbies
+      .slice()
+      .sort((a, b) => Number(b.createdAt || b.at || 0) - Number(a.createdAt || a.at || 0))
+      .slice(0, 3);
+    multiplayerRenderLobbyList();
+    multiplayerSetStatus(MULTIPLAYER_STATE.statusText === 'Loading lobbies…' ? 'Choose a lobby' : MULTIPLAYER_STATE.statusText);
+  } catch (err) {
+    console.error('Failed to load lobbies:', err);
+    MULTIPLAYER_STATE.availableLobbies = [];
+    multiplayerRenderLobbyList();
+    multiplayerSetStatus('Failed to load lobbies');
+    if (typeof showToast === 'function') showToast(err.message || 'Failed to load lobbies');
+  }
+}
+
+function multiplayerRenderLobbyList() {
+  const listEl = document.getElementById('multiplayer-lobby-list');
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  const lobbies = Array.isArray(MULTIPLAYER_STATE.availableLobbies) ? MULTIPLAYER_STATE.availableLobbies : [];
+  if (!lobbies.length) {
+    const empty = document.createElement('div');
+    empty.className = 'multiplayer-lobby-item multiplayer-lobby-item--empty';
+    empty.textContent = 'No recent lobbies';
+    listEl.appendChild(empty);
+    return;
+  }
+  lobbies.forEach((lobby) => {
+    const lobbyId = String(lobby.lobbyId || lobby.id || '').trim();
+    const hostNick = String(lobby.hostNick || lobby.nickname || lobby.nick || lobby.host || 'Unknown').trim() || 'Unknown';
+    if (!lobbyId) return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'multiplayer-lobby-item';
+    btn.onpointerdown = () => multiplayerJoinLobby(lobbyId);
+
+    const nickEl = document.createElement('div');
+    nickEl.className = 'multiplayer-lobby-host';
+    nickEl.textContent = hostNick;
+
+    const idEl = document.createElement('div');
+    idEl.className = 'multiplayer-lobby-id';
+    idEl.textContent = 'Lobby: ' + lobbyId;
+
+    btn.appendChild(nickEl);
+    btn.appendChild(idEl);
+    listEl.appendChild(btn);
+  });
 }
 
 async function multiplayerRequest(action, params) {
@@ -192,11 +254,10 @@ async function multiplayerHostLobby() {
   }
 }
 
-async function multiplayerJoinLobby() {
-  const input = document.getElementById('multiplayer-join-id');
-  const lobbyId = input ? input.value.trim() : '';
+async function multiplayerJoinLobby(selectedLobbyId) {
+  const lobbyId = String(selectedLobbyId || '').trim();
   if (!lobbyId) {
-    if (typeof showToast === 'function') showToast('Enter lobby ID');
+    if (typeof showToast === 'function') showToast('Select a lobby');
     return;
   }
   const nick = multiplayerGetNickname();
@@ -767,6 +828,7 @@ function multiplayerSetupChannel(channel) {
     multiplayerSend({ type: 'hello', nick: MULTIPLAYER_STATE.localNick });
     multiplayerRenderHud();
     closeMultiplayerModal();
+    closeSettingsPanel();
     
     if (MULTIPLAYER_STATE.role === 'host') {
       // NEW: небольшая задержка перед стартом
@@ -788,10 +850,7 @@ function multiplayerSetupChannel(channel) {
   
   channel.onclose = () => {
     console.log('Data channel closed');
-    MULTIPLAYER_STATE.isConnected = false;
-    MULTIPLAYER_STATE.connectionState = 'idle';
-    multiplayerSetStatus('Disconnected');
-    multiplayerRenderHud();
+    multiplayerHandlePeerDisconnect();
   };
   
   channel.onerror = (err) => {
@@ -881,6 +940,7 @@ async function multiplayerApplyState(state, reason) {
     MULTIPLAYER_STATE.preferRemote = true; // клиент всегда принимает состояние от хоста
     if (multiplayerIsClient()) {
       multiplayerSetStatus('Match started');
+      if (typeof showToast === 'function') showToast('Multiplayer match started');
     }
   }
   
@@ -1183,6 +1243,8 @@ function multiplayerStartMatch() {
   initNewDeckAndBoard();
   updateUI();
   closeModal('multiplayer-result-modal');
+  closeSettingsPanel();
+  if (typeof showToast === 'function') showToast('Multiplayer match started');
   multiplayerBroadcastState('start');
 }
 
@@ -1208,6 +1270,31 @@ function multiplayerHandleReset() {
   multiplayerRequestRematch();
 }
 
+
+function multiplayerHandlePeerDisconnect() {
+  if (!MULTIPLAYER_STATE.role) return;
+  const wasConnected = MULTIPLAYER_STATE.isConnected;
+  multiplayerStopPolling();
+  multiplayerResetConnectionState();
+  MULTIPLAYER_STATE.isConnected = false;
+  MULTIPLAYER_STATE.role = null;
+  MULTIPLAYER_STATE.lobbyId = '';
+  MULTIPLAYER_STATE.remoteNick = '';
+  MULTIPLAYER_STATE.scores = {};
+  MULTIPLAYER_STATE.timestampsByNick = {};
+  MULTIPLAYER_STATE.lastSetTimeByNick = {};
+  MULTIPLAYER_STATE.preferRemote = false;
+  MULTIPLAYER_STATE.availableLobbies = [];
+  MULTIPLAYER_STATE.prevGameMode = null;
+  setGameMode(GAME_MODES.NORMAL);
+  multiplayerSetStatus('Not connected');
+  multiplayerRenderHud();
+  closeModal('multiplayer-modal');
+  closeModal('multiplayer-result-modal');
+  closeSettingsPanel();
+  if (wasConnected && typeof showToast === 'function') showToast('Opponent left. Switched to Normal mode and restarted game');
+}
+
 function multiplayerLeave() {
   multiplayerStopPolling();
   multiplayerResetConnectionState();
@@ -1219,12 +1306,14 @@ function multiplayerLeave() {
   MULTIPLAYER_STATE.lastSetTimeByNick = {};
   MULTIPLAYER_STATE.isConnected = false;
   MULTIPLAYER_STATE.preferRemote = false;
+  MULTIPLAYER_STATE.availableLobbies = [];
   multiplayerSetStatus('Not connected');
   multiplayerRenderHud();
   closeModal('multiplayer-modal');
   closeModal('multiplayer-result-modal');
-  if (MULTIPLAYER_STATE.prevGameMode) {
-    setGameMode(MULTIPLAYER_STATE.prevGameMode);
-    MULTIPLAYER_STATE.prevGameMode = null;
-  }
+  closeSettingsPanel();
+  setGameMode(GAME_MODES.NORMAL);
+  MULTIPLAYER_STATE.prevGameMode = null;
+  if (typeof showToast === 'function') showToast('Left multiplayer. Switched to Normal mode and restarted game');
 }
+
