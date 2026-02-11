@@ -595,6 +595,9 @@ body.cursor-hidden * {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 210px;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .multiplayer-lobby-item {

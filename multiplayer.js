@@ -72,7 +72,6 @@ const MULTIPLAYER_STATE = {
   isConnecting: false,
   availableLobbies: [],
   lobbyListTimer: null
-  // NEW: faster polling during connection
   isConnecting: false,
   availableLobbies: []
 };
@@ -233,6 +232,7 @@ async function multiplayerRefreshLobbyList() {
 function multiplayerRenderLobbyList() {
   const listEl = document.getElementById('multiplayer-lobby-list');
   if (!listEl) return;
+  const prevTop = listEl.scrollTop;
   listEl.innerHTML = '';
   const lobbies = Array.isArray(MULTIPLAYER_STATE.availableLobbies) ? MULTIPLAYER_STATE.availableLobbies : [];
   if (!lobbies.length) {
@@ -264,6 +264,7 @@ function multiplayerRenderLobbyList() {
     btn.appendChild(idEl);
     listEl.appendChild(btn);
   });
+  listEl.scrollTop = prevTop;
 }
 
 async function multiplayerRequest(action, params) {
