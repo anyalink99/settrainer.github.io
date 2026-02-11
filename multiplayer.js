@@ -1420,6 +1420,31 @@ function multiplayerHandlePeerDisconnect() {
   if (wasConnected && typeof showToast === 'function') showToast('Opponent left. Switched to Normal mode and restarted game');
 }
 
+function multiplayerHandleModeSwitchAway() {
+  multiplayerStopPolling();
+  multiplayerStopLobbyListPolling();
+  multiplayerResetConnectionState();
+  MULTIPLAYER_STATE.role = null;
+  MULTIPLAYER_STATE.lobbyId = '';
+  MULTIPLAYER_STATE.remoteNick = '';
+  MULTIPLAYER_STATE.scores = {};
+  MULTIPLAYER_STATE.timestampsByNick = {};
+  MULTIPLAYER_STATE.lastSetTimeByNick = {};
+  MULTIPLAYER_STATE.isConnected = false;
+  MULTIPLAYER_STATE.preferRemote = false;
+  MULTIPLAYER_STATE.availableLobbies = [];
+  MULTIPLAYER_STATE.isLobbyListLoading = false;
+  MULTIPLAYER_STATE.lobbyListLastSignature = '';
+  MULTIPLAYER_STATE.rematchPrepared = false;
+  MULTIPLAYER_STATE.prevGameMode = null;
+  multiplayerSetStatus('Not connected');
+  multiplayerRenderHud();
+  multiplayerSyncActionButtons();
+  closeModal('multiplayer-modal');
+  closeModal('multiplayer-result-modal');
+  closeSettingsPanel();
+}
+
 function multiplayerLeave() {
   multiplayerStopPolling();
   multiplayerStopLobbyListPolling();
