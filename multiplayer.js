@@ -71,6 +71,8 @@ const MULTIPLAYER_STATE = {
   lastRemoteOfferSdp: '',
   isConnecting: false,
   availableLobbies: [],
+  isLobbyListLoading: false,
+  lobbyListLastSignature: '',
   lobbyListTimer: null
 };
 
@@ -202,23 +204,43 @@ function multiplayerStopLobbyListPolling() {
 }
 
 async function multiplayerRefreshLobbyList() {
-  multiplayerSetStatus('Loading lobbies…');
-  const listEl = document.getElementById('multiplayer-lobby-list');
-  if (listEl) listEl.innerHTML = '<div class="multiplayer-lobby-item multiplayer-lobby-item--empty">Loading…</div>';
+  if (MULTIPLAYER_STATE.isLobbyListLoading) return;
+  MULTIPLAYER_STATE.isLobbyListLoading = true;
+  const hadLobbies = Array.isArray(MULTIPLAYER_STATE.availableLobbies) && MULTIPLAYER_STATE.availableLobbies.length > 0;
+  if (!hadLobbies) {
+    multiplayerSetStatus('Loading lobbies…');
+    const listEl = document.getElementById('multiplayer-lobby-list');
+    if (listEl) listEl.innerHTML = '<div class="multiplayer-lobby-item multiplayer-lobby-item--empty">Loading…</div>';
+  }
   try {
     const data = await multiplayerRequest('lobby_list', {});
     const rawLobbies = Array.isArray(data && data.lobbies) ? data.lobbies : [];
-    MULTIPLAYER_STATE.availableLobbies = rawLobbies
+    const nextLobbies = rawLobbies
       .slice()
       .sort((a, b) => Number(b.createdAt || b.at || 0) - Number(a.createdAt || a.at || 0))
       .slice(0, 3);
-    multiplayerRenderLobbyList();
+    const nextSignature = nextLobbies
+      .map((lobby) => {
+        const lobbyId = String(lobby.lobbyId || lobby.id || '').trim();
+        const hostNick = String(lobby.hostNick || lobby.nickname || lobby.nick || lobby.host || 'Unknown').trim() || 'Unknown';
+        const createdAt = Number(lobby.createdAt || lobby.at || 0);
+        return `${lobbyId}:${hostNick}:${createdAt}`;
+      })
+      .join('|');
+    if (nextSignature !== MULTIPLAYER_STATE.lobbyListLastSignature) {
+      MULTIPLAYER_STATE.availableLobbies = nextLobbies;
+      MULTIPLAYER_STATE.lobbyListLastSignature = nextSignature;
+      multiplayerRenderLobbyList();
+    }
   } catch (err) {
     console.error('Failed to load lobbies:', err);
     MULTIPLAYER_STATE.availableLobbies = [];
+    MULTIPLAYER_STATE.lobbyListLastSignature = '';
     multiplayerRenderLobbyList();
     multiplayerSetStatus('Failed to load lobbies');
     if (typeof showToast === 'function') showToast(err.message || 'Failed to load lobbies');
+  } finally {
+    MULTIPLAYER_STATE.isLobbyListLoading = false;
   }
 }
 
@@ -1274,6 +1296,8 @@ function multiplayerHandlePeerDisconnect() {
   MULTIPLAYER_STATE.lastSetTimeByNick = {};
   MULTIPLAYER_STATE.preferRemote = false;
   MULTIPLAYER_STATE.availableLobbies = [];
+  MULTIPLAYER_STATE.isLobbyListLoading = false;
+  MULTIPLAYER_STATE.lobbyListLastSignature = '';
   MULTIPLAYER_STATE.prevGameMode = null;
   setGameMode(GAME_MODES.NORMAL);
   multiplayerSetStatus('Not connected');
@@ -1297,6 +1321,8 @@ function multiplayerLeave() {
   MULTIPLAYER_STATE.isConnected = false;
   MULTIPLAYER_STATE.preferRemote = false;
   MULTIPLAYER_STATE.availableLobbies = [];
+  MULTIPLAYER_STATE.isLobbyListLoading = false;
+  MULTIPLAYER_STATE.lobbyListLastSignature = '';
   multiplayerSetStatus('Not connected');
   multiplayerRenderHud();
   closeModal('multiplayer-modal');
