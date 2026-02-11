@@ -51,6 +51,7 @@ const MULTIPLAYER_STATE = {
   lastSetTimeByNick: {},
   startEpoch: 0,
   pendingClaim: false,
+  pendingShuffle: false,
   preferRemote: false,
   prevGameMode: null,
   lastStateVersion: 0,
@@ -146,6 +147,27 @@ function multiplayerRenderHud() {
   });
 }
 
+
+function multiplayerSyncActionButtons() {
+  const isClientPlayer = isMultiplayerModeActive() && MULTIPLAYER_STATE.role === 'client' && MULTIPLAYER_STATE.isConnected;
+
+  const finishBtn = document.getElementById('finish-btn');
+  if (finishBtn) {
+    finishBtn.style.visibility = isClientPlayer ? 'hidden' : '';
+    finishBtn.style.pointerEvents = isClientPlayer ? 'none' : '';
+    finishBtn.setAttribute('aria-hidden', isClientPlayer ? 'true' : 'false');
+    finishBtn.tabIndex = isClientPlayer ? -1 : 0;
+  }
+
+  const rematchBtn = document.getElementById('multiplayer-rematch-btn');
+  if (rematchBtn) {
+    rematchBtn.style.visibility = isClientPlayer ? 'hidden' : '';
+    rematchBtn.style.pointerEvents = isClientPlayer ? 'none' : '';
+    rematchBtn.setAttribute('aria-hidden', isClientPlayer ? 'true' : 'false');
+    rematchBtn.tabIndex = isClientPlayer ? -1 : 0;
+  }
+}
+
 function multiplayerSyncModal() {
   const nickEl = document.getElementById('multiplayer-nick');
   if (nickEl) nickEl.textContent = multiplayerGetNickname();
@@ -178,6 +200,7 @@ function openMultiplayerModal() {
     updateUI();
   }
   multiplayerSyncModal();
+  multiplayerSyncActionButtons();
   multiplayerRenderLobbyList();
   openModal('multiplayer-modal');
   multiplayerStartLobbyListPolling();
@@ -371,6 +394,7 @@ function multiplayerResetConnectionState() {
   MULTIPLAYER_STATE.pc = null;
   MULTIPLAYER_STATE.processedSignals = new Set();
   MULTIPLAYER_STATE.pendingClaim = false;
+  MULTIPLAYER_STATE.pendingShuffle = false;
   MULTIPLAYER_STATE.lastStateVersion = 0;
   MULTIPLAYER_STATE.isReady = false;
   MULTIPLAYER_STATE.remoteReady = false;
@@ -394,6 +418,7 @@ function multiplayerResetConnectionState() {
     clearTimeout(MULTIPLAYER_STATE.iceFlushTimer);
     MULTIPLAYER_STATE.iceFlushTimer = null;
   }
+  multiplayerSyncActionButtons();
 }
 
 function multiplayerStopPolling() {
@@ -859,6 +884,7 @@ function multiplayerSetupChannel(channel) {
     
     multiplayerSend({ type: 'hello', nick: MULTIPLAYER_STATE.localNick });
     multiplayerRenderHud();
+    multiplayerSyncActionButtons();
     multiplayerStopLobbyListPolling();
     closeMultiplayerModal();
     closeSettingsPanel();
@@ -917,6 +943,14 @@ function multiplayerHandleMessage(msg) {
     multiplayerHandleClaimResult(msg);
     return;
   }
+  if (msg.type === 'shuffle_request' && multiplayerIsHost()) {
+    multiplayerHandleHostShuffleRequest(msg);
+    return;
+  }
+  if (msg.type === 'shuffle_result' && multiplayerIsClient()) {
+    multiplayerHandleShuffleResult(msg);
+    return;
+  }
   if (msg.type === 'finish') {
     multiplayerShowResult(msg.summary);
     return;
@@ -961,94 +995,102 @@ function multiplayerBroadcastState(reason) {
 
 async function multiplayerApplyState(state, reason) {
   if (!state || MULTIPLAYER_STATE.isApplyingState) return;
-  if (state.version && state.version < MULTIPLAYER_STATE.lastStateVersion) return;
+  if (state.version && state.version <= MULTIPLAYER_STATE.lastStateVersion) return;
   MULTIPLAYER_STATE.lastStateVersion = state.version || MULTIPLAYER_STATE.lastStateVersion;
   MULTIPLAYER_STATE.isApplyingState = true;
-  if (reason === 'start') {
-    closeModal('multiplayer-result-modal');
-    isGameOver = false;
-    MULTIPLAYER_STATE.preferRemote = true;
-    if (multiplayerIsClient()) {
-      multiplayerSetStatus('Match started');
-      if (typeof showToast === 'function') showToast('Multiplayer match started');
-    }
-  }
-  
-  const newDeck = Array.isArray(state.deck) ? state.deck.map(codeToCard) : [];
-  const newBoard = Array.isArray(state.board) ? state.board.map(codeToCard) : [];
-  const changedSlots = [];
-  for (let i = 0; i < 12; i++) {
-    const oldCard = board[i];
-    const newCard = newBoard[i];
-    const oldCode = oldCard ? cardToCode(oldCard) : null;
-    const newCode = newCard ? cardToCode(newCard) : null;
-    
-    if (oldCode !== newCode) {
-      changedSlots.push(i);
-    }
-  }
-  
-  const animDuration = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.ANIMATION_DURATION) ? 
-                       GAME_CONFIG.ANIMATION_DURATION : 300;
-  const isShuffle = reason === 'shuffle_manual' || reason === 'shuffle_auto';
-  const isFullBoardChange = changedSlots.length >= 10;
-  const isSetReplacement = changedSlots.length > 0 && changedSlots.length <= 4;
-  
-  if (isShuffle || isFullBoardChange) {
-    isAnimating = true;
-    
-    const boardEl = document.getElementById('board');
-    if (boardEl) {
-      document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
-    }
-    
-    await new Promise(r => setTimeout(r, animDuration));
-    
-    deck = newDeck;
-    board = newBoard;
-    for (let i = 0; i < 12; i++) updateSlot(i, true);
-    
-  } else if (isSetReplacement) {
-    isAnimating = true;
-    const boardEl = document.getElementById('board');
-    if (boardEl) {
-      changedSlots.forEach(i => {
-        const card = boardEl.children[i]?.querySelector('.card');
-        if (card) card.classList.add('anim-out');
-      });
-    }
-    
-    await new Promise(r => setTimeout(r, animDuration));
-    deck = newDeck;
-    board = newBoard;
-    
-    changedSlots.forEach(i => updateSlot(i, true));
-    for (let i = 0; i < 12; i++) {
-      if (!changedSlots.includes(i)) {
-        updateSlot(i, false);
+  try {
+    if (reason === 'start') {
+      closeModal('multiplayer-result-modal');
+      isGameOver = false;
+      MULTIPLAYER_STATE.preferRemote = true;
+      if (multiplayerIsClient()) {
+        multiplayerSetStatus('Match started');
+        if (typeof showToast === 'function') showToast('Multiplayer match started');
       }
     }
-    
-  } else {
-    deck = newDeck;
-    board = newBoard;
-    for (let i = 0; i < 12; i++) updateSlot(i, reason === 'start');
+
+    const newDeck = Array.isArray(state.deck) ? state.deck.map(codeToCard) : [];
+    const incomingBoard = Array.isArray(state.board) ? state.board.map(codeToCard) : [];
+    const newBoard = incomingBoard.slice(0, 12);
+    while (newBoard.length < 12) newBoard.push(null);
+
+    const changedSlots = [];
+    for (let i = 0; i < 12; i++) {
+      const oldCard = board[i];
+      const newCard = newBoard[i];
+      const oldCode = oldCard ? cardToCode(oldCard) : null;
+      const newCode = newCard ? cardToCode(newCard) : null;
+
+      if (oldCode !== newCode) {
+        changedSlots.push(i);
+      }
+    }
+
+    const animDuration = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.ANIMATION_DURATION) ?
+      GAME_CONFIG.ANIMATION_DURATION : 300;
+    const isShuffle = reason === 'shuffle_manual' || reason === 'shuffle_auto';
+    const isFullBoardChange = changedSlots.length >= 10;
+    const isSetReplacement = reason === 'set' && changedSlots.length > 0 && changedSlots.length <= 3;
+
+    if (isShuffle || isFullBoardChange) {
+      isAnimating = true;
+
+      const boardEl = document.getElementById('board');
+      if (boardEl) {
+        document.querySelectorAll('.card').forEach(c => c.classList.add('anim-out'));
+      }
+
+      await new Promise(r => setTimeout(r, animDuration));
+
+      deck = newDeck;
+      board = newBoard;
+      for (let i = 0; i < 12; i++) updateSlot(i, true);
+
+    } else if (isSetReplacement) {
+      isAnimating = true;
+      const boardEl = document.getElementById('board');
+      if (boardEl) {
+        changedSlots.forEach(i => {
+          const card = boardEl.children[i]?.querySelector('.card');
+          if (card) card.classList.add('anim-out');
+        });
+      }
+
+      await new Promise(r => setTimeout(r, animDuration));
+      deck = newDeck;
+      board = newBoard;
+
+      changedSlots.forEach(i => updateSlot(i, true));
+      for (let i = 0; i < 12; i++) {
+        if (!changedSlots.includes(i)) {
+          updateSlot(i, false);
+        }
+      }
+
+    } else {
+      deck = newDeck;
+      board = newBoard;
+      for (let i = 0; i < 12; i++) updateSlot(i, reason === 'start');
+    }
+
+    MULTIPLAYER_STATE.scores = state.scores || {};
+    collectedSets = MULTIPLAYER_STATE.scores[MULTIPLAYER_STATE.localNick] || 0;
+    const tsByNick = state.timestampsByNick || {};
+    setTimestamps = tsByNick[MULTIPLAYER_STATE.localNick] ? [...tsByNick[MULTIPLAYER_STATE.localNick]] : [];
+    isGameOver = !!state.isGameOver;
+    if (typeof state.elapsedMs === 'number') {
+      startTime = Date.now() - state.elapsedMs;
+    }
+
+    selected = [];
+    isAnimating = false;
+    updateUI();
+    multiplayerRenderHud();
+    MULTIPLAYER_STATE.pendingClaim = false;
+    MULTIPLAYER_STATE.pendingShuffle = false;
+  } finally {
+    MULTIPLAYER_STATE.isApplyingState = false;
   }
-  
-  MULTIPLAYER_STATE.scores = state.scores || {};
-  collectedSets = MULTIPLAYER_STATE.scores[MULTIPLAYER_STATE.localNick] || 0;
-  const tsByNick = state.timestampsByNick || {};
-  setTimestamps = tsByNick[MULTIPLAYER_STATE.localNick] ? [...tsByNick[MULTIPLAYER_STATE.localNick]] : [];
-  isGameOver = !!state.isGameOver;
-  if (typeof state.elapsedMs === 'number') {
-    startTime = Date.now() - state.elapsedMs;
-  }
-  selected = [];
-  isAnimating = false;
-  updateUI();
-  multiplayerRenderHud();
-  MULTIPLAYER_STATE.pendingClaim = false;
-  MULTIPLAYER_STATE.isApplyingState = false;
 }
 
 function multiplayerAwardSet(nick, possibleAtStart) {
@@ -1165,6 +1207,62 @@ async function multiplayerHandleClientSelection(idx, el) {
   }
 }
 
+
+function multiplayerRequestShuffle() {
+  if (!MULTIPLAYER_STATE.isConnected || !multiplayerIsClient()) return;
+  if (MULTIPLAYER_STATE.pendingShuffle || MULTIPLAYER_STATE.pendingClaim || isAnimating || isGameOver) return;
+  MULTIPLAYER_STATE.pendingShuffle = true;
+  multiplayerSend({ type: 'shuffle_request', nick: MULTIPLAYER_STATE.localNick });
+}
+
+function multiplayerApplyBadShufflePenalty(nick) {
+  if (!nick) return;
+  const current = Number(MULTIPLAYER_STATE.scores[nick]) || 0;
+  MULTIPLAYER_STATE.scores[nick] = current - 1;
+  if (nick === MULTIPLAYER_STATE.localNick) {
+    collectedSets = MULTIPLAYER_STATE.scores[nick];
+  }
+  multiplayerRenderHud();
+}
+
+function multiplayerHandleShuffleResult(msg) {
+  MULTIPLAYER_STATE.pendingShuffle = false;
+  if (!msg || msg.ok) return;
+  if (msg.reason === 'bad_shuffle') {
+    if (typeof showToast === 'function') showToast('Bad shuffle: -1 point');
+    return;
+  }
+  if (msg.reason === 'busy') {
+    if (typeof showToast === 'function') showToast('Shuffle unavailable right now');
+    return;
+  }
+}
+
+function multiplayerHandleHostShuffleRequest(msg) {
+  if (!multiplayerIsHost()) return;
+  if (isAnimating || isGameOver) {
+    multiplayerSend({ type: 'shuffle_result', ok: false, reason: 'busy' });
+    return;
+  }
+
+  const possibleCount = analyzePossibleSets().total;
+  const nick = String((msg && msg.nick) || MULTIPLAYER_STATE.remoteNick || 'Guest');
+
+  if (possibleCount > 0) {
+    badShuffles++;
+    multiplayerApplyBadShufflePenalty(nick);
+    multiplayerBroadcastState('shuffle_penalty');
+    multiplayerSend({ type: 'shuffle_result', ok: false, reason: 'bad_shuffle' });
+    return;
+  }
+
+  const now = Date.now();
+  const { fadeOutMs, animInMs } = getShuffleDurations();
+  shuffleBtnCooldownUntil = now + fadeOutMs + animInMs;
+  handleShuffleDeck(false);
+  multiplayerSend({ type: 'shuffle_result', ok: true });
+}
+
 function multiplayerCheckFinish() {
   if (!multiplayerIsHost() || isGameOver) return;
   const hasSets = analyzePossibleSets().total > 0;
@@ -1228,13 +1326,12 @@ function multiplayerShowResult(summary) {
 
 function multiplayerRequestRematch() {
   if (!MULTIPLAYER_STATE.isConnected) return;
-  if (multiplayerIsHost()) {
-    multiplayerStartMatch();
-    closeModal('multiplayer-result-modal');
-  } else {
-    multiplayerSend({ type: 'rematch' });
-    if (typeof showToast === 'function') showToast('Rematch request sent to host');
+  if (!multiplayerIsHost()) {
+    if (typeof showToast === 'function') showToast('Only host can start rematch');
+    return;
   }
+  multiplayerStartMatch();
+  closeModal('multiplayer-result-modal');
 }
 
 function multiplayerStartMatch() {
@@ -1277,7 +1374,7 @@ function multiplayerHandleReset() {
     multiplayerStartMatch();
     return;
   }
-  multiplayerRequestRematch();
+  if (typeof showToast === 'function') showToast('Only host can restart in multiplayer');
 }
 
 

@@ -69,7 +69,7 @@
         </div>
 
         <div class="bottom-actions">
-            <button onpointerdown="handleGameFinish()" class="btn-action">Finish</button>
+            <button id="finish-btn" onpointerdown="handleGameFinish()" class="btn-action">Finish</button>
             <button id="shuffle-btn" onpointerdown="handleShuffleClick()" class="btn-action">Shuffle</button>
         </div>
     </div>
@@ -354,7 +354,7 @@
                 <div id="multiplayer-result-scores" class="mp-result-scores"></div>
             </div>
             <div class="flex gap-2 w-full justify-center">
-                <button onpointerdown="multiplayerRequestRematch()" class="btn-action btn-action--compact">Rematch</button>
+                <button id="multiplayer-rematch-btn" onpointerdown="multiplayerRequestRematch()" class="btn-action btn-action--compact">Rematch</button>
                 <button onpointerdown="multiplayerLeave()" class="btn-action btn-action--compact btn-action--secondary">Leave</button>
             </div>
         </div>

@@ -123,7 +123,7 @@ function updateUI() {
 
   gameModifiers.SP = config.showPossible;
   gameModifiers.AS = config.autoShuffle;
-  gameModifiers.PBS = config.preventBadShuffle;
+  gameModifiers.PBS = config.preventBadShuffle || isMultiplayerModeActive();
   gameModifiers.A3RD = config.autoSelectThird;
   gameModifiers.SS = config.synchronizedSeed;
   gameModifiers.DM = config.debugMode;
@@ -330,29 +330,42 @@ function getShuffleDurations() {
   };
 }
 
+
 function handleShuffleClick() {
   const now = Date.now();
   if (now < shuffleBtnCooldownUntil) return;
   if (isAnimating || isGameOver || isBtnLocked) return;
   if (isTrainingModeActive()) return;
+
   if (isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost()) {
-    showToast('Only host can shuffle');
+    if (typeof multiplayerRequestShuffle === 'function') {
+      multiplayerRequestShuffle();
+    }
     return;
   }
+
   const possibleCount = analyzePossibleSets().total;
   if (possibleCount > 0) {
     badShuffles++;
+    if (isMultiplayerModeActive() && typeof multiplayerApplyBadShufflePenalty === 'function') {
+      multiplayerApplyBadShufflePenalty(multiplayerGetNickname());
+    }
     updateUI();
     if (!config.showPossible && !config.autoShuffle) showToast('bad shuffle!');
-    if (config.preventBadShuffle) {
+    const shouldBlockBadShuffle = config.preventBadShuffle || isMultiplayerModeActive();
+    if (shouldBlockBadShuffle) {
       const btn = document.getElementById('shuffle-btn');
       isBtnLocked = true;
       btn.classList.add('locked');
       btn.innerText = 'nuh-uh!';
       setTimeout(() => { btn.classList.remove('locked'); btn.innerText = 'Shuffle'; isBtnLocked = false; }, GAME_CONFIG.LOCK_DURATION);
+      if (isMultiplayerModeActive() && typeof multiplayerBroadcastState === 'function' && multiplayerIsHost()) {
+        multiplayerBroadcastState('shuffle_penalty');
+      }
       return;
     }
   }
+
   const { fadeOutMs, animInMs } = getShuffleDurations();
   shuffleBtnCooldownUntil = now + fadeOutMs + animInMs;
   handleShuffleDeck(false);
@@ -552,7 +565,7 @@ function syncGameModifiers() {
   const currentMods = {
     SP: config.showPossible,
     AS: config.autoShuffle,
-    PBS: config.preventBadShuffle,
+    PBS: config.preventBadShuffle || config.gameMode === GAME_MODES.MULTIPLAYER,
     A3RD: config.autoSelectThird,
     SS: config.synchronizedSeed,
     DM: config.debugMode,
