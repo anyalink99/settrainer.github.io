@@ -122,7 +122,12 @@ function multiplayerRenderHud() {
   if (!shouldShow) return;
 
   const statusEl = document.getElementById('multiplayer-hud-status');
-  if (statusEl) statusEl.textContent = MULTIPLAYER_STATE.statusText || 'Multiplayer';
+  const statusText = MULTIPLAYER_STATE.statusText || 'Multiplayer';
+  if (statusEl) {
+    const shouldHideStatus = statusText === 'Match started';
+    statusEl.textContent = shouldHideStatus ? '' : statusText;
+    statusEl.style.display = shouldHideStatus ? 'none' : '';
+  }
 
   const board = document.getElementById('multiplayer-scoreboard');
   if (!board) return;

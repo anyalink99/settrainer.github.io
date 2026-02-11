@@ -96,7 +96,7 @@ function applyDebugHighlight() {
 }
 
 function updateLiveSPM() {
-  if (isGameOver || !config.showSPM) return;
+  if (isGameOver || !isSPMEnabled()) return;
 
   const spmElement = document.getElementById('live-spm');
   const totalElapsedMs = Date.now() - startTime;
@@ -123,7 +123,7 @@ function updateUI() {
 
   gameModifiers.SP = config.showPossible;
   gameModifiers.AS = config.autoShuffle;
-  gameModifiers.PBS = config.preventBadShuffle || isMultiplayerModeActive();
+  gameModifiers.PBS = isPreventBadShuffleEnabled();
   gameModifiers.A3RD = config.autoSelectThird;
   gameModifiers.SS = config.synchronizedSeed;
   gameModifiers.DM = config.debugMode;
@@ -365,7 +365,7 @@ function handleShuffleClick() {
     }
     updateUI();
     if (!config.showPossible && !config.autoShuffle) showToast('bad shuffle!');
-    const shouldBlockBadShuffle = config.preventBadShuffle || isMultiplayerModeActive();
+    const shouldBlockBadShuffle = isPreventBadShuffleEnabled();
     if (shouldBlockBadShuffle) {
       applyBadShuffleButtonLock();
       if (isMultiplayerModeActive() && typeof multiplayerBroadcastState === 'function' && multiplayerIsHost()) {
@@ -383,8 +383,8 @@ function handleShuffleClick() {
 function shuffleExistingCards() {
   if (isAnimating || isGameOver) return;
   if (isTrainingModeActive()) return;
-  if (isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost()) {
-    showToast('Only host can shuffle');
+  if (isMultiplayerModeActive()) {
+    showToast('Shuffle board is disabled in multiplayer');
     return;
   }
   setDebugTPSIters(null);
@@ -574,7 +574,7 @@ function syncGameModifiers() {
   const currentMods = {
     SP: config.showPossible,
     AS: config.autoShuffle,
-    PBS: config.preventBadShuffle || config.gameMode === GAME_MODES.MULTIPLAYER,
+    PBS: isPreventBadShuffleEnabled(),
     A3RD: config.autoSelectThird,
     SS: config.synchronizedSeed,
     DM: config.debugMode,

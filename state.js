@@ -72,6 +72,19 @@ function isMultiplayerModeActive() {
   return !!(config && config.gameMode === GAME_MODES.MULTIPLAYER);
 }
 
+
+function isTimerEnabled() {
+  return !!(config && config.showTimer && !isMultiplayerModeActive());
+}
+
+function isSPMEnabled() {
+  return !!(config && config.showSPM && !isMultiplayerModeActive());
+}
+
+function isPreventBadShuffleEnabled() {
+  return !!(config && (config.preventBadShuffle || isMultiplayerModeActive()));
+}
+
 function loadBindsForOrientation(orientation) {
   const isHorizontal = orientation === 'horizontal';
   const key = isHorizontal ? STORAGE_KEYS.KEYBINDS_HORIZONTAL : STORAGE_KEYS.KEYBINDS;
