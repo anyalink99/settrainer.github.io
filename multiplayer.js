@@ -126,21 +126,18 @@ function multiplayerSetStatus(text) {
 
 function multiplayerGetStatusNickname() {
   if (MULTIPLAYER_STATE.role === 'host') {
-    return (MULTIPLAYER_STATE.remoteNick || '').trim();
+    return (MULTIPLAYER_STATE.remoteNick || MULTIPLAYER_STATE.localNick || '').trim();
   }
   if (MULTIPLAYER_STATE.role === 'client') {
-    return (MULTIPLAYER_STATE.remoteNick || MULTIPLAYER_STATE.selectedLobbyHostNick || '').trim();
+    return (MULTIPLAYER_STATE.remoteNick || MULTIPLAYER_STATE.selectedLobbyHostNick || MULTIPLAYER_STATE.localNick || '').trim();
   }
-  return '';
+  return (MULTIPLAYER_STATE.localNick || '').trim();
 }
 
 function multiplayerNormalizeTimestamp(value) {
-  const asNumber = Number(value || 0);
-  if (Number.isFinite(asNumber) && asNumber > 0) {
-    return asNumber < 1e12 ? asNumber * 1000 : asNumber;
-  }
-  const asDate = Date.parse(value);
-  return Number.isFinite(asDate) && asDate > 0 ? asDate : 0;
+  const raw = Number(value || 0);
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return raw < 1e12 ? raw * 1000 : raw;
 }
 
 function multiplayerRenderHud() {
@@ -275,25 +272,17 @@ async function multiplayerRefreshLobbyList() {
     const rawLobbies = Array.isArray(data && data.lobbies) ? data.lobbies : [];
     const now = Date.now();
     const cutoff = now - MULTIPLAYER_LOBBY_MAX_AGE_MS;
-    const normalizedLobbies = rawLobbies
+    const nextLobbies = rawLobbies
       .map((lobby) => {
-        const lobbyId = String((lobby && (lobby.lobbyId || lobby.id)) || '').trim();
-        const createdAt = multiplayerNormalizeTimestamp(lobby && (lobby.createdAt || lobby.at || 0));
-        return { ...lobby, lobbyId, createdAt };
+        const createdAt = multiplayerNormalizeTimestamp(lobby.createdAt || lobby.at || 0);
+        return { ...lobby, createdAt };
       })
-      .filter((lobby) => lobby.lobbyId);
-    const sortedLobbies = normalizedLobbies
-      .slice()
-      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-    const newestLobby = sortedLobbies[0] || null;
-    let nextLobbies = sortedLobbies
       .filter((lobby) => lobby.createdAt >= cutoff)
+      .slice()
+      .sort((a, b) => Number(b.createdAt || b.at || 0) - Number(a.createdAt || a.at || 0))
       .slice(0, 8);
-    if (newestLobby && !nextLobbies.some((lobby) => lobby.lobbyId === newestLobby.lobbyId)) {
-      nextLobbies = [newestLobby, ...nextLobbies].slice(0, 8);
-    }
     if (MULTIPLAYER_STATE.selectedLobbyId) {
-      const selectedLobby = nextLobbies.find((lobby) => lobby.lobbyId === MULTIPLAYER_STATE.selectedLobbyId);
+      const selectedLobby = nextLobbies.find((lobby) => String(lobby.lobbyId || lobby.id || '').trim() === MULTIPLAYER_STATE.selectedLobbyId);
       if (selectedLobby) {
         MULTIPLAYER_STATE.selectedLobbyHostNick = String(selectedLobby.hostNick || selectedLobby.nickname || selectedLobby.nick || selectedLobby.host || '').trim();
       }
@@ -305,13 +294,9 @@ async function multiplayerRefreshLobbyList() {
         return `${lobby.lobbyId}:${hostNick}:${createdAt}`;
       })
       .join('|');
-    const hasListChanged = nextSignature !== MULTIPLAYER_STATE.lobbyListLastSignature;
     MULTIPLAYER_STATE.availableLobbies = nextLobbies;
     MULTIPLAYER_STATE.lobbyListLastSignature = nextSignature;
-    if (hasListChanged || !MULTIPLAYER_STATE.hasLoadedLobbyListOnce) {
-      multiplayerRenderLobbyList();
-    }
-    MULTIPLAYER_STATE.hasLoadedLobbyListOnce = true;
+    multiplayerRenderLobbyList();
   } catch (err) {
     console.error('Failed to load lobbies:', err);
     MULTIPLAYER_STATE.availableLobbies = [];
