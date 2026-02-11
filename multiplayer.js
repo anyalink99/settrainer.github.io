@@ -75,6 +75,7 @@ const MULTIPLAYER_STATE = {
   availableLobbies: [],
   isLobbyListLoading: false,
   lobbyListLastSignature: '',
+  hasLoadedLobbyListOnce: false,
   lobbyListTimer: null,
   rematchPrepared: false,
   selectedLobbyId: '',
@@ -261,7 +262,7 @@ async function multiplayerRefreshLobbyList() {
   if (MULTIPLAYER_STATE.isLobbyListLoading) return;
   MULTIPLAYER_STATE.isLobbyListLoading = true;
   const hadLobbies = Array.isArray(MULTIPLAYER_STATE.availableLobbies) && MULTIPLAYER_STATE.availableLobbies.length > 0;
-  if (!hadLobbies) {
+  if (!hadLobbies && !MULTIPLAYER_STATE.hasLoadedLobbyListOnce) {
     multiplayerSetStatus('Loading lobbies…');
     const listEl = document.getElementById('multiplayer-lobby-list');
     if (listEl) listEl.innerHTML = '<div class="multiplayer-lobby-item multiplayer-lobby-item--empty">Loading…</div>';
@@ -288,10 +289,9 @@ async function multiplayerRefreshLobbyList() {
     }
     const nextSignature = nextLobbies
       .map((lobby) => {
-        const lobbyId = String(lobby.lobbyId || lobby.id || '').trim();
         const hostNick = String(lobby.hostNick || lobby.nickname || lobby.nick || lobby.host || 'Unknown').trim() || 'Unknown';
-        const createdAt = Number(lobby.createdAt || lobby.at || 0);
-        return `${lobbyId}:${hostNick}:${createdAt}`;
+        const createdAt = Number(lobby.createdAt || 0);
+        return `${lobby.lobbyId}:${hostNick}:${createdAt}`;
       })
       .join('|');
     MULTIPLAYER_STATE.availableLobbies = nextLobbies;
@@ -301,6 +301,7 @@ async function multiplayerRefreshLobbyList() {
     console.error('Failed to load lobbies:', err);
     MULTIPLAYER_STATE.availableLobbies = [];
     MULTIPLAYER_STATE.lobbyListLastSignature = '';
+    MULTIPLAYER_STATE.hasLoadedLobbyListOnce = true;
     multiplayerRenderLobbyList();
     multiplayerSetStatus('Failed to load lobbies');
     if (typeof showToast === 'function') showToast(err.message || 'Failed to load lobbies');
@@ -1456,6 +1457,7 @@ function multiplayerHandlePeerDisconnect() {
   MULTIPLAYER_STATE.availableLobbies = [];
   MULTIPLAYER_STATE.isLobbyListLoading = false;
   MULTIPLAYER_STATE.lobbyListLastSignature = '';
+  MULTIPLAYER_STATE.hasLoadedLobbyListOnce = false;
   MULTIPLAYER_STATE.rematchPrepared = false;
   MULTIPLAYER_STATE.prevGameMode = null;
   setGameMode(GAME_MODES.NORMAL);
@@ -1482,6 +1484,7 @@ function multiplayerHandleModeSwitchAway() {
   MULTIPLAYER_STATE.availableLobbies = [];
   MULTIPLAYER_STATE.isLobbyListLoading = false;
   MULTIPLAYER_STATE.lobbyListLastSignature = '';
+  MULTIPLAYER_STATE.hasLoadedLobbyListOnce = false;
   MULTIPLAYER_STATE.rematchPrepared = false;
   MULTIPLAYER_STATE.prevGameMode = null;
   multiplayerSetStatus('Not connected');
@@ -1507,6 +1510,7 @@ function multiplayerLeave() {
   MULTIPLAYER_STATE.availableLobbies = [];
   MULTIPLAYER_STATE.isLobbyListLoading = false;
   MULTIPLAYER_STATE.lobbyListLastSignature = '';
+  MULTIPLAYER_STATE.hasLoadedLobbyListOnce = false;
   MULTIPLAYER_STATE.rematchPrepared = false;
   multiplayerSetStatus('Not connected');
   multiplayerRenderHud();
