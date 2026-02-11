@@ -4,26 +4,36 @@ function syncSettingsUI() {
   document.getElementById('btn-vertical').className = `preset-chip ${config.boardOrientation === 'vertical' ? 'active' : ''}`;
   document.getElementById('btn-horizontal').className = `preset-chip ${config.boardOrientation === 'horizontal' ? 'active' : ''}`;
   document.getElementById('toggle-possible').classList.toggle('active', config.showPossible);
-  document.getElementById('toggle-spm').classList.toggle('active', config.showSPM);
+  const forceMultiplayerMetrics = isMultiplayerModeActive();
+  document.getElementById('toggle-spm').classList.toggle('active', isSPMEnabled());
   const toggleDebug = document.getElementById('toggle-debug');
   if (toggleDebug) toggleDebug.classList.toggle('active', config.debugMode);
-  document.getElementById('live-spm').style.display = config.showSPM ? 'block' : 'none';
-  if (config.showSPM) updateLiveSPM();
-  document.getElementById('toggle-timer').classList.toggle('active', config.showTimer);
+  document.getElementById('live-spm').style.display = isSPMEnabled() ? 'block' : 'none';
+  if (isSPMEnabled()) updateLiveSPM();
+  document.getElementById('toggle-timer').classList.toggle('active', isTimerEnabled());
   const toggleTimerMs = document.getElementById('toggle-timer-ms');
   if (toggleTimerMs) {
     toggleTimerMs.classList.toggle('active', config.showTimerMs);
-    toggleTimerMs.classList.toggle('disabled', !config.showTimer);
+    toggleTimerMs.classList.toggle('disabled', !isTimerEnabled());
   }
+  const toggleSpm = document.getElementById('toggle-spm');
+  if (toggleSpm) toggleSpm.classList.toggle('disabled', forceMultiplayerMetrics);
+  const toggleTimer = document.getElementById('toggle-timer');
+  if (toggleTimer) toggleTimer.classList.toggle('disabled', forceMultiplayerMetrics);
+
   const toggleSetsCards = document.getElementById('toggle-sets-cards');
   if (toggleSetsCards) toggleSetsCards.classList.toggle('active', config.showSetsCards);
   const setsCardsDisplay = document.getElementById('sets-cards-display');
   if (setsCardsDisplay) setsCardsDisplay.style.display = config.showSetsCards ? '' : 'none';
-  document.getElementById('timer').style.display = config.showTimer ? '' : 'none';
+  document.getElementById('timer').style.display = isTimerEnabled() ? '' : 'none';
 
   document.getElementById('toggle-auto').classList.toggle('active', config.autoShuffle);
   document.getElementById('toggle-auto-select').classList.toggle('active', config.autoSelectThird);
-  document.getElementById('toggle-prevent').classList.toggle('active', config.preventBadShuffle);
+  const togglePrevent = document.getElementById('toggle-prevent');
+  if (togglePrevent) {
+    togglePrevent.classList.toggle('active', isPreventBadShuffleEnabled());
+    togglePrevent.classList.toggle('disabled', forceMultiplayerMetrics);
+  }
   document.getElementById('toggle-seed').classList.toggle('active', config.synchronizedSeed);
   document.getElementById('min-sets-input').value = config.minSetsToRecord;
   const tpsInput = document.getElementById('target-set-x-input');
@@ -88,6 +98,7 @@ function updateSpeedModifier(val) {
 }
 
 function toggleOption(key) {
+  if (isMultiplayerModeActive() && (key === 'showTimer' || key === 'showSPM' || key === 'preventBadShuffle')) return;
   config[key] = !config[key];
   const storageKey = 'set_' + key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
   Storage.set(storageKey, String(config[key]));
@@ -145,7 +156,7 @@ function setGameMode(mode) {
 }
 
 function toggleTimerMs() {
-  if (!config.showTimer) return;
+  if (!isTimerEnabled()) return;
   config.showTimerMs = !config.showTimerMs;
   Storage.set(STORAGE_KEYS.SHOW_TIMER_MS, String(config.showTimerMs));
   const timerEl = document.getElementById('timer');
