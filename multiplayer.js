@@ -125,21 +125,18 @@ function multiplayerSetStatus(text) {
 
 function multiplayerGetStatusNickname() {
   if (MULTIPLAYER_STATE.role === 'host') {
-    return (MULTIPLAYER_STATE.remoteNick || '').trim();
+    return (MULTIPLAYER_STATE.remoteNick || MULTIPLAYER_STATE.localNick || '').trim();
   }
   if (MULTIPLAYER_STATE.role === 'client') {
-    return (MULTIPLAYER_STATE.remoteNick || MULTIPLAYER_STATE.selectedLobbyHostNick || '').trim();
+    return (MULTIPLAYER_STATE.remoteNick || MULTIPLAYER_STATE.selectedLobbyHostNick || MULTIPLAYER_STATE.localNick || '').trim();
   }
-  return '';
+  return (MULTIPLAYER_STATE.localNick || '').trim();
 }
 
 function multiplayerNormalizeTimestamp(value) {
-  const asNumber = Number(value || 0);
-  if (Number.isFinite(asNumber) && asNumber > 0) {
-    return asNumber < 1e12 ? asNumber * 1000 : asNumber;
-  }
-  const asDate = Date.parse(value);
-  return Number.isFinite(asDate) && asDate > 0 ? asDate : 0;
+  const raw = Number(value || 0);
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return raw < 1e12 ? raw * 1000 : raw;
 }
 
 function multiplayerRenderHud() {
