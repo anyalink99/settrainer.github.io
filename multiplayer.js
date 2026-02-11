@@ -44,6 +44,7 @@ const MULTIPLAYER_STATE = {
   processedSignals: new Set(),
   isConnected: false,
   statusText: 'Not connected',
+  statusBaseText: 'Not connected',
   localNick: '',
   remoteNick: '',
   scores: {},
@@ -75,8 +76,12 @@ const MULTIPLAYER_STATE = {
   isLobbyListLoading: false,
   lobbyListLastSignature: '',
   lobbyListTimer: null,
-  rematchPrepared: false
+  rematchPrepared: false,
+  selectedLobbyId: '',
+  selectedLobbyHostNick: ''
 };
+
+const MULTIPLAYER_LOBBY_MAX_AGE_MS = 3 * 60 * 1000;
 
 
 function multiplayerIsHost() {
@@ -109,10 +114,32 @@ function multiplayerGetBaseUrl() {
 }
 
 function multiplayerSetStatus(text) {
-  MULTIPLAYER_STATE.statusText = text || '';
+  const statusBase = text || '';
+  MULTIPLAYER_STATE.statusBaseText = statusBase;
+  const statusNick = multiplayerGetStatusNickname();
+  MULTIPLAYER_STATE.statusText = statusNick ? `${statusBase} (${statusNick})` : statusBase;
   const statusEl = document.getElementById('multiplayer-status-text');
-  if (statusEl) statusEl.textContent = text || '';
+  if (statusEl) statusEl.textContent = MULTIPLAYER_STATE.statusText;
   multiplayerRenderHud();
+}
+
+function multiplayerGetStatusNickname() {
+  if (MULTIPLAYER_STATE.role === 'host') {
+    return (MULTIPLAYER_STATE.remoteNick || '').trim();
+  }
+  if (MULTIPLAYER_STATE.role === 'client') {
+    return (MULTIPLAYER_STATE.remoteNick || MULTIPLAYER_STATE.selectedLobbyHostNick || '').trim();
+  }
+  return '';
+}
+
+function multiplayerNormalizeTimestamp(value) {
+  const asNumber = Number(value || 0);
+  if (Number.isFinite(asNumber) && asNumber > 0) {
+    return asNumber < 1e12 ? asNumber * 1000 : asNumber;
+  }
+  const asDate = Date.parse(value);
+  return Number.isFinite(asDate) && asDate > 0 ? asDate : 0;
 }
 
 function multiplayerRenderHud() {
@@ -179,9 +206,10 @@ function multiplayerSyncModal() {
   if (nickEl) nickEl.textContent = multiplayerGetNickname();
   const lobbyEl = document.getElementById('multiplayer-lobby-id');
   if (lobbyEl) {
-    lobbyEl.textContent = MULTIPLAYER_STATE.lobbyId ? ('Lobby: ' + MULTIPLAYER_STATE.lobbyId) : '';
+    const shouldShowHostLobbyId = MULTIPLAYER_STATE.role === 'host' && MULTIPLAYER_STATE.lobbyId;
+    lobbyEl.textContent = shouldShowHostLobbyId ? ('Lobby: ' + MULTIPLAYER_STATE.lobbyId) : '';
   }
-  multiplayerSetStatus(MULTIPLAYER_STATE.statusText || 'Not connected');
+  multiplayerSetStatus(MULTIPLAYER_STATE.statusBaseText || 'Not connected');
 }
 
 function multiplayerClearBoard() {
@@ -244,10 +272,23 @@ async function multiplayerRefreshLobbyList() {
   try {
     const data = await multiplayerRequest('lobby_list', {});
     const rawLobbies = Array.isArray(data && data.lobbies) ? data.lobbies : [];
+    const now = Date.now();
+    const cutoff = now - MULTIPLAYER_LOBBY_MAX_AGE_MS;
     const nextLobbies = rawLobbies
+      .map((lobby) => {
+        const createdAt = multiplayerNormalizeTimestamp(lobby.createdAt || lobby.at || 0);
+        return { ...lobby, createdAt };
+      })
+      .filter((lobby) => lobby.createdAt >= cutoff)
       .slice()
       .sort((a, b) => Number(b.createdAt || b.at || 0) - Number(a.createdAt || a.at || 0))
-      .slice(0, 3);
+      .slice(0, 8);
+    if (MULTIPLAYER_STATE.selectedLobbyId) {
+      const selectedLobby = nextLobbies.find((lobby) => String(lobby.lobbyId || lobby.id || '').trim() === MULTIPLAYER_STATE.selectedLobbyId);
+      if (selectedLobby) {
+        MULTIPLAYER_STATE.selectedLobbyHostNick = String(selectedLobby.hostNick || selectedLobby.nickname || selectedLobby.nick || selectedLobby.host || '').trim();
+      }
+    }
     const nextSignature = nextLobbies
       .map((lobby) => {
         const lobbyId = String(lobby.lobbyId || lobby.id || '').trim();
@@ -256,11 +297,9 @@ async function multiplayerRefreshLobbyList() {
         return `${lobbyId}:${hostNick}:${createdAt}`;
       })
       .join('|');
-    if (nextSignature !== MULTIPLAYER_STATE.lobbyListLastSignature) {
-      MULTIPLAYER_STATE.availableLobbies = nextLobbies;
-      MULTIPLAYER_STATE.lobbyListLastSignature = nextSignature;
-      multiplayerRenderLobbyList();
-    }
+    MULTIPLAYER_STATE.availableLobbies = nextLobbies;
+    MULTIPLAYER_STATE.lobbyListLastSignature = nextSignature;
+    multiplayerRenderLobbyList();
   } catch (err) {
     console.error('Failed to load lobbies:', err);
     MULTIPLAYER_STATE.availableLobbies = [];
@@ -282,7 +321,7 @@ function multiplayerRenderLobbyList() {
   if (!lobbies.length) {
     const empty = document.createElement('div');
     empty.className = 'multiplayer-lobby-item multiplayer-lobby-item--empty';
-    empty.textContent = 'No recent lobbies';
+    empty.textContent = 'No lobbies';
     listEl.appendChild(empty);
     return;
   }
@@ -294,7 +333,10 @@ function multiplayerRenderLobbyList() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'multiplayer-lobby-item';
-    btn.onpointerdown = () => multiplayerJoinLobby(lobbyId);
+    if (MULTIPLAYER_STATE.selectedLobbyId && MULTIPLAYER_STATE.selectedLobbyId === lobbyId) {
+      btn.classList.add('active');
+    }
+    btn.onpointerdown = () => multiplayerJoinLobby(lobbyId, hostNick);
 
     const nickEl = document.createElement('div');
     nickEl.className = 'multiplayer-lobby-host';
@@ -354,7 +396,7 @@ async function multiplayerHostLobby() {
   }
 }
 
-async function multiplayerJoinLobby(selectedLobbyId) {
+async function multiplayerJoinLobby(selectedLobbyId, selectedHostNick) {
   const lobbyId = String(selectedLobbyId || '').trim();
   if (!lobbyId) {
     if (typeof showToast === 'function') showToast('Select a lobby');
@@ -362,6 +404,9 @@ async function multiplayerJoinLobby(selectedLobbyId) {
   }
   const nick = multiplayerGetNickname();
   MULTIPLAYER_STATE.localNick = nick;
+  MULTIPLAYER_STATE.selectedLobbyId = lobbyId;
+  MULTIPLAYER_STATE.selectedLobbyHostNick = String(selectedHostNick || '').trim();
+  multiplayerRenderLobbyList();
   multiplayerSetStatus('Joining lobby…');
   try {
     const data = await multiplayerRequest('lobby_join', { lobbyId: lobbyId, nickname: nick });
@@ -404,6 +449,7 @@ function multiplayerResetConnectionState() {
   MULTIPLAYER_STATE.lastStateVersion = 0;
   MULTIPLAYER_STATE.isReady = false;
   MULTIPLAYER_STATE.remoteReady = false;
+  MULTIPLAYER_STATE.remoteNick = '';
   MULTIPLAYER_STATE.offerSent = false;
   MULTIPLAYER_STATE.answerSent = false;
   MULTIPLAYER_STATE.connectionAttempts = 0;
@@ -526,9 +572,13 @@ async function multiplayerPollLobby() {
     const lobby = data.lobby;
     if (Array.isArray(lobby.players)) {
       const other = lobby.players.find(p => (p.nick || p.nickname) && (String(p.nick || p.nickname).toLowerCase() !== MULTIPLAYER_STATE.localNick.toLowerCase()));
-      if (other && !MULTIPLAYER_STATE.remoteNick) {
-        MULTIPLAYER_STATE.remoteNick = other.nick || other.nickname;
-        console.log('Remote player found:', MULTIPLAYER_STATE.remoteNick);
+      if (other) {
+        const nextRemoteNick = String(other.nick || other.nickname || '').trim();
+        if (nextRemoteNick && nextRemoteNick !== MULTIPLAYER_STATE.remoteNick) {
+          MULTIPLAYER_STATE.remoteNick = nextRemoteNick;
+          console.log('Remote player found:', MULTIPLAYER_STATE.remoteNick);
+          multiplayerSetStatus(MULTIPLAYER_STATE.statusBaseText || 'Connected');
+        }
       }
     }
     if (Array.isArray(lobby.signals)) {
