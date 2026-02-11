@@ -294,11 +294,9 @@ async function multiplayerRefreshLobbyList() {
         return `${lobbyId}:${hostNick}:${createdAt}`;
       })
       .join('|');
-    if (nextSignature !== MULTIPLAYER_STATE.lobbyListLastSignature) {
-      MULTIPLAYER_STATE.availableLobbies = nextLobbies;
-      MULTIPLAYER_STATE.lobbyListLastSignature = nextSignature;
-      multiplayerRenderLobbyList();
-    }
+    MULTIPLAYER_STATE.availableLobbies = nextLobbies;
+    MULTIPLAYER_STATE.lobbyListLastSignature = nextSignature;
+    multiplayerRenderLobbyList();
   } catch (err) {
     console.error('Failed to load lobbies:', err);
     MULTIPLAYER_STATE.availableLobbies = [];
@@ -320,7 +318,7 @@ function multiplayerRenderLobbyList() {
   if (!lobbies.length) {
     const empty = document.createElement('div');
     empty.className = 'multiplayer-lobby-item multiplayer-lobby-item--empty';
-    empty.textContent = 'No recent lobbies';
+    empty.textContent = 'No lobbies';
     listEl.appendChild(empty);
     return;
   }
