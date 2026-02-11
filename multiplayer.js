@@ -1,3 +1,39 @@
+/**
+ * =============================================================================
+ * Multiplayer Lobby, Connection, and Match Sync Logic
+ * =============================================================================
+ *
+ * This module handles the full multiplayer lifecycle for Set Trainer:
+ *
+ * - Lobby discovery and joining:
+ *   - Hosts create lobbies through the backend API.
+ *   - Clients fetch recent lobbies and join by selecting one from the list.
+ *   - The lobby list is refreshed on a fixed interval while the multiplayer
+ *     modal is open.
+ *
+ * - Connection setup:
+ *   - Peers exchange readiness and signaling payloads through the lobby API.
+ *   - WebRTC data channels are used for real-time gameplay communication.
+ *   - Connection retries, ICE batching, and adaptive polling are used to make
+ *     setup more resilient on unstable networks.
+ *
+ * - Match authority and state replication:
+ *   - Host is authoritative for deck/board transitions and scoring outcomes.
+ *   - Host broadcasts state snapshots for start, shuffles, claims, and finish.
+ *   - Client applies host snapshots and uses remote-authoritative rendering.
+ *
+ * - UX and teardown behavior:
+ *   - Multiplayer and settings overlays are closed automatically when a match
+ *     starts.
+ *   - On leave or peer disconnect, multiplayer state is fully reset, the game
+ *     is forced back to Normal mode, and the session restarts with a toast.
+ *
+ * Dependencies:
+ * - Global game state/UI helpers from game-logic.js, settings.js, modal-management.js.
+ * - Lobby backend endpoint configured via ONLINE_LOBBY_URL / ONLINE_LEADERBOARD_URL.
+ * - Browser WebRTC APIs (RTCPeerConnection, RTCSessionDescription, RTCIceCandidate).
+ */
+
 const MULTIPLAYER_STATE = {
   role: null,
   lobbyId: '',
@@ -19,25 +55,23 @@ const MULTIPLAYER_STATE = {
   prevGameMode: null,
   lastStateVersion: 0,
   isApplyingState: false,
-  // NEW: флаги для синхронизации
   isReady: false,
   remoteReady: false,
   offerSent: false,
   answerSent: false,
   connectionAttempts: 0,
-  // NEW: state machine для подключения
-  connectionState: 'idle', // idle, waiting_ready, negotiating, connected, failed
+  connectionState: 'idle',
   connectionStartTime: 0,
   connectionTimeout: null,
-  // NEW: очередь ICE candidates
   pendingIceCandidates: [],
   outboundIceCandidates: [],
   iceFlushTimer: null,
   waitingForAnswerSince: 0,
   extendedAnswerWait: false,
   lastRemoteOfferSdp: '',
-  // NEW: faster polling during connection
-  isConnecting: false
+  isConnecting: false,
+  availableLobbies: [],
+  lobbyListTimer: null
 };
 
 
@@ -142,11 +176,80 @@ function openMultiplayerModal() {
     updateUI();
   }
   multiplayerSyncModal();
+  multiplayerRenderLobbyList();
   openModal('multiplayer-modal');
+  multiplayerStartLobbyListPolling();
 }
 
 function closeMultiplayerModal() {
+  multiplayerStopLobbyListPolling();
   closeModal('multiplayer-modal');
+}
+
+function multiplayerStartLobbyListPolling() {
+  multiplayerStopLobbyListPolling();
+  multiplayerRefreshLobbyList();
+  MULTIPLAYER_STATE.lobbyListTimer = setInterval(() => {
+    multiplayerRefreshLobbyList();
+  }, 500);
+}
+
+function multiplayerStopLobbyListPolling() {
+  if (!MULTIPLAYER_STATE.lobbyListTimer) return;
+  clearInterval(MULTIPLAYER_STATE.lobbyListTimer);
+  MULTIPLAYER_STATE.lobbyListTimer = null;
+}
+
+async function multiplayerRefreshLobbyList() {
+  try {
+    const data = await multiplayerRequest('lobby_list', {});
+    const rawLobbies = Array.isArray(data && data.lobbies) ? data.lobbies : [];
+    MULTIPLAYER_STATE.availableLobbies = rawLobbies
+      .slice()
+      .sort((a, b) => Number(b.createdAt || b.at || 0) - Number(a.createdAt || a.at || 0))
+      .slice(0, 3);
+    multiplayerRenderLobbyList();
+  } catch (err) {
+    console.error('Failed to load lobbies:', err);
+  }
+}
+
+function multiplayerRenderLobbyList() {
+  const listEl = document.getElementById('multiplayer-lobby-list');
+  if (!listEl) return;
+  const prevTop = listEl.scrollTop;
+  listEl.innerHTML = '';
+  const lobbies = Array.isArray(MULTIPLAYER_STATE.availableLobbies) ? MULTIPLAYER_STATE.availableLobbies : [];
+  if (!lobbies.length) {
+    const empty = document.createElement('div');
+    empty.className = 'multiplayer-lobby-item multiplayer-lobby-item--empty';
+    empty.textContent = 'No recent lobbies';
+    listEl.appendChild(empty);
+    return;
+  }
+  lobbies.forEach((lobby) => {
+    const lobbyId = String(lobby.lobbyId || lobby.id || '').trim();
+    const hostNick = String(lobby.hostNick || lobby.nickname || lobby.nick || lobby.host || 'Unknown').trim() || 'Unknown';
+    if (!lobbyId) return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'multiplayer-lobby-item';
+    btn.onpointerdown = () => multiplayerJoinLobby(lobbyId);
+
+    const nickEl = document.createElement('div');
+    nickEl.className = 'multiplayer-lobby-host';
+    nickEl.textContent = hostNick;
+
+    const idEl = document.createElement('div');
+    idEl.className = 'multiplayer-lobby-id';
+    idEl.textContent = 'Lobby: ' + lobbyId;
+
+    btn.appendChild(nickEl);
+    btn.appendChild(idEl);
+    listEl.appendChild(btn);
+  });
+  listEl.scrollTop = prevTop;
 }
 
 async function multiplayerRequest(action, params) {
@@ -179,8 +282,8 @@ async function multiplayerHostLobby() {
     multiplayerResetConnectionState();
     MULTIPLAYER_STATE.role = 'host';
     MULTIPLAYER_STATE.lobbyId = data.lobbyId;
-    MULTIPLAYER_STATE.isReady = true; // NEW: хост готов сразу
-    MULTIPLAYER_STATE.connectionState = 'waiting_ready'; // NEW: ждем клиента
+    MULTIPLAYER_STATE.isReady = true;
+    MULTIPLAYER_STATE.connectionState = 'waiting_ready';
     console.log('Lobby created:', data.lobbyId);
     multiplayerSetStatus('Lobby created. Waiting for player…');
     multiplayerSyncModal();
@@ -192,11 +295,10 @@ async function multiplayerHostLobby() {
   }
 }
 
-async function multiplayerJoinLobby() {
-  const input = document.getElementById('multiplayer-join-id');
-  const lobbyId = input ? input.value.trim() : '';
+async function multiplayerJoinLobby(selectedLobbyId) {
+  const lobbyId = String(selectedLobbyId || '').trim();
   if (!lobbyId) {
-    if (typeof showToast === 'function') showToast('Enter lobby ID');
+    if (typeof showToast === 'function') showToast('Select a lobby');
     return;
   }
   const nick = multiplayerGetNickname();
@@ -213,8 +315,6 @@ async function multiplayerJoinLobby() {
     multiplayerSetStatus('Joined. Preparing connection…');
     multiplayerSyncModal();
     multiplayerStartPolling();
-    
-    // NEW: клиент посылает сигнал готовности после короткой задержки
     setTimeout(() => {
       MULTIPLAYER_STATE.isReady = true;
       multiplayerSendSignal('ready', 'true').then(() => {
@@ -242,7 +342,6 @@ function multiplayerResetConnectionState() {
   MULTIPLAYER_STATE.processedSignals = new Set();
   MULTIPLAYER_STATE.pendingClaim = false;
   MULTIPLAYER_STATE.lastStateVersion = 0;
-  // NEW: сброс флагов синхронизации
   MULTIPLAYER_STATE.isReady = false;
   MULTIPLAYER_STATE.remoteReady = false;
   MULTIPLAYER_STATE.offerSent = false;
@@ -278,12 +377,8 @@ function multiplayerStartPolling() {
   multiplayerStopPolling();
   MULTIPLAYER_STATE.isConnecting = true;
   MULTIPLAYER_STATE.connectionStartTime = Date.now();
-  
-  // NEW: быстрый polling во время подключения - 150ms
   MULTIPLAYER_STATE.pollTimer = setInterval(multiplayerPollLobby, 150);
   multiplayerPollLobby();
-  
-  // NEW: адаптивный таймаут подключения
   MULTIPLAYER_STATE.connectionTimeout = setTimeout(() => {
     if (MULTIPLAYER_STATE.isConnected) return;
 
@@ -326,7 +421,6 @@ function multiplayerStartPolling() {
 }
 
 function multiplayerSlowDownPolling() {
-  // NEW: после подключения замедляем polling до 500ms
   if (MULTIPLAYER_STATE.pollTimer) {
     clearInterval(MULTIPLAYER_STATE.pollTimer);
     MULTIPLAYER_STATE.pollTimer = setInterval(multiplayerPollLobby, 500);
@@ -341,8 +435,6 @@ function multiplayerSlowDownPolling() {
 function multiplayerRetryConnection() {
   console.log('Retrying connection...');
   MULTIPLAYER_STATE.connectionAttempts++;
-  
-  // Сброс состояния WebRTC
   if (MULTIPLAYER_STATE.pc) {
     try { MULTIPLAYER_STATE.pc.close(); } catch (_) {}
     MULTIPLAYER_STATE.pc = null;
@@ -358,13 +450,9 @@ function multiplayerRetryConnection() {
   MULTIPLAYER_STATE.connectionState = 'waiting_ready';
   
   multiplayerSetStatus('Retrying connection...');
-  
-  // Отправляем сигнал готовности заново
   if (MULTIPLAYER_STATE.role === 'client') {
     multiplayerSendSignal('ready', 'true').catch(() => {});
   }
-  
-  // Перезапускаем polling
   multiplayerStartPolling();
 }
 
@@ -382,13 +470,9 @@ async function multiplayerPollLobby() {
         console.log('Remote player found:', MULTIPLAYER_STATE.remoteNick);
       }
     }
-    
-    // NEW: обработка сигналов до попытки создания соединения
     if (Array.isArray(lobby.signals)) {
       multiplayerProcessSignals(lobby.signals);
     }
-    
-    // NEW: проверяем готовность обеих сторон перед началом WebRTC
     if (MULTIPLAYER_STATE.role === 'host' && 
         !MULTIPLAYER_STATE.pc && 
         MULTIPLAYER_STATE.isReady && 
@@ -400,8 +484,6 @@ async function multiplayerPollLobby() {
       
       console.log('Both peers ready, starting WebRTC negotiation');
       MULTIPLAYER_STATE.connectionState = 'negotiating';
-      
-      // Даем время клиенту полностью настроиться
       setTimeout(() => {
         if (!MULTIPLAYER_STATE.pc && !MULTIPLAYER_STATE.offerSent) {
           multiplayerStartOffer();
@@ -560,8 +642,6 @@ async function multiplayerStartOffer() {
     MULTIPLAYER_STATE.offerSent = false;
     MULTIPLAYER_STATE.connectionState = 'failed';
     multiplayerSetStatus('Connection failed');
-    
-    // Retry
     if (MULTIPLAYER_STATE.connectionAttempts < 3) {
       setTimeout(() => multiplayerRetryConnection(), 2000);
     }
@@ -581,8 +661,6 @@ async function multiplayerHandleOffer(offer) {
     return;
   }
   MULTIPLAYER_STATE.lastRemoteOfferSdp = offer.sdp || '';
-  
-  // NEW: защита от дублирования
   if (MULTIPLAYER_STATE.pc && MULTIPLAYER_STATE.answerSent) {
     console.log('Already processed offer, ignoring duplicate');
     return;
@@ -598,8 +676,6 @@ async function multiplayerHandleOffer(offer) {
   try {
     console.log('Setting remote description (offer)');
     await MULTIPLAYER_STATE.pc.setRemoteDescription(new RTCSessionDescription(offer));
-    
-    // NEW: обработка очереди ICE candidates после установки remote description
     console.log('Processing queued ICE candidates:', MULTIPLAYER_STATE.pendingIceCandidates.length);
     while (MULTIPLAYER_STATE.pendingIceCandidates.length > 0) {
       const candidate = MULTIPLAYER_STATE.pendingIceCandidates.shift();
@@ -626,8 +702,6 @@ async function multiplayerHandleOffer(offer) {
     console.error('Failed to handle offer:', err);
     MULTIPLAYER_STATE.connectionState = 'failed';
     multiplayerSetStatus('Connection failed');
-    
-    // Retry
     if (MULTIPLAYER_STATE.connectionAttempts < 3) {
       setTimeout(() => multiplayerRetryConnection(), 2000);
     }
@@ -643,7 +717,6 @@ async function multiplayerHandleAnswer(answer) {
   console.log('Received answer from client');
   
   try {
-    // NEW: проверка состояния перед установкой remote description
     if (MULTIPLAYER_STATE.pc.signalingState === 'stable') {
       console.log('Already stable, ignoring answer');
       return;
@@ -652,8 +725,6 @@ async function multiplayerHandleAnswer(answer) {
     console.log('Setting remote description (answer)');
     await MULTIPLAYER_STATE.pc.setRemoteDescription(new RTCSessionDescription(answer));
     MULTIPLAYER_STATE.waitingForAnswerSince = 0;
-    
-    // NEW: обработка очереди ICE candidates после установки remote description
     console.log('Processing queued ICE candidates:', MULTIPLAYER_STATE.pendingIceCandidates.length);
     while (MULTIPLAYER_STATE.pendingIceCandidates.length > 0) {
       const candidate = MULTIPLAYER_STATE.pendingIceCandidates.shift();
@@ -684,7 +755,6 @@ async function multiplayerHandleIceCandidate(candidate) {
   }
   
   try {
-    // NEW: проверка что remote description установлен
     if (!MULTIPLAYER_STATE.pc.remoteDescription) {
       console.log('Remote description not set, queueing ICE candidate');
       MULTIPLAYER_STATE.pendingIceCandidates.push(candidate);
@@ -705,20 +775,15 @@ function multiplayerProcessSignals(signals) {
     const key = [sig.from, sig.type, sig.at, sig.payload].join('|');
     if (MULTIPLAYER_STATE.processedSignals.has(key)) return;
     MULTIPLAYER_STATE.processedSignals.add(key);
-    
-    // Игнорируем собственные сигналы
     if (sig.from && sig.from.toLowerCase() === MULTIPLAYER_STATE.localNick.toLowerCase()) return;
     
     console.log('Processing signal:', sig.type, 'from:', sig.from);
     
     try {
-      // NEW: обработка сигнала готовности
       if (sig.type === 'ready') {
         if (!MULTIPLAYER_STATE.remoteReady) {
           console.log('Remote peer is ready!');
           MULTIPLAYER_STATE.remoteReady = true;
-          
-          // Если мы хост и обе стороны готовы - начинаем подключение
           if (MULTIPLAYER_STATE.role === 'host' && 
               MULTIPLAYER_STATE.isReady && 
               !MULTIPLAYER_STATE.offerSent &&
@@ -760,16 +825,15 @@ function multiplayerSetupChannel(channel) {
     MULTIPLAYER_STATE.connectionAttempts = 0;
     MULTIPLAYER_STATE.connectionState = 'connected';
     multiplayerSetStatus('Connected');
-    
-    // NEW: замедляем polling после подключения
     multiplayerSlowDownPolling();
     
     multiplayerSend({ type: 'hello', nick: MULTIPLAYER_STATE.localNick });
     multiplayerRenderHud();
+    multiplayerStopLobbyListPolling();
     closeMultiplayerModal();
+    closeSettingsPanel();
     
     if (MULTIPLAYER_STATE.role === 'host') {
-      // NEW: небольшая задержка перед стартом
       setTimeout(() => multiplayerStartMatch(), 300);
     }
   };
@@ -788,10 +852,7 @@ function multiplayerSetupChannel(channel) {
   
   channel.onclose = () => {
     console.log('Data channel closed');
-    MULTIPLAYER_STATE.isConnected = false;
-    MULTIPLAYER_STATE.connectionState = 'idle';
-    multiplayerSetStatus('Disconnected');
-    multiplayerRenderHud();
+    multiplayerHandlePeerDisconnect();
   };
   
   channel.onerror = (err) => {
@@ -873,29 +934,22 @@ async function multiplayerApplyState(state, reason) {
   if (state.version && state.version < MULTIPLAYER_STATE.lastStateVersion) return;
   MULTIPLAYER_STATE.lastStateVersion = state.version || MULTIPLAYER_STATE.lastStateVersion;
   MULTIPLAYER_STATE.isApplyingState = true;
-  
-  // NEW: если это старт новой игры, закрываем модалку результатов
   if (reason === 'start') {
     closeModal('multiplayer-result-modal');
     isGameOver = false;
-    MULTIPLAYER_STATE.preferRemote = true; // клиент всегда принимает состояние от хоста
+    MULTIPLAYER_STATE.preferRemote = true;
     if (multiplayerIsClient()) {
       multiplayerSetStatus('Match started');
+      if (typeof showToast === 'function') showToast('Multiplayer match started');
     }
   }
   
   const newDeck = Array.isArray(state.deck) ? state.deck.map(codeToCard) : [];
   const newBoard = Array.isArray(state.board) ? state.board.map(codeToCard) : [];
-  
-  // NEW: определяем какие слоты изменились
   const changedSlots = [];
   for (let i = 0; i < 12; i++) {
     const oldCard = board[i];
     const newCard = newBoard[i];
-    
-    // Карта изменилась если:
-    // 1. Была карта, стала null (или наоборот)
-    // 2. Обе карты, но разные
     const oldCode = oldCard ? cardToCode(oldCard) : null;
     const newCode = newCard ? cardToCode(newCard) : null;
     
@@ -906,14 +960,11 @@ async function multiplayerApplyState(state, reason) {
   
   const animDuration = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.ANIMATION_DURATION) ? 
                        GAME_CONFIG.ANIMATION_DURATION : 300;
-  
-  // NEW: обработка разных типов изменений
   const isShuffle = reason === 'shuffle_manual' || reason === 'shuffle_auto';
-  const isFullBoardChange = changedSlots.length >= 10; // почти вся доска
-  const isSetReplacement = changedSlots.length > 0 && changedSlots.length <= 4; // сет = 3 карты (иногда 4 с подстановкой)
+  const isFullBoardChange = changedSlots.length >= 10;
+  const isSetReplacement = changedSlots.length > 0 && changedSlots.length <= 4;
   
   if (isShuffle || isFullBoardChange) {
-    // Анимация всей доски при шаффле или массовом изменении
     isAnimating = true;
     
     const boardEl = document.getElementById('board');
@@ -928,10 +979,7 @@ async function multiplayerApplyState(state, reason) {
     for (let i = 0; i < 12; i++) updateSlot(i, true);
     
   } else if (isSetReplacement) {
-    // Анимация только измененных карт (обычно 3 при сете)
     isAnimating = true;
-    
-    // Фаза 1: fade out измененных карт
     const boardEl = document.getElementById('board');
     if (boardEl) {
       changedSlots.forEach(i => {
@@ -941,14 +989,10 @@ async function multiplayerApplyState(state, reason) {
     }
     
     await new Promise(r => setTimeout(r, animDuration));
-    
-    // Фаза 2: обновляем состояние и делаем fade in
     deck = newDeck;
     board = newBoard;
     
     changedSlots.forEach(i => updateSlot(i, true));
-    
-    // Остальные слоты обновляем без анимации (на всякий случай)
     for (let i = 0; i < 12; i++) {
       if (!changedSlots.includes(i)) {
         updateSlot(i, false);
@@ -956,7 +1000,6 @@ async function multiplayerApplyState(state, reason) {
     }
     
   } else {
-    // Без анимации (старт игры, нет изменений или другие случаи)
     deck = newDeck;
     board = newBoard;
     for (let i = 0; i < 12; i++) updateSlot(i, reason === 'start');
@@ -1156,14 +1199,11 @@ function multiplayerShowResult(summary) {
 function multiplayerRequestRematch() {
   if (!MULTIPLAYER_STATE.isConnected) return;
   if (multiplayerIsHost()) {
-    // Хост запускает матч и закрывает модалку
     multiplayerStartMatch();
     closeModal('multiplayer-result-modal');
   } else {
-    // Клиент только отправляет запрос хосту
     multiplayerSend({ type: 'rematch' });
     if (typeof showToast === 'function') showToast('Rematch request sent to host');
-    // НЕ закрываем модалку - она закроется когда придет состояние от хоста
   }
 }
 
@@ -1183,6 +1223,8 @@ function multiplayerStartMatch() {
   initNewDeckAndBoard();
   updateUI();
   closeModal('multiplayer-result-modal');
+  closeSettingsPanel();
+  if (typeof showToast === 'function') showToast('Multiplayer match started');
   multiplayerBroadcastState('start');
 }
 
@@ -1208,8 +1250,35 @@ function multiplayerHandleReset() {
   multiplayerRequestRematch();
 }
 
+
+function multiplayerHandlePeerDisconnect() {
+  if (!MULTIPLAYER_STATE.role) return;
+  const wasConnected = MULTIPLAYER_STATE.isConnected;
+  multiplayerStopPolling();
+  multiplayerStopLobbyListPolling();
+  multiplayerResetConnectionState();
+  MULTIPLAYER_STATE.isConnected = false;
+  MULTIPLAYER_STATE.role = null;
+  MULTIPLAYER_STATE.lobbyId = '';
+  MULTIPLAYER_STATE.remoteNick = '';
+  MULTIPLAYER_STATE.scores = {};
+  MULTIPLAYER_STATE.timestampsByNick = {};
+  MULTIPLAYER_STATE.lastSetTimeByNick = {};
+  MULTIPLAYER_STATE.preferRemote = false;
+  MULTIPLAYER_STATE.availableLobbies = [];
+  MULTIPLAYER_STATE.prevGameMode = null;
+  setGameMode(GAME_MODES.NORMAL);
+  multiplayerSetStatus('Not connected');
+  multiplayerRenderHud();
+  closeModal('multiplayer-modal');
+  closeModal('multiplayer-result-modal');
+  closeSettingsPanel();
+  if (wasConnected && typeof showToast === 'function') showToast('Opponent left. Switched to Normal mode and restarted game');
+}
+
 function multiplayerLeave() {
   multiplayerStopPolling();
+  multiplayerStopLobbyListPolling();
   multiplayerResetConnectionState();
   MULTIPLAYER_STATE.role = null;
   MULTIPLAYER_STATE.lobbyId = '';
@@ -1219,12 +1288,14 @@ function multiplayerLeave() {
   MULTIPLAYER_STATE.lastSetTimeByNick = {};
   MULTIPLAYER_STATE.isConnected = false;
   MULTIPLAYER_STATE.preferRemote = false;
+  MULTIPLAYER_STATE.availableLobbies = [];
   multiplayerSetStatus('Not connected');
   multiplayerRenderHud();
   closeModal('multiplayer-modal');
   closeModal('multiplayer-result-modal');
-  if (MULTIPLAYER_STATE.prevGameMode) {
-    setGameMode(MULTIPLAYER_STATE.prevGameMode);
-    MULTIPLAYER_STATE.prevGameMode = null;
-  }
+  closeSettingsPanel();
+  setGameMode(GAME_MODES.NORMAL);
+  MULTIPLAYER_STATE.prevGameMode = null;
+  if (typeof showToast === 'function') showToast('Left multiplayer. Switched to Normal mode and restarted game');
 }
+
