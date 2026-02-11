@@ -165,7 +165,7 @@ function updateUI() {
     deck.length > 0 &&
     !isAnimating &&
     !isGameOver &&
-    !(isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost())
+    !(isMultiplayerModeActive() && typeof multiplayerIsClient === 'function' && multiplayerIsClient())
   ) {
     if (config.debugMode) showToast('Auto-shuffle');
     const fromSet = autoShuffleFromSet;
@@ -242,7 +242,7 @@ async function applySetToBoard(sIdx) {
 
 async function handleCardSelect(idx, el) {
   if (isAnimating || isGameOver) return;
-  if (isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost()) {
+  if (isMultiplayerModeActive() && typeof multiplayerIsClient === 'function' && multiplayerIsClient()) {
     if (typeof multiplayerHandleClientSelection === 'function') {
       await multiplayerHandleClientSelection(idx, el);
     }
@@ -350,7 +350,7 @@ function handleShuffleClick() {
   if (isAnimating || isGameOver || isBtnLocked) return;
   if (isTrainingModeActive()) return;
 
-  if (isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost()) {
+  if (isMultiplayerModeActive() && typeof multiplayerIsClient === 'function' && multiplayerIsClient()) {
     if (typeof multiplayerRequestShuffle === 'function') {
       multiplayerRequestShuffle();
     }
@@ -417,7 +417,7 @@ function shuffleExistingCards() {
 function handleShuffleDeck(isAuto = false, fromSet = false, skipAnimOut = false) {
   if (isAnimating) return;
   if (isTrainingModeActive()) return;
-  if (!isAuto && isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && !multiplayerIsHost()) {
+  if (!isAuto && isMultiplayerModeActive() && typeof multiplayerIsClient === 'function' && multiplayerIsClient()) {
     showToast('Only host can shuffle');
     return;
   }

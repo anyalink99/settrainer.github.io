@@ -142,7 +142,12 @@ function toggleOption(key) {
 function setGameMode(mode) {
   if (!GAME_MODE_IDS.includes(mode)) return;
   if (config.gameMode === mode) return;
+  const previousMode = config.gameMode;
   config.gameMode = mode;
+
+  if (previousMode === GAME_MODES.MULTIPLAYER && mode !== GAME_MODES.MULTIPLAYER) {
+    if (typeof multiplayerHandleModeSwitchAway === 'function') multiplayerHandleModeSwitchAway();
+  }
   Storage.set(STORAGE_KEYS.GAME_MODE, mode);
   if (!isGameOver && typeof usedGameModifiers !== 'undefined') {
     if (mode === GAME_MODES.TRAINING) usedGameModifiers.TM = true;
