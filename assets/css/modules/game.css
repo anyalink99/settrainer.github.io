@@ -1,0 +1,96 @@
+#board {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; width: 100%; margin: 0 auto;
+    flex-grow: 1;
+    align-content: center;
+    min-height: 0;
+    z-index: 40;
+}
+
+#board.rotated {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.card-slot { aspect-ratio: 2/3; width: 100%; position: relative; overflow: visible; }
+
+#board.rotated .card-slot { aspect-ratio: 3/2; }
+
+.card {
+    background: white; border-radius: 8px;
+    width: 100%; height: 100%; display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    padding: 2px;
+    transition: transform calc(0.15s * var(--speed-mod)) cubic-bezier(0.2, 0, 0.2, 1), opacity calc(0.1s * var(--speed-mod)) ease, border-color calc(0.15s * var(--speed-mod)) ease;
+    border: 3px solid transparent; position: absolute; inset: 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    transform-origin: center center;
+    will-change: transform, opacity;
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: auto;
+    container-type: size;
+    container-name: card;
+}
+.card.classic { overflow: visible; }
+
+#board.rotated .card {
+    flex-direction: row;
+}
+
+.card.anim-in { animation: cardPop calc(0.18s * var(--speed-mod)) cubic-bezier(0.175, 0.885, 0.32, 1.1); }
+.card.selected { border-color: #a34e78 !important; transform: scale(0.88) !important; z-index: 2; }
+.card.anim-out { opacity: 0 !important; transform: scale(0) rotate(8deg) !important; transition: all calc(0.1s * var(--speed-mod)) ease-in !important; }
+
+@keyframes cardJump {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+.card.jumping { animation: cardJump 0.2s ease-out; }
+.card.debug-set-highlight { outline: 3px solid #22c55e; outline-offset: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,0.3); }
+
+@keyframes cardPop { 0% { opacity: 0; transform: scale(0.6); } 100% { opacity: 1; transform: scale(1); } }
+
+#board .card svg {
+    width: calc(var(--shape-size-ratio, 0.28) * 100cqmin);
+    height: calc(var(--shape-size-ratio, 0.28) * 100cqmin);
+    flex-shrink: 0;
+}
+#board.preset-standard .card svg {
+    width: calc(var(--shape-size-ratio, 0.28) * 0.5 * 100cqmin);
+    height: calc(var(--shape-size-ratio, 0.28) * 0.5 * 100cqmin);
+}
+
+#board.rotated .shape-svg-classic {
+    width: calc(var(--shape-size-ratio, 0.28) * 44cqmax);
+    height: 95%;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    flex-shrink: 0;
+}
+#board.rotated .shape-svg-classic.oval { margin-left: calc(var(--shape-size-ratio, 0.28) * -10.8cqmax); }
+#board.rotated .shape-svg-classic.diamond { margin-left: calc(var(--shape-size-ratio, 0.28) * -11.8cqmax); }
+#board.rotated .shape-svg-classic.wave {
+    width: calc(var(--shape-size-ratio, 0.28) * 45cqmax);
+    margin-left: calc(var(--shape-size-ratio, 0.28) * -13.6cqmax);
+    transform: translateX(calc(var(--shape-size-ratio, 0.28) * -2.33cqmax));
+}
+#board.rotated .shape-svg-classic:first-child { margin-left: 0 !important; }
+
+#board:not(.rotated) .shape-svg-classic {
+    width: 95%;
+    height: calc(var(--shape-size-ratio, 0.28) * 42cqmax);
+    margin-top: 0;
+    margin-left: 0;
+    margin-right: 0;
+    flex-shrink: 0;
+}
+#board:not(.rotated) .shape-svg-classic.oval { margin-top: calc(var(--shape-size-ratio, 0.28) * -10.8cqmax); }
+#board:not(.rotated) .shape-svg-classic.diamond { margin-top: calc(var(--shape-size-ratio, 0.28) * -11.8cqmax); }
+#board:not(.rotated) .shape-svg-classic.wave {
+    height: calc(var(--shape-size-ratio, 0.28) * 45cqmax);
+    margin-top: calc(var(--shape-size-ratio, 0.28) * -13.6cqmax);
+    transform: translateY(calc(var(--shape-size-ratio, 0.28) * 2.33cqmax));
+}
+#board:not(.rotated) .shape-svg-classic:first-child { margin-top: 0 !important; }
