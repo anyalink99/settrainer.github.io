@@ -375,6 +375,10 @@ function handleShuffleClick() {
     }
   }
 
+  if (possibleCount === 0 && isMultiplayerModeActive() && typeof multiplayerIsHost === 'function' && multiplayerIsHost() && typeof multiplayerAwardNoSetShufflePoint === 'function') {
+    multiplayerAwardNoSetShufflePoint(multiplayerGetNickname());
+  }
+
   const { fadeOutMs, animInMs } = getShuffleDurations();
   shuffleBtnCooldownUntil = now + fadeOutMs + animInMs;
   handleShuffleDeck(false);
