@@ -38,3 +38,33 @@ function getSPMColor(spm) {
 function validateSet(cards) {
   return ['c','s','f','n'].every(p => (cards[0][p] + cards[1][p] + cards[2][p]) % 3 === 0);
 }
+
+function normalizeAppsScriptExecUrl(rawUrl) {
+  const url = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+  if (!url) return '';
+  return /\/exec\/?$/i.test(url) ? url : (url.replace(/\/?$/, '') + '/exec');
+}
+
+
+function createEventBus() {
+  const listeners = {};
+  return {
+    on(eventName, handler) {
+      if (!eventName || typeof handler !== 'function') return function () {};
+      if (!listeners[eventName]) listeners[eventName] = new Set();
+      listeners[eventName].add(handler);
+      return function unsubscribe() {
+        listeners[eventName].delete(handler);
+      };
+    },
+    emit(eventName, payload) {
+      const handlers = listeners[eventName];
+      if (!handlers) return;
+      handlers.forEach(function (handler) {
+        handler(payload);
+      });
+    }
+  };
+}
+
+const AppEvents = createEventBus();

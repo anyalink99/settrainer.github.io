@@ -88,10 +88,7 @@ function getOnlineNickname() {
 }
 
 function getLeaderboardBaseUrl() {
-  var url = typeof ONLINE_LEADERBOARD_URL === 'string' ? ONLINE_LEADERBOARD_URL.trim() : '';
-  if (!url) return '';
-  if (!/\/exec\/?$/i.test(url)) url = url.replace(/\/?$/, '') + '/exec';
-  return url;
+  return normalizeAppsScriptExecUrl(ONLINE_LEADERBOARD_URL);
 }
 
 function setOnlineNickname(nick) {
