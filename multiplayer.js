@@ -500,45 +500,71 @@ function multiplayerStartPolling() {
   MULTIPLAYER_STATE.connectionStartTime = Date.now();
   MULTIPLAYER_STATE.pollTimer = setInterval(multiplayerPollLobby, 150);
   multiplayerPollLobby();
-  MULTIPLAYER_STATE.connectionTimeout = setTimeout(() => {
-    if (MULTIPLAYER_STATE.isConnected) return;
+  multiplayerEnsureConnectionTimeout();
+}
 
-    const pc = MULTIPLAYER_STATE.pc;
-    const signalingState = pc ? pc.signalingState : 'none';
-    const connectionState = pc ? pc.connectionState : 'none';
-    const iceState = pc ? pc.iceConnectionState : 'none';
+function multiplayerShouldTrackConnectionTimeout() {
+  if (MULTIPLAYER_STATE.isConnected || !MULTIPLAYER_STATE.isConnecting) return false;
+  return !!(
+    MULTIPLAYER_STATE.pc ||
+    MULTIPLAYER_STATE.offerSent ||
+    MULTIPLAYER_STATE.answerSent ||
+    MULTIPLAYER_STATE.waitingForAnswerSince ||
+    MULTIPLAYER_STATE.connectionState === 'negotiating'
+  );
+}
 
-    if (pc && signalingState === 'have-local-offer') {
-      if (!MULTIPLAYER_STATE.extendedAnswerWait) {
-        MULTIPLAYER_STATE.extendedAnswerWait = true;
-        console.log('Waiting for answer (have-local-offer), extending timeout by 30s');
-        MULTIPLAYER_STATE.connectionTimeout = setTimeout(() => {
-          if (!MULTIPLAYER_STATE.isConnected) {
-            console.log('No answer received after extension, retrying');
-            multiplayerRetryConnection();
-          }
-        }, 30000);
-        return;
-      }
-    }
+function multiplayerEnsureConnectionTimeout() {
+  if (MULTIPLAYER_STATE.connectionTimeout || !multiplayerShouldTrackConnectionTimeout()) return;
+  MULTIPLAYER_STATE.connectionTimeout = setTimeout(multiplayerHandleConnectionTimeout, 15000);
+}
 
-    if (pc && (connectionState === 'connecting' || iceState === 'checking')) {
-      console.log('Connection is progressing (connecting/checking), extending timeout by 20s');
+function multiplayerHandleConnectionTimeout() {
+  MULTIPLAYER_STATE.connectionTimeout = null;
+  if (MULTIPLAYER_STATE.isConnected) return;
+
+  if (!multiplayerShouldTrackConnectionTimeout()) {
+    multiplayerEnsureConnectionTimeout();
+    return;
+  }
+
+  const pc = MULTIPLAYER_STATE.pc;
+  const signalingState = pc ? pc.signalingState : 'none';
+  const connectionState = pc ? pc.connectionState : 'none';
+  const iceState = pc ? pc.iceConnectionState : 'none';
+
+  if (pc && signalingState === 'have-local-offer') {
+    if (!MULTIPLAYER_STATE.extendedAnswerWait) {
+      MULTIPLAYER_STATE.extendedAnswerWait = true;
+      console.log('Waiting for answer (have-local-offer), extending timeout by 30s');
       MULTIPLAYER_STATE.connectionTimeout = setTimeout(() => {
-        if (!MULTIPLAYER_STATE.isConnected) multiplayerRetryConnection();
-      }, 20000);
+        MULTIPLAYER_STATE.connectionTimeout = null;
+        if (!MULTIPLAYER_STATE.isConnected) {
+          console.log('No answer received after extension, retrying');
+          multiplayerRetryConnection();
+        }
+      }, 30000);
       return;
     }
+  }
 
-    if (MULTIPLAYER_STATE.connectionAttempts < 4) {
-      console.log('Connection timeout, retrying...', MULTIPLAYER_STATE.connectionAttempts + 1, 'state:', signalingState, connectionState, iceState);
-      multiplayerRetryConnection();
-    } else {
-      multiplayerSetStatus('Connection failed');
-      multiplayerStopPolling();
-      if (typeof showToast === 'function') showToast('Failed to connect. Please try again.');
-    }
-  }, 15000);
+  if (pc && (connectionState === 'connecting' || iceState === 'checking')) {
+    console.log('Connection is progressing (connecting/checking), extending timeout by 20s');
+    MULTIPLAYER_STATE.connectionTimeout = setTimeout(() => {
+      MULTIPLAYER_STATE.connectionTimeout = null;
+      if (!MULTIPLAYER_STATE.isConnected) multiplayerRetryConnection();
+    }, 20000);
+    return;
+  }
+
+  if (MULTIPLAYER_STATE.connectionAttempts < 4) {
+    console.log('Connection timeout, retrying...', MULTIPLAYER_STATE.connectionAttempts + 1, 'state:', signalingState, connectionState, iceState);
+    multiplayerRetryConnection();
+  } else {
+    multiplayerSetStatus('Connection failed');
+    multiplayerStopPolling();
+    if (typeof showToast === 'function') showToast('Failed to connect. Please try again.');
+  }
 }
 
 function multiplayerSlowDownPolling() {
@@ -620,6 +646,7 @@ async function multiplayerPollLobby() {
     console.warn('Poll error:', err);
   } finally {
     MULTIPLAYER_STATE.pollInFlight = false;
+    multiplayerEnsureConnectionTimeout();
   }
 }
 
