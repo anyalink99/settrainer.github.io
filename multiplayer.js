@@ -83,6 +83,7 @@ const MULTIPLAYER_STATE = {
 };
 
 const MULTIPLAYER_LOBBY_MAX_AGE_MS = 3 * 60 * 1000;
+const MULTIPLAYER_LOBBY_ALWAYS_INCLUDE_RECENT = 2;
 
 
 function multiplayerIsHost() {
@@ -126,12 +127,12 @@ function multiplayerSetStatus(text) {
 
 function multiplayerGetStatusNickname() {
   if (MULTIPLAYER_STATE.role === 'host') {
-    return (MULTIPLAYER_STATE.remoteNick || MULTIPLAYER_STATE.localNick || '').trim();
+    return (MULTIPLAYER_STATE.remoteNick || '').trim();
   }
   if (MULTIPLAYER_STATE.role === 'client') {
-    return (MULTIPLAYER_STATE.remoteNick || MULTIPLAYER_STATE.selectedLobbyHostNick || MULTIPLAYER_STATE.localNick || '').trim();
+    return (MULTIPLAYER_STATE.remoteNick || '').trim();
   }
-  return (MULTIPLAYER_STATE.localNick || '').trim();
+  return '';
 }
 
 function multiplayerNormalizeTimestamp(value) {
@@ -149,8 +150,9 @@ function multiplayerRenderHud() {
 
   const statusEl = document.getElementById('multiplayer-hud-status');
   const statusText = MULTIPLAYER_STATE.statusText || 'Multiplayer';
+  const statusBaseText = MULTIPLAYER_STATE.statusBaseText || '';
   if (statusEl) {
-    const shouldHideStatus = statusText === 'Match started';
+    const shouldHideStatus = statusBaseText === 'Match started';
     statusEl.textContent = shouldHideStatus ? '' : statusText;
     statusEl.style.display = shouldHideStatus ? 'none' : '';
   }
@@ -282,12 +284,13 @@ async function multiplayerRefreshLobbyList() {
       .slice()
       .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
 
-    const newestLobby = normalizedLobbies[0] || null;
-    let nextLobbies = normalizedLobbies
-      .filter((lobby) => lobby.createdAt >= cutoff)
-      .slice(0, 8);
-    if (newestLobby && !nextLobbies.some((lobby) => lobby.lobbyId === newestLobby.lobbyId)) {
-      nextLobbies = [newestLobby, ...nextLobbies].slice(0, 8);
+    const latestLobbies = normalizedLobbies.slice(0, MULTIPLAYER_LOBBY_ALWAYS_INCLUDE_RECENT);
+    const timeBasedLobbies = normalizedLobbies.filter((lobby) => lobby.createdAt >= cutoff);
+    const nextLobbies = [...latestLobbies];
+    for (const lobby of timeBasedLobbies) {
+      if (nextLobbies.some((entry) => entry.lobbyId === lobby.lobbyId)) continue;
+      nextLobbies.push(lobby);
+      if (nextLobbies.length >= 8) break;
     }
     if (MULTIPLAYER_STATE.selectedLobbyId) {
       const selectedLobby = nextLobbies.find((lobby) => String(lobby.lobbyId || lobby.id || '').trim() === MULTIPLAYER_STATE.selectedLobbyId);
