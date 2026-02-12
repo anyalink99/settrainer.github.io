@@ -272,15 +272,23 @@ async function multiplayerRefreshLobbyList() {
     const rawLobbies = Array.isArray(data && data.lobbies) ? data.lobbies : [];
     const now = Date.now();
     const cutoff = now - MULTIPLAYER_LOBBY_MAX_AGE_MS;
-    const nextLobbies = rawLobbies
+    const normalizedLobbies = rawLobbies
       .map((lobby) => {
+        const lobbyId = String((lobby && (lobby.lobbyId || lobby.id)) || '').trim();
         const createdAt = multiplayerNormalizeTimestamp(lobby.createdAt || lobby.at || 0);
-        return { ...lobby, createdAt };
+        return { ...lobby, lobbyId, createdAt };
       })
-      .filter((lobby) => lobby.createdAt >= cutoff)
+      .filter((lobby) => lobby.lobbyId)
       .slice()
-      .sort((a, b) => Number(b.createdAt || b.at || 0) - Number(a.createdAt || a.at || 0))
+      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+
+    const newestLobby = normalizedLobbies[0] || null;
+    let nextLobbies = normalizedLobbies
+      .filter((lobby) => lobby.createdAt >= cutoff)
       .slice(0, 8);
+    if (newestLobby && !nextLobbies.some((lobby) => lobby.lobbyId === newestLobby.lobbyId)) {
+      nextLobbies = [newestLobby, ...nextLobbies].slice(0, 8);
+    }
     if (MULTIPLAYER_STATE.selectedLobbyId) {
       const selectedLobby = nextLobbies.find((lobby) => String(lobby.lobbyId || lobby.id || '').trim() === MULTIPLAYER_STATE.selectedLobbyId);
       if (selectedLobby) {
@@ -294,9 +302,14 @@ async function multiplayerRefreshLobbyList() {
         return `${lobby.lobbyId}:${hostNick}:${createdAt}`;
       })
       .join('|');
+
+    const hasListChanged = nextSignature !== MULTIPLAYER_STATE.lobbyListLastSignature;
     MULTIPLAYER_STATE.availableLobbies = nextLobbies;
     MULTIPLAYER_STATE.lobbyListLastSignature = nextSignature;
-    multiplayerRenderLobbyList();
+    if (hasListChanged || !MULTIPLAYER_STATE.hasLoadedLobbyListOnce) {
+      multiplayerRenderLobbyList();
+    }
+    MULTIPLAYER_STATE.hasLoadedLobbyListOnce = true;
   } catch (err) {
     console.error('Failed to load lobbies:', err);
     MULTIPLAYER_STATE.availableLobbies = [];
