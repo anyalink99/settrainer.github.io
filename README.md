@@ -127,6 +127,7 @@ This is a static app (no build step).
 
 Key modules:
 
-- **Core**: `state.js`, `constants.js`, `storage-module.js`, `utilities.js`
-- **Game**: `game-logic.js`, `set-math.js`, `graphics-rendering.js`, `tps-logic.js`, `training-mode.js`
-- **UI**: `settings.js`, `modal-management.js`, `results-stats.js`, `event-listeners.js`, `resizer.js`, `color-picker.js`, `keybinds.js`
+- **Core**: `assets/js/core/state.js`, `assets/js/core/constants.js`, `assets/js/core/storage-module.js`, `assets/js/core/utilities.js`
+- **Game**: `assets/js/game/game-logic.js`, `assets/js/game/set-math.js`, `assets/js/game/graphics-rendering.js`, `assets/js/game/tps-logic.js`, `assets/js/game/training-mode.js`
+- **UI**: `assets/js/ui/settings.js`, `assets/js/ui/modal-management.js`, `assets/js/ui/results-stats.js`, `assets/js/ui/event-listeners.js`, `assets/js/ui/resizer.js`, `assets/js/ui/color-picker.js`, `assets/js/ui/keybinds.js`
+- **Online**: `assets/js/online/online-leaderboard.js`, `assets/js/online/multiplayer.js`, `assets/js/online/multiplayer/*.js`
