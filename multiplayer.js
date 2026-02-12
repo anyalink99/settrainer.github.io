@@ -1321,6 +1321,16 @@ function multiplayerApplyBadShufflePenalty(nick) {
   multiplayerRenderHud();
 }
 
+function multiplayerAwardNoSetShufflePoint(nick) {
+  if (!nick) return;
+  const current = Number(MULTIPLAYER_STATE.scores[nick]) || 0;
+  MULTIPLAYER_STATE.scores[nick] = current + 1;
+  if (nick === MULTIPLAYER_STATE.localNick) {
+    collectedSets = MULTIPLAYER_STATE.scores[nick];
+  }
+  multiplayerRenderHud();
+}
+
 function multiplayerHandleShuffleResult(msg) {
   MULTIPLAYER_STATE.pendingShuffle = false;
   if (!msg || msg.ok) return;
@@ -1354,6 +1364,7 @@ function multiplayerHandleHostShuffleRequest(msg) {
 
   const now = Date.now();
   const { fadeOutMs, animInMs } = getShuffleDurations();
+  multiplayerAwardNoSetShufflePoint(nick);
   shuffleBtnCooldownUntil = now + fadeOutMs + animInMs;
   handleShuffleDeck(false);
   multiplayerSend({ type: 'shuffle_result', ok: true });
