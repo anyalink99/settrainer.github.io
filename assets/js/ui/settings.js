@@ -148,7 +148,8 @@ function setGameMode(mode) {
   if (previousMode === GAME_MODES.MULTIPLAYER && mode !== GAME_MODES.MULTIPLAYER) {
     if (typeof multiplayerHandleModeSwitchAway === 'function') multiplayerHandleModeSwitchAway();
   }
-  Storage.set(STORAGE_KEYS.GAME_MODE, mode);
+  const persistedMode = mode === GAME_MODES.MULTIPLAYER ? DEFAULT_GAME_MODE : mode;
+  Storage.set(STORAGE_KEYS.GAME_MODE, persistedMode);
   if (!isGameOver && typeof usedGameModifiers !== 'undefined') {
     if (mode === GAME_MODES.TRAINING) usedGameModifiers.TM = true;
     if (mode === GAME_MODES.JUNIOR) usedGameModifiers.JN = true;

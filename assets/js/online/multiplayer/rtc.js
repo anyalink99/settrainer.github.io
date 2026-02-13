@@ -1,7 +1,7 @@
 /** Auto-split from multiplayer.js */
 
 function multiplayerCreatePeerConnection(isHost) {
-  console.log('Creating peer connection, isHost:', isHost);
+  debugLog('Creating peer connection, isHost:', isHost);
   
   const pc = new RTCPeerConnection({
     iceServers: [
@@ -13,7 +13,7 @@ function multiplayerCreatePeerConnection(isHost) {
   
   pc.onicecandidate = (e) => {
     if (e.candidate) {
-      console.log('New ICE candidate:', e.candidate.type);
+      debugLog('New ICE candidate:', e.candidate.type);
       MULTIPLAYER_STATE.outboundIceCandidates.push(e.candidate);
       if (!MULTIPLAYER_STATE.iceFlushTimer) {
         MULTIPLAYER_STATE.iceFlushTimer = setTimeout(() => {
@@ -21,20 +21,20 @@ function multiplayerCreatePeerConnection(isHost) {
         }, 350);
       }
     } else {
-      console.log('ICE gathering complete');
+      debugLog('ICE gathering complete');
       multiplayerFlushIceCandidates('complete');
     }
   };
   
   pc.onicegatheringstatechange = () => {
-    console.log('ICE gathering state:', pc.iceGatheringState);
+    debugLog('ICE gathering state:', pc.iceGatheringState);
   };
   
   pc.oniceconnectionstatechange = () => {
-    console.log('ICE connection state:', pc.iceConnectionState);
+    debugLog('ICE connection state:', pc.iceConnectionState);
     
     if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-      console.log('ICE connected!');
+      debugLog('ICE connected!');
       MULTIPLAYER_STATE.connectionAttempts = 0;
     } else if (pc.iceConnectionState === 'failed') {
       console.error('ICE connection failed');
@@ -46,12 +46,12 @@ function multiplayerCreatePeerConnection(isHost) {
   
   pc.onconnectionstatechange = () => {
     const state = pc.connectionState;
-    console.log('Connection state:', state);
+    debugLog('Connection state:', state);
     
     if (state === 'connected') {
       MULTIPLAYER_STATE.connectionState = 'connected';
       MULTIPLAYER_STATE.connectionAttempts = 0;
-      console.log('WebRTC connected successfully!');
+      debugLog('WebRTC connected successfully!');
     } else if (state === 'disconnected' || state === 'failed') {
       console.error('Connection state error:', state);
       multiplayerSetStatus('Connection lost');
@@ -69,7 +69,7 @@ function multiplayerCreatePeerConnection(isHost) {
     multiplayerSetupChannel(channel);
   } else {
     pc.ondatachannel = (e) => {
-      console.log('Data channel received');
+      debugLog('Data channel received');
       multiplayerSetupChannel(e.channel);
     };
   }
@@ -94,17 +94,17 @@ async function multiplayerFlushIceCandidates(reason) {
     deduped.push(candidate);
   }
 
-  console.log('Sending ICE batch:', deduped.length, 'reason:', reason);
+  debugLog('Sending ICE batch:', deduped.length, 'reason:', reason);
   await multiplayerSendSignal('ice_batch', JSON.stringify(deduped));
 }
 
 async function multiplayerStartOffer() {
   if (MULTIPLAYER_STATE.pc || MULTIPLAYER_STATE.offerSent) {
-    console.log('Offer already in progress, skipping');
+    debugLog('Offer already in progress, skipping');
     return;
   }
   
-  console.log('Starting offer creation...');
+  debugLog('Starting offer creation...');
   MULTIPLAYER_STATE.offerSent = true;
   MULTIPLAYER_STATE.connectionState = 'negotiating';
   MULTIPLAYER_STATE.pc = multiplayerCreatePeerConnection(true);
@@ -115,16 +115,16 @@ async function multiplayerStartOffer() {
       offerToReceiveVideo: false
     });
     
-    console.log('Offer created, setting local description');
+    debugLog('Offer created, setting local description');
     await MULTIPLAYER_STATE.pc.setLocalDescription(offer);
     MULTIPLAYER_STATE.waitingForAnswerSince = Date.now();
     MULTIPLAYER_STATE.extendedAnswerWait = false;
     
-    console.log('Sending offer to remote peer');
+    debugLog('Sending offer to remote peer');
     await multiplayerSendSignal('offer', JSON.stringify(offer));
     
     multiplayerSetStatus('Connecting…');
-    console.log('Offer sent successfully');
+    debugLog('Offer sent successfully');
   } catch (err) {
     console.error('Failed to create/send offer:', err);
     MULTIPLAYER_STATE.offerSent = false;
@@ -142,29 +142,29 @@ async function multiplayerHandleOffer(offer) {
     return;
   }
   
-  console.log('Received offer from host');
+  debugLog('Received offer from host');
 
   if (offer.sdp && offer.sdp === MULTIPLAYER_STATE.lastRemoteOfferSdp) {
-    console.log('Duplicate offer SDP received, skipping');
+    debugLog('Duplicate offer SDP received, skipping');
     return;
   }
   MULTIPLAYER_STATE.lastRemoteOfferSdp = offer.sdp || '';
   if (MULTIPLAYER_STATE.pc && MULTIPLAYER_STATE.answerSent) {
-    console.log('Already processed offer, ignoring duplicate');
+    debugLog('Already processed offer, ignoring duplicate');
     return;
   }
   
   MULTIPLAYER_STATE.connectionState = 'negotiating';
   
   if (!MULTIPLAYER_STATE.pc) {
-    console.log('Creating peer connection for answer');
+    debugLog('Creating peer connection for answer');
     MULTIPLAYER_STATE.pc = multiplayerCreatePeerConnection(false);
   }
   
   try {
-    console.log('Setting remote description (offer)');
+    debugLog('Setting remote description (offer)');
     await MULTIPLAYER_STATE.pc.setRemoteDescription(new RTCSessionDescription(offer));
-    console.log('Processing queued ICE candidates:', MULTIPLAYER_STATE.pendingIceCandidates.length);
+    debugLog('Processing queued ICE candidates:', MULTIPLAYER_STATE.pendingIceCandidates.length);
     while (MULTIPLAYER_STATE.pendingIceCandidates.length > 0) {
       const candidate = MULTIPLAYER_STATE.pendingIceCandidates.shift();
       try {
@@ -174,18 +174,18 @@ async function multiplayerHandleOffer(offer) {
       }
     }
     
-    console.log('Creating answer');
+    debugLog('Creating answer');
     const answer = await MULTIPLAYER_STATE.pc.createAnswer();
     
-    console.log('Setting local description (answer)');
+    debugLog('Setting local description (answer)');
     await MULTIPLAYER_STATE.pc.setLocalDescription(answer);
     
-    console.log('Sending answer to host');
+    debugLog('Sending answer to host');
     await multiplayerSendSignal('answer', JSON.stringify(answer));
     
     MULTIPLAYER_STATE.answerSent = true;
     multiplayerSetStatus('Connecting…');
-    console.log('Answer sent successfully');
+    debugLog('Answer sent successfully');
   } catch (err) {
     console.error('Failed to handle offer:', err);
     MULTIPLAYER_STATE.connectionState = 'failed';
@@ -202,18 +202,18 @@ async function multiplayerHandleAnswer(answer) {
     return;
   }
   
-  console.log('Received answer from client');
+  debugLog('Received answer from client');
   
   try {
     if (MULTIPLAYER_STATE.pc.signalingState === 'stable') {
-      console.log('Already stable, ignoring answer');
+      debugLog('Already stable, ignoring answer');
       return;
     }
     
-    console.log('Setting remote description (answer)');
+    debugLog('Setting remote description (answer)');
     await MULTIPLAYER_STATE.pc.setRemoteDescription(new RTCSessionDescription(answer));
     MULTIPLAYER_STATE.waitingForAnswerSince = 0;
-    console.log('Processing queued ICE candidates:', MULTIPLAYER_STATE.pendingIceCandidates.length);
+    debugLog('Processing queued ICE candidates:', MULTIPLAYER_STATE.pendingIceCandidates.length);
     while (MULTIPLAYER_STATE.pendingIceCandidates.length > 0) {
       const candidate = MULTIPLAYER_STATE.pendingIceCandidates.shift();
       try {
@@ -224,7 +224,7 @@ async function multiplayerHandleAnswer(answer) {
     }
     
     multiplayerSetStatus('Finalizing connection…');
-    console.log('Answer processed successfully');
+    debugLog('Answer processed successfully');
   } catch (err) {
     console.error('Failed to handle answer:', err);
   }
@@ -237,19 +237,19 @@ async function multiplayerHandleIceCandidate(candidate) {
   }
   
   if (!MULTIPLAYER_STATE.pc) {
-    console.log('No peer connection yet, queueing ICE candidate');
+    debugLog('No peer connection yet, queueing ICE candidate');
     MULTIPLAYER_STATE.pendingIceCandidates.push(candidate);
     return;
   }
   
   try {
     if (!MULTIPLAYER_STATE.pc.remoteDescription) {
-      console.log('Remote description not set, queueing ICE candidate');
+      debugLog('Remote description not set, queueing ICE candidate');
       MULTIPLAYER_STATE.pendingIceCandidates.push(candidate);
       return;
     }
     
-    console.log('Adding ICE candidate:', candidate.type || 'unknown');
+    debugLog('Adding ICE candidate:', candidate.type || 'unknown');
     await MULTIPLAYER_STATE.pc.addIceCandidate(new RTCIceCandidate(candidate));
   } catch (err) {
     console.warn('Failed to add ICE candidate:', err);
@@ -257,11 +257,11 @@ async function multiplayerHandleIceCandidate(candidate) {
 }
 
 function multiplayerSetupChannel(channel) {
-  console.log('Setting up data channel');
+  debugLog('Setting up data channel');
   MULTIPLAYER_STATE.channel = channel;
   
   channel.onopen = () => {
-    console.log('Data channel opened!');
+    debugLog('Data channel opened!');
     MULTIPLAYER_STATE.isConnected = true;
     MULTIPLAYER_STATE.connectionAttempts = 0;
     MULTIPLAYER_STATE.connectionState = 'connected';
@@ -293,7 +293,7 @@ function multiplayerSetupChannel(channel) {
   };
   
   channel.onclose = () => {
-    console.log('Data channel closed');
+    debugLog('Data channel closed');
     multiplayerHandlePeerDisconnect();
   };
   

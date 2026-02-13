@@ -45,6 +45,34 @@ function normalizeAppsScriptExecUrl(rawUrl) {
   return /\/exec\/?$/i.test(url) ? url : (url.replace(/\/?$/, '') + '/exec');
 }
 
+function getOnlineApiUrl(preferredEndpoint) {
+  const endpoint = preferredEndpoint === 'lobby' ? 'lobby' : 'leaderboard';
+  const primaryUrl = endpoint === 'lobby' ? ONLINE_LOBBY_URL : ONLINE_LEADERBOARD_URL;
+  const fallbackUrl = endpoint === 'lobby' ? ONLINE_LEADERBOARD_URL : ONLINE_LOBBY_URL;
+
+  const normalizedPrimary = normalizeAppsScriptExecUrl(primaryUrl);
+  if (normalizedPrimary) return normalizedPrimary;
+
+  const normalizedFallback = normalizeAppsScriptExecUrl(fallbackUrl);
+  return normalizedFallback || '';
+}
+
+function shouldEnableDebugLogs() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.DEBUG_MODE);
+    if (stored !== null) return stored === 'true';
+  } catch (_) {}
+
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('debugLogs') === '1';
+}
+
+function debugLog() {
+  if (!shouldEnableDebugLogs()) return;
+  console.log.apply(console, arguments);
+}
+
 
 function createEventBus() {
   const listeners = {};
