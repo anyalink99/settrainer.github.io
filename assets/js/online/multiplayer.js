@@ -105,6 +105,7 @@ function multiplayerGetNickname() {
 }
 
 function multiplayerGetBaseUrl() {
+  if (typeof getOnlineApiUrl === 'function') return getOnlineApiUrl('lobby');
   const lobbyUrl = normalizeAppsScriptExecUrl(ONLINE_LOBBY_URL);
   if (lobbyUrl) return lobbyUrl;
   if (typeof getLeaderboardBaseUrl === 'function') return getLeaderboardBaseUrl();
@@ -132,83 +133,63 @@ function multiplayerSetStatus(text) {
   if (typeof multiplayerRenderHud === 'function') multiplayerRenderHud();
 }
 
-function multiplayerHandlePeerDisconnect() {
-  if (!MULTIPLAYER_STATE.role) return;
-  const wasConnected = MULTIPLAYER_STATE.isConnected;
-  multiplayerStopPolling();
-  multiplayerStopLobbyListPolling();
-  multiplayerResetConnectionState();
-  MULTIPLAYER_STATE.isConnected = false;
-  MULTIPLAYER_STATE.role = null;
-  MULTIPLAYER_STATE.lobbyId = '';
-  MULTIPLAYER_STATE.remoteNick = '';
-  MULTIPLAYER_STATE.scores = {};
-  MULTIPLAYER_STATE.timestampsByNick = {};
-  MULTIPLAYER_STATE.lastSetTimeByNick = {};
-  MULTIPLAYER_STATE.preferRemote = false;
-  MULTIPLAYER_STATE.availableLobbies = [];
-  MULTIPLAYER_STATE.isLobbyListLoading = false;
-  MULTIPLAYER_STATE.lobbyListLastSignature = '';
-  MULTIPLAYER_STATE.hasLoadedLobbyListOnce = false;
-  MULTIPLAYER_STATE.rematchPrepared = false;
-  MULTIPLAYER_STATE.prevGameMode = null;
-  setGameMode(GAME_MODES.NORMAL);
-  multiplayerSetStatus('Not connected');
-  multiplayerRenderHud();
+function multiplayerResetSessionState() {
+  Object.assign(MULTIPLAYER_STATE, {
+    role: null,
+    lobbyId: '',
+    remoteNick: '',
+    scores: {},
+    timestampsByNick: {},
+    lastSetTimeByNick: {},
+    isConnected: false,
+    preferRemote: false,
+    availableLobbies: [],
+    isLobbyListLoading: false,
+    lobbyListLastSignature: '',
+    hasLoadedLobbyListOnce: false,
+    rematchPrepared: false,
+    prevGameMode: null,
+    selectedLobbyId: '',
+    selectedLobbyHostNick: ''
+  });
+}
+
+function multiplayerCloseOverlays() {
   closeModal('multiplayer-modal');
   closeModal('multiplayer-result-modal');
   closeSettingsPanel();
+}
+
+function multiplayerTeardownSession(options = {}) {
+  const {
+    switchToNormalMode = false,
+    syncActionButtons = false,
+    closeOverlays = true
+  } = options;
+
+  multiplayerStopPolling();
+  multiplayerStopLobbyListPolling();
+  multiplayerResetConnectionState();
+  multiplayerResetSessionState();
+  multiplayerSetStatus('Not connected');
+  multiplayerRenderHud();
+
+  if (syncActionButtons) multiplayerSyncActionButtons();
+  if (closeOverlays) multiplayerCloseOverlays();
+  if (switchToNormalMode) setGameMode(GAME_MODES.NORMAL);
+}
+
+function multiplayerHandlePeerDisconnect() {
+  if (!MULTIPLAYER_STATE.role) return;
+  const wasConnected = MULTIPLAYER_STATE.isConnected;
+  multiplayerTeardownSession({ switchToNormalMode: true });
   if (wasConnected && typeof showToast === 'function') showToast('Opponent left. Switched to Normal mode and restarted game');
 }
 
 function multiplayerHandleModeSwitchAway() {
-  multiplayerStopPolling();
-  multiplayerStopLobbyListPolling();
-  multiplayerResetConnectionState();
-  MULTIPLAYER_STATE.role = null;
-  MULTIPLAYER_STATE.lobbyId = '';
-  MULTIPLAYER_STATE.remoteNick = '';
-  MULTIPLAYER_STATE.scores = {};
-  MULTIPLAYER_STATE.timestampsByNick = {};
-  MULTIPLAYER_STATE.lastSetTimeByNick = {};
-  MULTIPLAYER_STATE.isConnected = false;
-  MULTIPLAYER_STATE.preferRemote = false;
-  MULTIPLAYER_STATE.availableLobbies = [];
-  MULTIPLAYER_STATE.isLobbyListLoading = false;
-  MULTIPLAYER_STATE.lobbyListLastSignature = '';
-  MULTIPLAYER_STATE.hasLoadedLobbyListOnce = false;
-  MULTIPLAYER_STATE.rematchPrepared = false;
-  MULTIPLAYER_STATE.prevGameMode = null;
-  multiplayerSetStatus('Not connected');
-  multiplayerRenderHud();
-  multiplayerSyncActionButtons();
-  closeModal('multiplayer-modal');
-  closeModal('multiplayer-result-modal');
-  closeSettingsPanel();
+  multiplayerTeardownSession({ syncActionButtons: true });
 }
 
 function multiplayerLeave() {
-  multiplayerStopPolling();
-  multiplayerStopLobbyListPolling();
-  multiplayerResetConnectionState();
-  MULTIPLAYER_STATE.role = null;
-  MULTIPLAYER_STATE.lobbyId = '';
-  MULTIPLAYER_STATE.remoteNick = '';
-  MULTIPLAYER_STATE.scores = {};
-  MULTIPLAYER_STATE.timestampsByNick = {};
-  MULTIPLAYER_STATE.lastSetTimeByNick = {};
-  MULTIPLAYER_STATE.isConnected = false;
-  MULTIPLAYER_STATE.preferRemote = false;
-  MULTIPLAYER_STATE.availableLobbies = [];
-  MULTIPLAYER_STATE.isLobbyListLoading = false;
-  MULTIPLAYER_STATE.lobbyListLastSignature = '';
-  MULTIPLAYER_STATE.hasLoadedLobbyListOnce = false;
-  MULTIPLAYER_STATE.rematchPrepared = false;
-  multiplayerSetStatus('Not connected');
-  multiplayerRenderHud();
-  closeModal('multiplayer-modal');
-  closeModal('multiplayer-result-modal');
-  closeSettingsPanel();
-  setGameMode(GAME_MODES.NORMAL);
-  MULTIPLAYER_STATE.prevGameMode = null;
+  multiplayerTeardownSession({ switchToNormalMode: true });
 }

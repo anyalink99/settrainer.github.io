@@ -1,7 +1,14 @@
 /** Auto-split from multiplayer.js */
 
+const MULTIPLAYER_POLL_INTERVAL_FAST_MS = 150;
+const MULTIPLAYER_POLL_INTERVAL_CONNECTED_MS = 500;
+const MULTIPLAYER_TIMEOUT_BASE_MS = 15000;
+const MULTIPLAYER_TIMEOUT_EXTENDED_ANSWER_MS = 30000;
+const MULTIPLAYER_TIMEOUT_PROGRESS_MS = 20000;
+const MULTIPLAYER_NEGOTIATION_DELAY_MS = 300;
+
 function multiplayerResetConnectionState() {
-  console.log('Resetting connection state');
+  debugLog('Resetting connection state');
   MULTIPLAYER_STATE.isConnected = false;
   MULTIPLAYER_STATE.channel = null;
   if (MULTIPLAYER_STATE.pc) {
@@ -49,7 +56,7 @@ function multiplayerStartPolling() {
   multiplayerStopPolling();
   MULTIPLAYER_STATE.isConnecting = true;
   MULTIPLAYER_STATE.connectionStartTime = Date.now();
-  MULTIPLAYER_STATE.pollTimer = setInterval(multiplayerPollLobby, 150);
+  MULTIPLAYER_STATE.pollTimer = setInterval(multiplayerPollLobby, MULTIPLAYER_POLL_INTERVAL_FAST_MS);
   multiplayerPollLobby();
   multiplayerEnsureConnectionTimeout();
 }
@@ -67,7 +74,7 @@ function multiplayerShouldTrackConnectionTimeout() {
 
 function multiplayerEnsureConnectionTimeout() {
   if (MULTIPLAYER_STATE.connectionTimeout || !multiplayerShouldTrackConnectionTimeout()) return;
-  MULTIPLAYER_STATE.connectionTimeout = setTimeout(multiplayerHandleConnectionTimeout, 15000);
+  MULTIPLAYER_STATE.connectionTimeout = setTimeout(multiplayerHandleConnectionTimeout, MULTIPLAYER_TIMEOUT_BASE_MS);
 }
 
 function multiplayerHandleConnectionTimeout() {
@@ -87,29 +94,29 @@ function multiplayerHandleConnectionTimeout() {
   if (pc && signalingState === 'have-local-offer') {
     if (!MULTIPLAYER_STATE.extendedAnswerWait) {
       MULTIPLAYER_STATE.extendedAnswerWait = true;
-      console.log('Waiting for answer (have-local-offer), extending timeout by 30s');
+      debugLog('Waiting for answer (have-local-offer), extending timeout by 30s');
       MULTIPLAYER_STATE.connectionTimeout = setTimeout(() => {
         MULTIPLAYER_STATE.connectionTimeout = null;
         if (!MULTIPLAYER_STATE.isConnected) {
-          console.log('No answer received after extension, retrying');
+          debugLog('No answer received after extension, retrying');
           multiplayerRetryConnection();
         }
-      }, 30000);
+      }, MULTIPLAYER_TIMEOUT_EXTENDED_ANSWER_MS);
       return;
     }
   }
 
   if (pc && (connectionState === 'connecting' || iceState === 'checking')) {
-    console.log('Connection is progressing (connecting/checking), extending timeout by 20s');
+    debugLog('Connection is progressing (connecting/checking), extending timeout by 20s');
     MULTIPLAYER_STATE.connectionTimeout = setTimeout(() => {
       MULTIPLAYER_STATE.connectionTimeout = null;
       if (!MULTIPLAYER_STATE.isConnected) multiplayerRetryConnection();
-    }, 20000);
+    }, MULTIPLAYER_TIMEOUT_PROGRESS_MS);
     return;
   }
 
   if (MULTIPLAYER_STATE.connectionAttempts < 4) {
-    console.log('Connection timeout, retrying...', MULTIPLAYER_STATE.connectionAttempts + 1, 'state:', signalingState, connectionState, iceState);
+    debugLog('Connection timeout, retrying...', MULTIPLAYER_STATE.connectionAttempts + 1, 'state:', signalingState, connectionState, iceState);
     multiplayerRetryConnection();
   } else {
     multiplayerSetStatus('Connection failed');
@@ -121,7 +128,7 @@ function multiplayerHandleConnectionTimeout() {
 function multiplayerSlowDownPolling() {
   if (MULTIPLAYER_STATE.pollTimer) {
     clearInterval(MULTIPLAYER_STATE.pollTimer);
-    MULTIPLAYER_STATE.pollTimer = setInterval(multiplayerPollLobby, 500);
+    MULTIPLAYER_STATE.pollTimer = setInterval(multiplayerPollLobby, MULTIPLAYER_POLL_INTERVAL_CONNECTED_MS);
   }
   MULTIPLAYER_STATE.isConnecting = false;
   if (MULTIPLAYER_STATE.connectionTimeout) {
@@ -131,7 +138,7 @@ function multiplayerSlowDownPolling() {
 }
 
 function multiplayerRetryConnection() {
-  console.log('Retrying connection...');
+  debugLog('Retrying connection...');
   MULTIPLAYER_STATE.connectionAttempts++;
   if (MULTIPLAYER_STATE.pc) {
     try { MULTIPLAYER_STATE.pc.close(); } catch (_) {}
@@ -167,7 +174,7 @@ async function multiplayerPollLobby() {
         const nextRemoteNick = String(other.nick || other.nickname || '').trim();
         if (nextRemoteNick && nextRemoteNick !== MULTIPLAYER_STATE.remoteNick) {
           MULTIPLAYER_STATE.remoteNick = nextRemoteNick;
-          console.log('Remote player found:', MULTIPLAYER_STATE.remoteNick);
+          debugLog('Remote player found:', MULTIPLAYER_STATE.remoteNick);
           multiplayerSetStatus(MULTIPLAYER_STATE.statusBaseText || 'Connected');
         }
       }
@@ -184,13 +191,13 @@ async function multiplayerPollLobby() {
         MULTIPLAYER_STATE.connectionState !== 'negotiating' &&
         MULTIPLAYER_STATE.connectionState !== 'connected') {
       
-      console.log('Both peers ready, starting WebRTC negotiation');
+      debugLog('Both peers ready, starting WebRTC negotiation');
       MULTIPLAYER_STATE.connectionState = 'negotiating';
       setTimeout(() => {
         if (!MULTIPLAYER_STATE.pc && !MULTIPLAYER_STATE.offerSent) {
           multiplayerStartOffer();
         }
-      }, 300);
+      }, MULTIPLAYER_NEGOTIATION_DELAY_MS);
     }
     
   } catch (err) {
@@ -224,12 +231,12 @@ function multiplayerProcessSignals(signals) {
     MULTIPLAYER_STATE.processedSignals.add(key);
     if (sig.from && sig.from.toLowerCase() === MULTIPLAYER_STATE.localNick.toLowerCase()) return;
     
-    console.log('Processing signal:', sig.type, 'from:', sig.from);
+    debugLog('Processing signal:', sig.type, 'from:', sig.from);
     
     try {
       if (sig.type === 'ready') {
         if (!MULTIPLAYER_STATE.remoteReady) {
-          console.log('Remote peer is ready!');
+          debugLog('Remote peer is ready!');
           MULTIPLAYER_STATE.remoteReady = true;
           if (MULTIPLAYER_STATE.role === 'host' && 
               MULTIPLAYER_STATE.isReady && 

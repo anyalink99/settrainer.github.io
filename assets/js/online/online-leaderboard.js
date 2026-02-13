@@ -88,6 +88,7 @@ function getOnlineNickname() {
 }
 
 function getLeaderboardBaseUrl() {
+  if (typeof getOnlineApiUrl === 'function') return getOnlineApiUrl('leaderboard');
   return normalizeAppsScriptExecUrl(ONLINE_LEADERBOARD_URL);
 }
 
@@ -98,9 +99,10 @@ function setOnlineNickname(nick) {
   return value;
 }
 
+const ONLINE_IFRAME_TIMEOUT_MS = 15000;
+
 function fetchViaIframe(url) {
   return new Promise(function (resolve, reject) {
-    var timeoutMs = 15000;
     var done = false;
     var iframe = document.createElement('iframe');
     iframe.style.cssText = 'position:absolute;width:0;height:0;border:0;visibility:hidden';
@@ -124,7 +126,7 @@ function fetchViaIframe(url) {
       window.removeEventListener('message', onMessage);
       if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
       reject(new Error('Timeout'));
-    }, timeoutMs);
+    }, ONLINE_IFRAME_TIMEOUT_MS);
     window.addEventListener('message', onMessage);
     iframe.src = urlWithFormat;
     document.body.appendChild(iframe);

@@ -145,7 +145,7 @@ async function multiplayerHostLobby() {
     MULTIPLAYER_STATE.lobbyId = data.lobbyId;
     MULTIPLAYER_STATE.isReady = true;
     MULTIPLAYER_STATE.connectionState = 'waiting_ready';
-    console.log('Lobby created:', data.lobbyId);
+    debugLog('Lobby created:', data.lobbyId);
     multiplayerSetStatus('Lobby created. Waiting for player…');
     multiplayerSyncModal();
     multiplayerStartPolling();
@@ -175,14 +175,14 @@ async function multiplayerJoinLobby(selectedLobbyId, selectedHostNick) {
     MULTIPLAYER_STATE.role = 'client';
     MULTIPLAYER_STATE.lobbyId = lobbyId;
     MULTIPLAYER_STATE.connectionState = 'waiting_ready';
-    console.log('Joined lobby:', lobbyId);
+    debugLog('Joined lobby:', lobbyId);
     multiplayerSetStatus('Joined. Preparing connection…');
     multiplayerSyncModal();
     multiplayerStartPolling();
     setTimeout(() => {
       MULTIPLAYER_STATE.isReady = true;
       multiplayerSendSignal('ready', 'true').then(() => {
-        console.log('Ready signal sent');
+        debugLog('Ready signal sent');
         multiplayerSetStatus('Ready. Waiting for host…');
       }).catch(err => {
         console.error('Failed to send ready signal:', err);

@@ -41,6 +41,15 @@ function readShapeSizeRatioSetting() {
   return (value >= 0.7 && value <= 1) ? value : 0.9;
 }
 
+function readInitialGameModeSetting() {
+  const mode = readEnumSetting(STORAGE_KEYS.GAME_MODE, DEFAULT_GAME_MODE, GAME_MODE_IDS);
+  if (mode === GAME_MODES.MULTIPLAYER) {
+    Storage.set(STORAGE_KEYS.GAME_MODE, DEFAULT_GAME_MODE);
+    return DEFAULT_GAME_MODE;
+  }
+  return mode;
+}
+
 function readGameColorsSetting() {
   const savedColors = Storage.getJSON(STORAGE_KEYS.GAME_COLORS);
   return Array.isArray(savedColors) && savedColors.length === 3
@@ -70,7 +79,7 @@ let config = {
   autoSelectThird: Storage.get(STORAGE_KEYS.AUTO_SELECT_THIRD, false),
   minSetsToRecord: readClampedIntSetting(STORAGE_KEYS.MIN_SETS, 23, MIN_SETS_MAX),
   targetPossibleSets: readClampedIntSetting(STORAGE_KEYS.TARGET_POSSIBLE_SETS, 0, TPS_MAX_SETS),
-  gameMode: readEnumSetting(STORAGE_KEYS.GAME_MODE, DEFAULT_GAME_MODE, GAME_MODE_IDS),
+  gameMode: readInitialGameModeSetting(),
   debugMode: Storage.get(STORAGE_KEYS.DEBUG_MODE, false),
 
   // ===== Online settings (consumed by multiplayer/*.js, online-leaderboard.js) =====
