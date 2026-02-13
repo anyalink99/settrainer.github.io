@@ -195,8 +195,6 @@ function multiplayerSetupChannel(channel, peerNick) {
       multiplayerSyncActionButtons();
       if (typeof multiplayerSyncModal === 'function') multiplayerSyncModal();
       multiplayerStopLobbyListPolling();
-      closeMultiplayerModal();
-      closeSettingsPanel();
       multiplayerSetStatus('Connected');
       return;
     }
@@ -209,8 +207,6 @@ function multiplayerSetupChannel(channel, peerNick) {
     multiplayerSyncActionButtons();
     if (typeof multiplayerSyncModal === 'function') multiplayerSyncModal();
     multiplayerStopLobbyListPolling();
-    closeMultiplayerModal();
-    closeSettingsPanel();
   };
 
   channel.onmessage = (e) => {
