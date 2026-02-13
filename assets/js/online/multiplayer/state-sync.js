@@ -76,6 +76,7 @@ async function multiplayerApplyState(state, reason) {
   MULTIPLAYER_STATE.isApplyingState = true;
   try {
     if (reason === 'start') {
+      if (typeof multiplayerForceCloseOverlays === 'function') multiplayerForceCloseOverlays();
       closeModal('multiplayer-result-modal');
       closeMultiplayerModal();
       closeSettingsPanel();
@@ -455,6 +456,7 @@ function multiplayerStartMatch() {
     initNewDeckAndBoard();
   }
   updateUI();
+  if (typeof multiplayerForceCloseOverlays === 'function') multiplayerForceCloseOverlays();
   closeModal('multiplayer-result-modal');
   closeSettingsPanel();
   MULTIPLAYER_STATE.rematchPrepared = false;
