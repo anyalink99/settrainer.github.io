@@ -175,6 +175,35 @@ function multiplayerCloseOverlays() {
   closeSettingsPanel();
 }
 
+function multiplayerForceHideOverlay(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.classList.remove('show', 'hide');
+}
+
+function multiplayerForceCloseOverlays() {
+  multiplayerForceHideOverlay('multiplayer-modal');
+  multiplayerForceHideOverlay('multiplayer-result-modal');
+
+  const panel = document.getElementById('settings-panel');
+  if (panel) {
+    panel.classList.remove('show', 'hide');
+    panel.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function multiplayerReinitializeGameToNormalMode() {
+  multiplayerForceCloseOverlays();
+  if (config.gameMode !== GAME_MODES.NORMAL) {
+    setGameMode(GAME_MODES.NORMAL);
+    return;
+  }
+  initNewDeckAndBoard();
+  resetStats();
+  updateUI();
+  syncSettingsUI();
+}
+
 function multiplayerTeardownSession(options = {}) {
   const {
     switchToNormalMode = false,
@@ -191,7 +220,7 @@ function multiplayerTeardownSession(options = {}) {
 
   if (syncActionButtons) multiplayerSyncActionButtons();
   if (closeOverlays) multiplayerCloseOverlays();
-  if (switchToNormalMode) setGameMode(GAME_MODES.NORMAL);
+  if (switchToNormalMode) multiplayerReinitializeGameToNormalMode();
 }
 
 function multiplayerHandlePeerDisconnect() {
