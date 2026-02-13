@@ -48,7 +48,8 @@ async function multiplayerRefreshLobbyList() {
       .map((lobby) => {
         const hostNick = String(lobby.hostNick || lobby.nickname || lobby.nick || lobby.host || 'Unknown').trim() || 'Unknown';
         const createdAt = Number(lobby.createdAt || 0);
-        return `${lobby.lobbyId}:${hostNick}:${createdAt}`;
+        const playerCount = Number(lobby.playerCount || (Array.isArray(lobby.players) ? lobby.players.length : 0));
+        return `${lobby.lobbyId}:${hostNick}:${createdAt}:${playerCount}`;
       })
       .join('|');
 
@@ -104,7 +105,8 @@ function multiplayerRenderLobbyList() {
 
     const idEl = document.createElement('div');
     idEl.className = 'multiplayer-lobby-id';
-    idEl.textContent = 'Lobby: ' + lobbyId;
+    const count = Number(lobby.playerCount || (Array.isArray(lobby.players) ? lobby.players.length : 0)) || 1;
+    idEl.textContent = 'Lobby: ' + lobbyId + ' · Players: ' + count + '/3';
 
     btn.appendChild(nickEl);
     btn.appendChild(idEl);
@@ -134,6 +136,21 @@ async function multiplayerRequest(action, params) {
 }
 
 async function multiplayerHostLobby() {
+  const alreadyHosting = MULTIPLAYER_STATE.role === 'host' && !!MULTIPLAYER_STATE.lobbyId;
+  if (alreadyHosting) {
+    const connectedPeers = (typeof multiplayerGetConnectedPeerCount === 'function') ? multiplayerGetConnectedPeerCount() : 0;
+    if (connectedPeers < 1) {
+      multiplayerSetStatus('Waiting for player…');
+      if (typeof showToast === 'function') showToast('Wait until at least one player connects');
+      multiplayerSyncModal();
+      return;
+    }
+    multiplayerStartMatch();
+    closeMultiplayerModal();
+    closeSettingsPanel();
+    return;
+  }
+
   const nick = multiplayerGetNickname();
   MULTIPLAYER_STATE.localNick = nick;
   multiplayerSetStatus('Creating lobby…');
@@ -162,6 +179,13 @@ async function multiplayerJoinLobby(selectedLobbyId, selectedHostNick) {
     if (typeof showToast === 'function') showToast('Select a lobby');
     return;
   }
+  const selectedLobby = (MULTIPLAYER_STATE.availableLobbies || []).find((entry) => String(entry.lobbyId || entry.id || '').trim() === lobbyId);
+  const currentPlayers = Number(selectedLobby && (selectedLobby.playerCount || (Array.isArray(selectedLobby.players) ? selectedLobby.players.length : 0))) || 0;
+  if (currentPlayers >= 3) {
+    if (typeof showToast === 'function') showToast('Lobby is full');
+    return;
+  }
+
   const nick = multiplayerGetNickname();
   MULTIPLAYER_STATE.localNick = nick;
   MULTIPLAYER_STATE.selectedLobbyId = lobbyId;

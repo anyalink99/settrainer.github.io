@@ -47,6 +47,9 @@ const MULTIPLAYER_STATE = {
   statusBaseText: 'Not connected',
   localNick: '',
   remoteNick: '',
+  remoteNicks: [],
+  remoteReadyByNick: {},
+  peerConnections: {},
   scores: {},
   timestampsByNick: {},
   lastSetTimeByNick: {},
@@ -98,6 +101,15 @@ function multiplayerShouldUseRemoteState() {
   return isMultiplayerModeActive() && (MULTIPLAYER_STATE.role === 'client' || MULTIPLAYER_STATE.preferRemote);
 }
 
+
+function multiplayerGetConnectedPeerCount() {
+  const peers = MULTIPLAYER_STATE.peerConnections || {};
+  return Object.keys(peers).reduce((acc, nick) => {
+    const channel = peers[nick] && peers[nick].channel;
+    return acc + ((channel && channel.readyState === 'open') ? 1 : 0);
+  }, 0);
+}
+
 function multiplayerGetNickname() {
   if (typeof ensureOnlineNickname === 'function') return ensureOnlineNickname();
   const raw = (config && config.onlineNickname) ? String(config.onlineNickname) : '';
@@ -138,6 +150,9 @@ function multiplayerResetSessionState() {
     role: null,
     lobbyId: '',
     remoteNick: '',
+    remoteNicks: [],
+    remoteReadyByNick: {},
+    peerConnections: {},
     scores: {},
     timestampsByNick: {},
     lastSetTimeByNick: {},

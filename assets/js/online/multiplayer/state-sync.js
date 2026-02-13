@@ -2,6 +2,7 @@
 
 function multiplayerHandleMessage(msg) {
   if (msg.type === 'hello') {
+    if (msg.nick && !MULTIPLAYER_STATE.remoteNicks.includes(String(msg.nick))) MULTIPLAYER_STATE.remoteNicks.push(String(msg.nick));
     if (msg.nick) MULTIPLAYER_STATE.remoteNick = String(msg.nick);
     multiplayerRenderHud();
     return;
@@ -194,30 +195,30 @@ async function multiplayerHandleHostSetFound(sIdx, currentPossible) {
 async function multiplayerHandleHostClaim(msg) {
   if (!msg || !Array.isArray(msg.indices)) return;
   if (isAnimating || isGameOver) {
-    multiplayerSend({ type: 'claim_result', ok: false, reason: 'busy' });
+    multiplayerSendTo(msg.nick, { type: 'claim_result', ok: false, reason: 'busy' });
     return;
   }
   const sIdx = msg.indices.map(v => Number(v)).filter(v => Number.isFinite(v));
   const unique = new Set(sIdx);
   if (sIdx.length !== 3 || unique.size !== 3) {
-    multiplayerSend({ type: 'claim_result', ok: false, reason: 'invalid' });
+    multiplayerSendTo(msg.nick, { type: 'claim_result', ok: false, reason: 'invalid' });
     return;
   }
   if (sIdx.some(i => i < 0 || i >= board.length || !board[i])) {
-    multiplayerSend({ type: 'claim_result', ok: false, reason: 'invalid' });
+    multiplayerSendTo(msg.nick, { type: 'claim_result', ok: false, reason: 'invalid' });
     return;
   }
   const cards = sIdx.map(i => board[i]);
   const isCorrect = validateSet(cards);
   if (!isCorrect) {
-    multiplayerSend({ type: 'claim_result', ok: false, reason: 'wrong' });
+    multiplayerSendTo(msg.nick, { type: 'claim_result', ok: false, reason: 'wrong' });
     return;
   }
   isAnimating = true;
   selected.forEach(i => document.getElementById('board').children[i].querySelector('.card')?.classList.remove('selected'));
   selected = [];
   const possibleAtStart = analyzePossibleSets().total;
-  const nick = msg.nick || MULTIPLAYER_STATE.remoteNick || 'Guest';
+  const nick = String((msg && msg.nick) || (msg && msg.__from) || MULTIPLAYER_STATE.remoteNick || 'Guest');
   multiplayerAwardSet(nick, possibleAtStart);
   await applySetToBoard(sIdx);
   multiplayerBroadcastState('set');
@@ -324,7 +325,7 @@ function multiplayerHandleShuffleResult(msg) {
 function multiplayerHandleHostShuffleRequest(msg) {
   if (!multiplayerIsHost()) return;
   if (isAnimating || isGameOver) {
-    multiplayerSend({ type: 'shuffle_result', ok: false, reason: 'busy' });
+    multiplayerSendTo(msg.nick, { type: 'shuffle_result', ok: false, reason: 'busy' });
     return;
   }
 
@@ -335,7 +336,7 @@ function multiplayerHandleHostShuffleRequest(msg) {
     badShuffles++;
     multiplayerApplyBadShufflePenalty(nick);
     multiplayerBroadcastState('shuffle_penalty');
-    multiplayerSend({ type: 'shuffle_result', ok: false, reason: 'bad_shuffle' });
+    multiplayerSendTo(nick, { type: 'shuffle_result', ok: false, reason: 'bad_shuffle' });
     return;
   }
 
@@ -344,7 +345,7 @@ function multiplayerHandleHostShuffleRequest(msg) {
   multiplayerAwardNoSetShufflePoint(nick);
   shuffleBtnCooldownUntil = now + fadeOutMs + animInMs;
   handleShuffleDeck(false);
-  multiplayerSend({ type: 'shuffle_result', ok: true });
+  multiplayerSendTo(nick, { type: 'shuffle_result', ok: true });
 }
 
 function multiplayerCheckFinish() {
@@ -432,10 +433,18 @@ function multiplayerStartMatch() {
   MULTIPLAYER_STATE.preferRemote = false;
   MULTIPLAYER_STATE.startEpoch = Date.now();
   const hostNick = MULTIPLAYER_STATE.localNick || multiplayerGetNickname();
-  const guestNick = MULTIPLAYER_STATE.remoteNick || 'Guest';
-  MULTIPLAYER_STATE.scores = { [hostNick]: 0, [guestNick]: 0 };
-  MULTIPLAYER_STATE.timestampsByNick = { [hostNick]: [], [guestNick]: [] };
-  MULTIPLAYER_STATE.lastSetTimeByNick = { [hostNick]: MULTIPLAYER_STATE.startEpoch, [guestNick]: MULTIPLAYER_STATE.startEpoch };
+  const participants = [hostNick, ...(Array.isArray(MULTIPLAYER_STATE.remoteNicks) ? MULTIPLAYER_STATE.remoteNicks : [])]
+    .map((n) => String(n || '').trim())
+    .filter(Boolean)
+    .filter((n, i, arr) => arr.indexOf(n) === i);
+  MULTIPLAYER_STATE.scores = {};
+  MULTIPLAYER_STATE.timestampsByNick = {};
+  MULTIPLAYER_STATE.lastSetTimeByNick = {};
+  participants.forEach((nick) => {
+    MULTIPLAYER_STATE.scores[nick] = 0;
+    MULTIPLAYER_STATE.timestampsByNick[nick] = [];
+    MULTIPLAYER_STATE.lastSetTimeByNick[nick] = MULTIPLAYER_STATE.startEpoch;
+  });
   MULTIPLAYER_STATE.pendingClaim = false;
   isGameOver = false;
   multiplayerSetStatus('Match started');

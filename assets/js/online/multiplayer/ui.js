@@ -2,7 +2,8 @@
 
 function multiplayerGetStatusNickname() {
   if (MULTIPLAYER_STATE.role === 'host') {
-    return (MULTIPLAYER_STATE.remoteNick || '').trim();
+    const remotes = Array.isArray(MULTIPLAYER_STATE.remoteNicks) ? MULTIPLAYER_STATE.remoteNicks.filter(Boolean) : [];
+    return remotes.join(', ');
   }
   if (MULTIPLAYER_STATE.role === 'client') {
     return (MULTIPLAYER_STATE.remoteNick || '').trim();
@@ -72,11 +73,22 @@ function multiplayerSyncActionButtons() {
 function multiplayerSyncModal() {
   const nickEl = document.getElementById('multiplayer-nick');
   if (nickEl) nickEl.textContent = multiplayerGetNickname();
+
   const lobbyEl = document.getElementById('multiplayer-lobby-id');
   if (lobbyEl) {
     const shouldShowHostLobbyId = MULTIPLAYER_STATE.role === 'host' && MULTIPLAYER_STATE.lobbyId;
     lobbyEl.textContent = shouldShowHostLobbyId ? ('Lobby: ' + MULTIPLAYER_STATE.lobbyId) : '';
   }
+
+  const hostBtn = document.getElementById('multiplayer-host-btn');
+  if (hostBtn) {
+    const isHostSession = MULTIPLAYER_STATE.role === 'host' && !!MULTIPLAYER_STATE.lobbyId;
+    const connectedPeers = (typeof multiplayerGetConnectedPeerCount === 'function') ? multiplayerGetConnectedPeerCount() : 0;
+    hostBtn.textContent = isHostSession ? 'Start' : 'Host';
+    const canStart = isHostSession && connectedPeers > 0;
+    hostBtn.style.opacity = isHostSession && !canStart ? '0.6' : '';
+  }
+
   multiplayerSetStatus(MULTIPLAYER_STATE.statusBaseText || 'Not connected');
 }
 
