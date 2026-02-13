@@ -77,6 +77,8 @@ async function multiplayerApplyState(state, reason) {
   try {
     if (reason === 'start') {
       closeModal('multiplayer-result-modal');
+      closeMultiplayerModal();
+      closeSettingsPanel();
       isGameOver = false;
       MULTIPLAYER_STATE.preferRemote = true;
       if (multiplayerIsClient()) {
